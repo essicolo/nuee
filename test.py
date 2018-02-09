@@ -13,7 +13,7 @@ import nuee
 import seaborn as sns
 from nuee.ordination import PrincipalComponentsAnalysis as pca
 iris = sns.load_dataset("iris")
-pca_results = pca(scaling=2)
+pca_results = pca(scaling=1)
 pca_results.fit(iris.iloc[:, :4]);
 pca_results.ordiplot(axes=[0,1])
 
@@ -21,10 +21,6 @@ pca_results.screeplot()
 
 
 # LDA
-%load_ext autoreload
-%autoreload 2
-import seaborn as sns
-iris = sns.load_dataset("iris")
 from nuee.ordination import LinearDiscriminantAnalysis as lda
 lda_results = lda(solver='svd')
 lda_results.fit(iris.iloc[:, :4], iris.species);
@@ -47,11 +43,6 @@ rda_results.ordiplot(axes=[0,1])
 rda_results.screeplot()
 
 
-
-
-
-pd.Series([0, 2, 3]).as_matrix()
-
 # multinormal (mardia) - OK
 # pairsplot - plus tard
 # PCA - OK
@@ -65,24 +56,7 @@ pd.Series([0, 2, 3]).as_matrix()
 # diversity --> scikit bio
 # rarefaction
 # ordiplot - OK (manque lda avec ellipses)
+## option: show_sample_scores_as = 'index' or 'points'
 # screeplot - OK
 # ellipse - OK
-
-
-
-
-import numpy as np
-from sklearn.decomposition import PCA
-X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
-pca = PCA(n_components=2)
-pca.fit(X)
-
-
-
-
-from sklearn import preprocessing
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-iris_dim = iris.iloc[:,0:4] # les dimensions des fleurs
-iris_dim_sc = preprocessing.scale(iris_dim, axis=0) # standardiser à une moyenne de 0 et une variance de 1
-iris_lda = LDA(solver='svd', n_components=2)
-iris_lda.fit(X=iris_dim_sc, y=iris.species)
+# coda
