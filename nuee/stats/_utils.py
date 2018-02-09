@@ -1,5 +1,7 @@
 import numpy as np
 import scipy as sp
+from scipy.stats import f as ssf
+
 
 def corr(x, y=None):
     """Computes correlation between columns of `x`, or `x` and `y`.

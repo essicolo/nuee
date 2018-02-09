@@ -55,16 +55,17 @@ def ordiplot(self, axes=[0, 1],
     elif sample_scatter == 'points' and group is not None:
         p = p + geom_point(aes(colour='group'))
     if sample_scatter == 'labels' and group is None:
-        p = p + geom_text(aes(label='ID'))
+        p = p + geom_text(aes(label='index'))
     elif sample_scatter == 'labels' and group is not None:
-        p = p + geom_text(aes(label='ID', colour='group'))
+        p = p + geom_text(aes(label='index', colour='group'))
 
     ## draw species if rda or cca
     if self.ordiobject_type == 'RDA':
         p = p + geom_text(data = self.response_scores.iloc[:, axes].reset_index(),
-                          mapping = aes(label='ID'), colour='slategrey')
+                          mapping = aes(label='index'))
 
     # add biplot scores
+    print('gafargsr fg sdfgsdg sdfg sfg fd g')
     p = p +\
         geom_segment(self.biplot_scores * arrow_scale, x=0, y=0,
                      mapping=aes(xend=ordi_columns[0],
@@ -72,16 +73,15 @@ def ordiplot(self, axes=[0, 1],
         geom_label((self.biplot_scores * arrow_scale).reset_index(),
                      mapping=aes(x=ordi_columns[0],
                                  y=ordi_columns[1],
-                                 label=self.biplot_scores.index.name))
+                                 label='index'))
 
     return p
 
 
 def screeplot(self):
-    df = (self.proportion_explained.iloc[:self.biplot_scores.shape[0]] * 100).reset_index()
-    df.columns = ['ID', 'Proportion explainded (%)']
-    df["ID"] = pd.Categorical(df["ID"], categories=df["ID"], ordered=True)
-    p = ggplot(df, aes(x='ID', y='Proportion explainded (%)')) +\
+    df = (self.proportion_explained * 100).reset_index()
+    df.columns = ['index', 'Proportion explainded (%)']
+    p = ggplot(df, aes(x='index', y='Proportion explainded (%)')) +\
         geom_col() +\
         xlab('')
     return p

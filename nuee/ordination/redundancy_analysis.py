@@ -192,6 +192,7 @@ class RedundancyAnalysis():
         response_scores = pd.DataFrame(np.hstack((eigenvectors, eigenvectors_res)) * scaling_factor,
                                       index=response_ids,
                                       columns=ordi_column_names_all)
+        response_scores.index.name = 'ID'
 
         if self.sample_scores_type == 'wa':
                 sample_scores = pd.DataFrame(np.hstack((F, F_res)) / scaling_factor,
@@ -201,14 +202,17 @@ class RedundancyAnalysis():
                 sample_scores = pd.DataFrame(np.hstack((Z, Z_res)) / scaling_factor,
                                      index=sample_ids,
                                      columns=ordi_column_names_all)
+        sample_scores.index.name = 'ID'
 
         biplot_scores = pd.DataFrame(np.hstack((corXZ.dot(D), corXZ_res.dot(D_res))) * scaling_factor,
                                      index=feature_ids,
                                      columns=ordi_column_names_all)
+        biplot_scores.index.name = 'ID'
 
         sample_constraints = pd.DataFrame(np.hstack((Z, F_res)) / scaling_factor,
                                           index=sample_ids,
                                           columns=ordi_column_names_all)
+        sample_constraints.index.name = 'ID'
 
         # Goodness of fit
         ## Unadjusted R2
@@ -228,8 +232,8 @@ class RedundancyAnalysis():
         # sample_lc_scores (Z): sites scores of "lc" type, site constraints
 
         # Add RDA ordination object names to self
-        self.short_method_name = 'RDA'
-        self.long_method_name = 'Redundancy Analysis'
+        self.ordiobject_type = 'RDA'
+        self.method_name = 'Redundancy Analysis'
         self.ordi_fitted = None # To do
         self.eigenvalues = eigenvalues
         self.proportion_explained = p_explained
@@ -243,26 +247,27 @@ class RedundancyAnalysis():
                                               'total_variance': trace}
         return self
 
-    def ordiplot(self, axes=[0, 1], title='', cmap=None, arrow_scale=1):
-        # Check if the object is plottable
-        ordi_objects = ['short_method_name', 'long_method_name', 'eigenvalues',
-                        'proportion_explained', 'response_scores', 'sample_scores',
-                        'biplot_scores', 'sample_constraints']
-        is_ordi_object = []
-        for i in ordi_objects: is_ordi_object.append(i in dir(self))
-        if not np.all(is_ordi_object):
+    def ordiplot(self, axes=[0, 1],
+             arrow_scale=1,
+             sample_scatter='labels', group=None,
+             level=0.95,
+             deviation_ellipses = True,
+             error_ellipses = True):
+
+        # Check
+        if not hasattr(self, 'ordiobject_type'):
             raise ValueError("Not an ordination object. Have you fitted (.fit) beforehand?")
 
-        return ordiplot(self, axes=axes, title=title, cmap=cmap, arrow_scale=arrow_scale)
+        return ordiplot(self, axes=axes,
+                 arrow_scale=arrow_scale,
+                 sample_scatter=sample_scatter,
+                 group=group,
+                 level=level,
+                 deviation_ellipses = deviation_ellipses,
+                 error_ellipses = error_ellipses)
 
     def screeplot(self):
-        # Check if the object is plottable
-        ordi_objects = ['short_method_name', 'long_method_name', 'eigenvalues',
-                        'proportion_explained', 'response_scores', 'sample_scores',
-                        'biplot_scores', 'sample_constraints']
-        is_ordi_object = []
-        for i in ordi_objects: is_ordi_object.append(i in dir(self))
-        if not np.all(is_ordi_object):
+        # Check
+        if not hasattr(self, 'ordiobject_type'):
             raise ValueError("Not an ordination object. Have you fitted (.fit) beforehand?")
-
         return screeplot(self)

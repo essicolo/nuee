@@ -25,6 +25,9 @@ class PrincipalComponentsAnalysis():
         self.scaling = scaling
 
     def fit(self, X):
+
+        self.X = X
+
         sample_ids = X.index
         feature_ids = X.columns
         X = X.as_matrix()
@@ -51,39 +54,42 @@ class PrincipalComponentsAnalysis():
             biplot_scores = nuee_PCA.components_.dot(np.diag(eigenvalues**0.5)).T
 
         # Add PCA ordination object names to self
-        self.short_method_name = 'PCA'
-        self.long_method_name = 'Principal Components Analysis'
+        self.ordiobject_type = 'PCA'
+        self.method_name = 'Principal Components Analysis'
         self.ordi_fitted = nuee_PCA
         self.eigenvalues = eigenvalues
         self.proportion_explained = p_explained
         self.sample_scores = pd.DataFrame(sample_scores,
                                           index=sample_ids,
                                           columns = ordi_column_names)
+        self.sample_scores.index.name = 'ID'
         self.biplot_scores = pd.DataFrame(biplot_scores,
                                           index=feature_ids,
                                           columns=ordi_column_names)
-
+        self.biplot_scores.index.name = 'ID'
         return self
 
-    def ordiplot(self, axes=[0, 1], title='', cmap=None, arrow_scale=1):
-        # Check if the object is plottable
-        ordi_objects = ['short_method_name', 'long_method_name', 'eigenvalues',
-                        'proportion_explained', 'sample_scores','biplot_scores']
-        is_ordi_object = []
-        for i in ordi_objects: is_ordi_object.append(i in dir(self))
-        if not np.all(is_ordi_object):
+    def ordiplot(self, axes=[0, 1],
+             arrow_scale=1,
+             sample_scatter='labels', group=None,
+             level=0.95,
+             deviation_ellipses = True,
+             error_ellipses = True):
+
+        # Check
+        if not hasattr(self, 'ordiobject_type'):
             raise ValueError("Not an ordination object. Have you fitted (.fit) beforehand?")
 
-        return ordiplot(self, axes=axes, title=title, cmap=cmap, arrow_scale=arrow_scale)
+        return ordiplot(self, axes=axes,
+                 arrow_scale=arrow_scale,
+                 sample_scatter=sample_scatter,
+                 group=group,
+                 level=level,
+                 deviation_ellipses = deviation_ellipses,
+                 error_ellipses = error_ellipses)
 
     def screeplot(self):
-        # Check if the object is plottable
-        ordi_objects = ['short_method_name', 'long_method_name', 'eigenvalues',
-                        'proportion_explained', 'sample_scores',
-                        'biplot_scores']
-        is_ordi_object = []
-        for i in ordi_objects: is_ordi_object.append(i in dir(self))
-        if not np.all(is_ordi_object):
+        # Check
+        if not hasattr(self, 'ordiobject_type'):
             raise ValueError("Not an ordination object. Have you fitted (.fit) beforehand?")
-
         return screeplot(self)
