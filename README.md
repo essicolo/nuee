@@ -4,7 +4,13 @@
 
 # Relationships with `scikit-bio` and `ecopy`
 
-`nuee` is a tool for research and teaching in mathematical ecology. Since `scikit-bio` is currently not available for Windows, some of its ordination functions were forked rather than wrapped up. Currently, `ecopy` lack some functionalities needed for my teaching and research.
+`nuee` is a tool for research and teaching in mathematical ecology. Since `scikit-bio` is currently not available for Windows, some of its ordination functions were forked rather than wrapped up. Currently, `ecopy` lacks some functionalities needed for my teaching and research.
 
 # What does `nuee` mean?
 `nuee` comes from the French expression *nuée d'oiseau*, or bird flock.
+
+:bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: 
+
+# Example
+
+![](https://github.com/essicolo/nuee/blob/master/pca.png)
