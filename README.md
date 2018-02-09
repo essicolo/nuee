@@ -9,6 +9,8 @@
 # What does `nuee` mean?
 `nuee` comes from the French expression *nuée d'oiseau*, or bird flock.
 
+:bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: 
+
 # Example
 
 ![](https://github.com/essicolo/nuee/blob/master/pca.png)
