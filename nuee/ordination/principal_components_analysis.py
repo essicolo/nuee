@@ -8,7 +8,12 @@ class PrincipalComponentsAnalysis():
     r"""Just a wrapper around the sklearn.decomposition.pca class from
     scikit-sklearn to make it coherent with nuee.
 
-    EXPLAIN WHEN TO USE PCA
+    scaling: either 1 (distance biplot) or 2 (correlation biplot). In scaling 2,
+    both sample_scores (obervations) and biplot_scores (eigenvectors) are multiplied
+    by the standard deviation matrix (square roots of eigenvalues).
+
+    p 444 L&L
+
     """
 
     def __init__(self, n_components=None, copy=True, whiten=False,
@@ -25,19 +30,17 @@ class PrincipalComponentsAnalysis():
         self.scaling = scaling
 
     def fit(self, X):
-
-        self.X = X
-
+        self.X = X # store X in the output
         sample_ids = X.index
         feature_ids = X.columns
         X = X.as_matrix()
         nuee_PCA = sklearn_PCA(n_components=self.n_components,
-                             copy=self.copy,
-                             whiten=self.whiten,
-                             svd_solver=self.svd_solver,
-                             tol=self.tol,
-                             iterated_power=self.iterated_power,
-                             random_state=self.random_state)
+                               copy=self.copy,
+                               whiten=self.whiten,
+                               svd_solver=self.svd_solver,
+                               tol=self.tol,
+                               iterated_power=self.iterated_power,
+                               random_state=self.random_state)
         nuee_PCA.fit(X)
 
         ordi_column_names = ['PCA%d' % (i+1) for i in range(nuee_PCA.explained_variance_.shape[0])]

@@ -13,13 +13,6 @@ def ordiplot(self, axes=[0, 1],
     if not len(axes) == 2:
         raise ValueError("axes must have two integers.")
 
-    if group is not None:
-        self.biplot_scores['group'] = group
-        self.sample_scores['group'] = group
-
-    if group is not None and (self.ordiobject_type == 'RDA' or self.ordiobject_type == 'CCA'):
-        self.response_scores['group'] = group
-
     ordi_columns = self.sample_scores.columns[axes]
 
     p = ggplot(self.sample_scores.reset_index(),

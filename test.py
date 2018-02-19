@@ -1,9 +1,11 @@
-#%load_ext autoreload
-#%autoreload 2
+%load_ext autoreload
+%autoreload 2
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import seaborn as sns
 iris = sns.load_dataset("iris")
+
 
 # PCA
 ## The warning comes from statsmodel loaded by plotnine. It can be safely
@@ -12,6 +14,7 @@ from nuee.ordination import PrincipalComponentsAnalysis as pca
 pca_results = pca(scaling=1)
 pca_results.fit(iris.iloc[:, :4]);
 pca_results.ordiplot(axes=[0,1], group=iris.species, sample_scatter='points', level=0.99)
+
 pca_results.screeplot()
 
 
@@ -37,11 +40,6 @@ rda_results.screeplot()+ theme_xkcd()
 
 
 # CoDa
-%load_ext autoreload
-%autoreload 2
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
 varechem = pd.read_csv('https://gist.githubusercontent.com/essicolo/087e49c8feb436f45df5d9e8fa9597f8/raw/d708dea9a107d453dec3073bc7daf70e85870e2c/varechem.csv',
                        index_col=0)
 
@@ -50,5 +48,11 @@ from nuee.stats import coda
 parts = varechem.loc[:, ['N', 'P', 'K']]
 comp = coda.closure(parts)
 tern = coda.PlotTriangle(labels = parts.columns)
+plt.figure(figsize=(8, 8));
 tern.plot_triangle()
 coda.plot_comp(comp)
+
+
+# Pairs plot
+from nuee.stats._utils import *
+pairsplot(iris.iloc[:,:4])
