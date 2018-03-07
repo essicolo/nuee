@@ -253,31 +253,3 @@ def box_mtest(data, groups):
             'Covariances': covariances,
             'Pooled covariances': pooled,
             'Log of determinants': log_of_det})
-
-def pairsplot(x, level=0.05):
-    if isinstance(x, pd.DataFrame):
-        x = x.as_matrix()
-    shape = [x.shape[1], x.shape[1]]
-    plot_id = 1
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            ax1 = plt.subplot(shape[0], shape[1], plot_id)
-            if (i<j):
-                correlation = stats.pearsonr(x[:,i], x[:,j])
-                if correlation[1] < level:
-                    corr_sign = '*'
-                else:
-                    corr_sign = ''
-                plt.axis('off')
-                plt.text(0.5, 0.5, str(np.round(correlation[0], 2))+corr_sign, ha='center', va='center', size=20)
-            elif (i==j):
-                plt.hist(x[:,i])
-            else:
-                ax1.plot(x[:,j], x[:,i], '.')
-            if i<(shape[0]-1):
-                ax1.get_xaxis().set_visible(False)
-            if j>0:
-                ax1.get_yaxis().set_visible(False)
-            if (j==0) and (i==0):
-                ax1.get_yaxis().set_visible(False)
-            plot_id += 1
