@@ -254,7 +254,7 @@ class RedundancyAnalysis():
         response_stats = pd.DataFrame(pd.concat([response_stats_each, response_stats_summary], axis=0),
                                       columns = ['F', 'R2', 'Adjusted R2'])
 
-        ## Feature statistics
+        ## Canonical axes statistics
         ### see Legendre et al., 2011, doi 10.1111/j.2041-210X.2010.00078.x
         if self.n_permutations is not None:
             # compute F marginal statistic of the original set
@@ -267,12 +267,10 @@ class RedundancyAnalysis():
                 u_orig, s_orig, vt_orig = svd(Y_hat_orig, full_matrices=False)
                 eigenvalues_orig = s_orig**2 / (n-1)
                 F_marginal_orig = eigenvalues_orig[:kc_XW] * (n-1-m) / np.sum(Y_res_orig**2)
-                stats_ids = np.r_[feature_ids, condition_ids]
             else:
                 kc_XW = kc
                 XW = X_
                 F_marginal_orig = eigenvalues[:kc_XW] * (n-1-m) / np.sum(Y_res**2)
-                stats_ids = feature_ids
 
             # Select the permutaion method
             # Legendre et al., 2011, doi 10.1111/j.2041-210X.2010.00078.x
@@ -307,6 +305,7 @@ class RedundancyAnalysis():
             # Permutation loop
             np.random.seed(seed=self.seed)
             F_marginal_perm = np.zeros([self.n_permutations, kc_XW])
+            axes_ids = ['RDA%d' % (i+1) for i in range(kc_XW)]
             for i in range(self.n_permutations):
                 Y_perm = Y_hat_method + Y_res_method[np.random.permutation(n), :]
                 B_perm = lstsq(XW, Y_perm)[0]
@@ -318,8 +317,8 @@ class RedundancyAnalysis():
 
             F_marginal_test_elements = np.apply_along_axis(lambda x: x > F_marginal_orig, axis=1, arr=F_marginal_perm)
             pvalues_marginal = F_marginal_test_elements.sum(axis=0) / self.n_permutations
-            feature_stats = pd.DataFrame({'F marginal': F_marginal_orig, 'P value (>F)': pvalues_marginal},
-                     index=stats_ids)
+            axes_stats = pd.DataFrame({'F marginal': F_marginal_orig, 'P value (>F)': pvalues_marginal},
+                     index=axes_ids)
         else:
             feature_stats = None
 

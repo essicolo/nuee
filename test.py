@@ -74,7 +74,7 @@ doubs_env = pd.read_csv('data/DoubsEnv.csv', index_col=0)
 
 Y = doubs_species
 X = doubs_env[['pH', 'dur', 'pho', 'nit', 'amm', 'oxy', 'dbo']]
-W = None#doubs_env[['das', 'alt', 'pen', 'deb']]
+W = doubs_env[['das', 'alt', 'pen', 'deb']]
 scaling=1
 scale_Y = True
 n_permutations = 999
@@ -250,7 +250,7 @@ if n_permutations is not None:
         u_orig, s_orig, vt_orig = svd(Y_hat_orig, full_matrices=False)
         eigenvalues_orig = s_orig**2 / (n-1)
         F_marginal_orig = eigenvalues_orig[:kc_XW] * (n-1-m) / np.sum(Y_res_orig**2)
-        stats_ids = np.r_[feature_ids, condition_ids]
+        stats_ids = ['RDA%d' % (i+1) for i in range(kc_XW)]#np.r_[feature_ids, condition_ids]
     else:
         kc_XW = kc
         XW = X_
@@ -271,7 +271,7 @@ if n_permutations is not None:
         Y_res_method = Y
         Y_hat_method = 0
     elif permutation_method == 'reduced':
-        if W is null:
+        if W is None:
             raise ValueError("""
             Always use permutation_method = 'direct' if W = None (no covariables)
             """)
@@ -279,7 +279,7 @@ if n_permutations is not None:
         Y_hat_method = W.dot(B_method)
         Y_res_method = Y - Y_hat_method
     elif permutation_method == 'full':
-        if W is null:
+        if W is None:
             raise ValueError("""
             Always use permutation_method = 'direct' if W = None (no covariables)
             """)
@@ -301,7 +301,7 @@ if n_permutations is not None:
 
     F_marginal_test_elements = np.apply_along_axis(lambda x: x > F_marginal_orig, axis=1, arr=F_marginal_perm)
     pvalues_marginal = F_marginal_test_elements.sum(axis=0) / n_permutations
-    feature_stats = pd.DataFrame({'F marginal': F_marginal_orig, 'P value (>F)': pvalues_marginal},
+    axes_stats = pd.DataFrame({'F marginal': F_marginal_orig, 'P value (>F)': pvalues_marginal},
              index=stats_ids)
 else:
-    feature_stats = None
+    axes_stats = None
