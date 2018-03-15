@@ -129,7 +129,7 @@ class RedundancyAnalysis():
             X_ = X
 
         B = lstsq(X_, Y)[0]
-        Y_hat = X.dot(B)
+        Y_hat = X_.dot(B)
         Y_res = Y - Y_hat # residuals
 
         # 3) Perform a PCA on Y_hat
