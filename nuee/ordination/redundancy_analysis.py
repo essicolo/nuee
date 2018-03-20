@@ -116,12 +116,14 @@ class RedundancyAnalysis():
         # scale
         if self.scale_Y:
             Y = (Y - Y.mean(axis=0)) / Y.std(axis=0, ddof=1)
-        X = X - X.mean(axis=0)
+        X = X - X.mean(axis=0)# / X.std(axis=0, ddof=1)
+        # Note: Legendre 2011 does not scale X.
 
         # If there is a covariable matrix W, the explanatory matrix X becomes the
         # residuals of a regression between X as response and W as explanatory.
         if W is not None:
-            W = W - W.mean(axis=0)
+            W = (W - W.mean(axis=0))# / W.std(axis=0, ddof=1)
+            # Note: Legendre 2011 does not scale W.
             B_XW = lstsq(W, X)[0]
             X_hat = W.dot(B_XW)
             X_ = X - X_hat # X is now the residual
@@ -157,6 +159,9 @@ class RedundancyAnalysis():
         eigenvectors = vt.T[:,:kc]
         eigenvectors_res = vt_res.T[:,:kc_res]
 
+        ## cannonical axes used to compute F_marginal
+        canonical_axes = u[:, :kc]
+
         ## axes names
         ordi_column_names = ['RDA%d' % (i+1) for i in range(kc)]
         ordi_column_names_res = ['RDA_res%d' % (i+1) for i in range(kc_res)]
@@ -184,7 +189,6 @@ class RedundancyAnalysis():
         # used to represent the explanatory variables in biplots.
         corXZ = corr(X_, Z)
         corXZ_res = corr(X_, Z_res)
-
 
         # 8) Compute triplot objects
         # I combine fitted and residuals scores into the DataFrames
@@ -254,74 +258,80 @@ class RedundancyAnalysis():
         response_stats = pd.DataFrame(pd.concat([response_stats_each, response_stats_summary], axis=0),
                                       columns = ['F', 'R2', 'Adjusted R2'])
 
-        ## Canonical axes statistics
-        ### see Legendre et al., 2011, doi 10.1111/j.2041-210X.2010.00078.x
+        ## Canonical axis statistics
+        """
+        the permutation algorithm is inspired by the supplementary material
+        published i Legendre et al., 2011, doi 10.1111/j.2041-210X.2010.00078.x
+        """
         if self.n_permutations is not None:
-            # compute F marginal statistic of the original set
-            if W is not None:
-                XW = np.c_[X, W]
-                B_orig = lstsq(XW, Y)[0]
-                Y_hat_orig = XW.dot(B_orig)
-                Y_res_orig = Y - Y_hat_orig
-                kc_XW = np.linalg.matrix_rank(XW)
-                u_orig, s_orig, vt_orig = svd(Y_hat_orig, full_matrices=False)
-                eigenvalues_orig = s_orig**2 / (n-1)
-                F_marginal_orig = eigenvalues_orig[:kc_XW] * (n-1-m) / np.sum(Y_res_orig**2)
+
+            if W is None:
+                F_m = s[0]**2 / (np.sum(Y**2) - np.sum(Y_hat**2))
+                F_m_perm = np.array([])
+                for j in range(self.n_permutations):
+                    Y_perm = Y[np.random.permutation(n), :] # full permutation model
+                    B_perm = np.linalg.lstsq(X_, Y_perm)[0]
+                    Y_hat_perm = X_.dot(B_perm)
+                    s_perm = np.linalg.svd(Y_hat_perm, full_matrices=False)[1]
+                    F_m_perm = np.r_[F_m_perm, s_perm[0]**2 / (np.sum(Y_perm**2) - np.sum(Y_hat_perm**2))]
+
+                F_marginal = F_m
+                p_values = (1 + np.sum(F_m_perm >= F_m)) / (1 + self.n_permutations)
+                begin = 1
             else:
-                kc_XW = kc
-                XW = X_
-                F_marginal_orig = eigenvalues[:kc_XW] * (n-1-m) / np.sum(Y_res**2)
+                F_marginal = np.array([])
+                p_values = np.array([])
+                begin = 0
 
-            # Select the permutaion method
-            # Legendre et al., 2011, doi 10.1111/j.2041-210X.2010.00078.x
-            # * direct method just permutes Y
-            # * reduced method permutes the residuals of Y fitted on W then add the permuted
-            #    residuals to the non-permuted Y fitted on W
-            # * full method permutes the residuals of Y fitted on the concatenation of X and W
-            #    then add the permuted residuals to the non-permuted Y fitted on X and W
-            # these method share a permuted part, Y_res_perm and non permuted part
-            #    Y_hat_method. For the direct method, the non permuted part is zero and
-            #    Y_res_method is just Y
-            if self.permutation_method == 'direct':
-                Y_res_method = Y
-                Y_hat_method = 0
-            elif self.permutation_method == 'reduced':
+            if (W is not None) or (W is None and kc > 1):
                 if W is None:
-                    raise ValueError("""
-                    Always use permutation_method = 'direct' if W = None (no covariables)
-                    """)
-                B_method = lstsq(W, Y)[0]
-                Y_hat_method = W.dot(B_method)
-                Y_res_method = Y - Y_hat_method
-            elif self.permutation_method == 'full':
-                if W is None:
-                    raise ValueError("""
-                    Always use permutation_method = 'direct' if W = None (no covariables)
-                    """)
-                B_method = lstsq(np.c_[X, W], Y)[0]
-                Y_hat_method = np.c_[X, W].dot(B_method)
-                Y_res_method = Y - Y_hat_method
+                    XW = X_
+                else:
+                    XW = np.c_[X_, W]
 
-            # Permutation loop
-            np.random.seed(seed=self.seed)
-            F_marginal_perm = np.zeros([self.n_permutations, kc_XW])
-            axes_ids = ['RDA%d' % (i+1) for i in range(kc_XW)]
-            for i in range(self.n_permutations):
-                Y_perm = Y_hat_method + Y_res_method[np.random.permutation(n), :]
-                B_perm = lstsq(XW, Y_perm)[0]
-                Y_hat_perm = XW.dot(B_perm)
-                Y_res_perm = Y_perm - Y_hat_perm
-                u_perm, s_perm, vt_perm = svd(Y_hat_perm, full_matrices=False)
-                eigenvalues_perm = s_perm**2 / (n-1)
-                F_marginal_perm[i, :] = eigenvalues_perm[:kc_XW] * (n-1-m) / np.sum(Y_res_perm**2)
+                # Compute F_marginal
+                B_XW = np.linalg.lstsq(XW, Y)[0]
+                Y_hat_XW = XW.dot(B_XW)
+                kc_XW = np.linalg.matrix_rank(XW)
+                F_marginal_XW = s[begin:kc]**2 / (np.sum(Y**2) - np.sum(Y_hat_XW**2))
+                F_marginal = np.r_[F_marginal, F_marginal_XW]
 
-            F_marginal_test_elements = np.apply_along_axis(lambda x: x > F_marginal_orig, axis=1, arr=F_marginal_perm)
-            pvalues_marginal = F_marginal_test_elements.sum(axis=0) / self.n_permutations
-            axes_stats = pd.DataFrame({'F marginal': F_marginal_orig, 'P value (>F)': pvalues_marginal},
-                     index=axes_ids)
+                for i in range(begin, kc):
+                    # set features to compute the object to fit with Y_perm
+                    # and to compute Y_perm from Y_res_i
+                    if W is None:
+                        features_i = np.c_[np.repeat(1, n), canonical_axes[:, :i]]
+                    else:
+                        features_i = np.c_[W, canonical_axes[:, :i]] # if i==0, then np.c_[W, X[:, :i]] == W
+
+                    B_fX_ = np.linalg.lstsq(features_i, X_)[0]
+                    X_hat_i = features_i.dot(B_fX_)
+                    X_res_i = X_ - X_hat_i
+
+                    # to avoid collinearity
+                    X_res_i = X_res_i[:, :np.linalg.matrix_rank(X_res_i)]
+
+                    # find Y residuals for permutations with residuals model (only model available)
+                    B_i = np.linalg.lstsq(features_i, Y)[0] # coefficients for axis i
+                    Y_hat_i = features_i.dot(B_i) # Y estimation for axis i
+                    Y_res_i = Y - Y_hat_i # Y residuals for axis i
+
+                    F_m_perm = np.array([])
+                    for j in range(self.n_permutations):
+                        Y_perm = Y_hat_i + Y_res_i[np.random.permutation(n), :] # reduced permutation model
+                        B_perm = np.linalg.lstsq(X_res_i, Y_perm)[0]
+                        Y_hat_perm = X_res_i.dot(B_perm)
+                        u_perm, s_perm, vt_perm = np.linalg.svd(Y_hat_perm, full_matrices=False)
+                        B_tot_perm = np.linalg.lstsq(XW, Y_perm)[0]
+                        Y_hat_tot_perm = XW.dot(B_tot_perm)
+                        F_m_perm = np.r_[F_m_perm, s_perm[0]**2 / (np.sum(Y_perm**2) - np.sum(Y_hat_tot_perm**2))]
+
+                    p_values = np.r_[p_values, (1 + np.sum(F_m_perm >= F_marginal[i])) / (1 + self.n_permutations)]
+
+            axes_stats = pd.DataFrame({'F marginal': F_marginal  * (n-1-kc_XW), 'P value (>F)': p_values},
+                                      index=['RDA%d' % (i+1) for i in range(kc)])
         else:
-            feature_stats = None
-
+            axes_stats = None
 
         # trace: total variance
         # R2, R2a: R-squared, Adjusted R-Squared
@@ -342,10 +352,11 @@ class RedundancyAnalysis():
         self.sample_scores = sample_scores
         self.biplot_scores = biplot_scores
         self.sample_constraints = sample_constraints
-        self.statistics = {'canonical_coeficient': C, # add feature_stats and response_stats
-                                              'r_squared': R2,
-                                              'adjusted_r_squared': R2a,
-                                              'total_variance': trace}
+        self.statistics = {'canonical_coeficient': C,
+                           'r_squared': R2,
+                           'adjusted_r_squared': R2a,
+                           'total_variance': trace,
+                           'axes': axes_stats}
         return self
 
     def ordiplot(self, axes=[0, 1],
