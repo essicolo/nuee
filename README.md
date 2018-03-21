@@ -9,7 +9,19 @@
 # What does `nuee` mean?
 `nuee` comes from the French expression *nuée d'oiseau*, or bird flock. It's a biological metaphor for scatter points.
 
-:bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: :bird: 
+______ :bird:
+
+_____ :bird: _ :bird:
+
+____  :bird: _ :bird: _ :bird:
+
+___ :bird: _ :bird: _ :bird: _ :bird:
+
+__ :bird: _ :bird: _ :bird: _ :bird: _ :bird:
+
+_ :bird: _ :bird: _ :bird: _ :bird: _ :bird: _ :bird:
+
+:bird: _ :bird: _ :bird: _ :bird: _ :bird: _ :bird: _ :bird:
 
 # Example
 
