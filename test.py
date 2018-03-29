@@ -37,11 +37,10 @@ varechem = pd.read_csv('data/varechem.csv', index_col=0, delimiter=';')
 varespec = pd.read_csv('data/varespec.csv', index_col=0, delimiter=';')
 
 ### Compute RDA
-rda_results = rda(scale_Y=True, scaling=1, n_permutations=99)
+rda_results = rda(scale_Y=True, scaling=1, n_permutations=999)
 rda_results.fit(X=varechem, Y=varespec);
 rda_results.ordiplot(axes=[0,1], sample_scatter='labels')
 rda_results.screeplot()
-rda_results.statistics['axes']
 
 ## Case 2: Doubs data set
 ### data
