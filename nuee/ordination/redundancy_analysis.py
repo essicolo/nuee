@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from scipy.linalg import svd, lstsq
 from ..stats._utils import corr, scale
 from .ordi_plot import ordiplot, screeplot
 
@@ -124,13 +123,13 @@ class RedundancyAnalysis():
         if W is not None:
             W = (W - W.mean(axis=0))# / W.std(axis=0, ddof=1)
             # Note: Legendre 2011 does not scale W.
-            B_XW = lstsq(W, X)[0]
+            B_XW = np.linalg.lstsq(W, X)[0]
             X_hat = W.dot(B_XW)
             X_ = X - X_hat # X is now the residual
         else:
             X_ = X
 
-        B = lstsq(X_, Y)[0]
+        B = np.linalg.lstsq(X_, Y)[0]
         Y_hat = X_.dot(B)
         Y_res = Y - Y_hat # residuals
 
@@ -138,8 +137,8 @@ class RedundancyAnalysis():
         ## perform singular value decomposition.
         ## eigenvalues can be extracted from u
         ## eigenvectors can be extracted from vt
-        u, s, vt = svd(Y_hat, full_matrices=False)
-        u_res, s_res, vt_res = svd(Y_res, full_matrices=False)
+        u, s, vt = np.linalg.svd(Y_hat, full_matrices=False)
+        u_res, s_res, vt_res = np.linalg.svd(Y_res, full_matrices=False)
 
         # compute eigenvalues from singular values
         eigenvalues = s**2/(n-1)
