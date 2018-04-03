@@ -65,7 +65,7 @@ class RedundancyAnalysis():
     """
 
     def __init__(self, scale_Y=True, scaling=1, sample_scores_type='wa',
-                 n_permutations = None, seed=None, permutation_method = 'reduced'):
+                 n_permutations = None, seed=None):
         # initialize the self object
 
         if not isinstance(scale_Y, bool):
@@ -82,7 +82,6 @@ class RedundancyAnalysis():
         self.sample_scores_type = sample_scores_type
         self.n_permutations = n_permutations
         self.seed = seed
-        self.permutation_method = permutation_method
 
     def fit(self, X, Y, W=None):
 
