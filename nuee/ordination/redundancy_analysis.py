@@ -65,7 +65,7 @@ class RedundancyAnalysis():
     """
 
     def __init__(self, scale_Y=True, scaling=1, sample_scores_type='wa',
-                 n_permutations = None, seed=None):
+                 n_permutations = 199, permute_by=[], seed=None):
         # initialize the self object
 
         if not isinstance(scale_Y, bool):
@@ -81,6 +81,7 @@ class RedundancyAnalysis():
         self.scaling = scaling
         self.sample_scores_type = sample_scores_type
         self.n_permutations = n_permutations
+        self.permute_by = permute_by
         self.seed = seed
 
     def fit(self, X, Y, W=None):
@@ -102,6 +103,9 @@ class RedundancyAnalysis():
         if W is not None:
             condition_ids = W.columns
             W = W.as_matrix()
+            q = W.shape[1] # number of covariables (used in permutations)
+        else:
+            q=0
 
         # dimensions
         n_x, m = X.shape
@@ -261,7 +265,7 @@ class RedundancyAnalysis():
         the permutation algorithm is inspired by the supplementary material
         published i Legendre et al., 2011, doi 10.1111/j.2041-210X.2010.00078.x
         """
-        if self.n_permutations is not None:
+        if 'axes' in self.permute_by:
 
             if W is None:
                 F_m = s[0]**2 / (np.sum(Y**2) - np.sum(Y_hat**2))
@@ -331,6 +335,38 @@ class RedundancyAnalysis():
         else:
             axes_stats = None
 
+        if 'features' in self.permute_by:
+            p_values_coef = np.array([]) # initiate empty vector for p-values
+            F_coef = np.array([]) # initiate empty vector for F-scores
+            for i in range(X_.shape[1]):
+                feature_i = np.c_[X_[:, i]] # isolate the explanatory variable to test
+                B_i = np.linalg.lstsq(feature_i, Y)[0] # coefficients for variable i
+                Y_hat_i = feature_i.dot(B_i) # Y estimation for explanatory variable i
+                Y_res_i = Y - Y_hat_i # Y residuals for variable i
+                if W is None:
+                    rsq_i = np.sum(Y_hat_i**2) / np.sum(Y**2) # r-square for variable i
+                    F_coef = np.r_[F_coef, (rsq_i/m) / ((1-rsq_i) / (n-m-1))] # F-score for variable i, from eq. 7 in LOtB, 2011
+                else:
+                    F_coef = np.r_[F_coef, (np.sum(Y_hat_i**2) / m) / (np.sum(Y_res_i**2) / (n-m-q-1))] # F-score for variable i, from eq 8 in LOtB, 2011
+
+                F_coef_perm = np.array([]) # initiate permutation vector of F-scores
+                for j in range(self.n_permutations):
+                    Y_perm = Y_hat_i + Y_res_i[np.random.permutation(n), :] # reduced permutation model
+                    B_perm = np.linalg.lstsq(feature_i, Y_perm)[0] # fit the permuted model to obtain coefficients
+                    Y_hat_perm = feature_i.dot(B_perm) # obtain estimated Y matrix
+                    Y_res_perm = Y_perm - Y_hat_perm
+                    if W is None:
+                        rsq_perm = np.sum(Y_hat_perm**2) / np.sum(Y_perm**2) # r-suare of regression
+                        F_coef_perm = np.r_[F_coef_perm, (rsq_perm/m) / ((1-rsq_perm) / (n-m-1))] # F-score of permuted regression
+                    else:
+                        F_coef_perm = np.r_[F_coef_perm, (np.sum(Y_hat_perm**2) / m) / (np.sum(Y_res_perm**2) / (n-m-q-1))] # F-score for variable i, from eq 8 in LOtB, 2011
+
+                p_values_coef = np.r_[p_values_coef, (1 + np.sum(F_coef_perm >= F_coef[i])) / (1 + self.n_permutations)]
+
+            coef_stats = pd.DataFrame({'F': F_coef  * (n-m-q-1), 'P value (>F)': p_values_coef}, index=feature_ids)
+        else:
+            coef_stats = None
+
         # trace: total variance
         # R2, R2a: R-squared, Adjusted R-Squared
         # eigenvalues
@@ -354,7 +390,8 @@ class RedundancyAnalysis():
                            'r_squared': R2,
                            'adjusted_r_squared': R2a,
                            'total_variance': trace,
-                           'axes': axes_stats}
+                           'axes': axes_stats,
+                           'features': coef_stats}
         return self
 
     def ordiplot(self, axes=[0, 1],

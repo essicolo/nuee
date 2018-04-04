@@ -48,11 +48,12 @@ doubs_species = pd.read_csv('data/DoubsSpe.csv', index_col=0)
 doubs_env = pd.read_csv('data/DoubsEnv.csv', index_col=0)
 
 ###  Compute RDA with condition W
-rda_results = rda(scale_Y=True, scaling=1, n_permutations = 999)
+rda_results = rda(scale_Y=True, scaling=1, permute_by=['axes', 'features'], n_permutations = 99)
 rda_results.fit(X=doubs_env[['pH', 'dur', 'pho', 'nit', 'amm', 'oxy', 'dbo']],
                 Y=doubs_species,
                 W=doubs_env[['das', 'alt', 'pen', 'deb']])
 rda_results.statistics['axes']
+rda_results.statistics['features']
 rda_results.ordiplot(axes=[0,1], sample_scatter='labels')
 
 
