@@ -1,0 +1,33 @@
+# Mathematical Ecology with Python - Notebook Requirements
+# All packages are Pyodide-compatible for web deployment
+
+# Core Data Science (Pyodide compatible)
+pandas>=1.5.0
+numpy>=1.21.0
+scipy>=1.9.0
+statsmodels>=0.13.0
+scikit-learn>=1.1.0
+
+# Ecological Analysis
+# nuee>=0.1.0  # Uncomment when available on PyPI
+
+# Visualization (Pyodide compatible)
+holoviews>=1.15.0
+panel>=0.14.0
+matplotlib>=3.5.0
+bokeh>=2.4.0
+
+# Additional Scientific Computing
+sympy>=1.10.0
+numba>=0.56.0
+
+# Notebook Environment
+marimo>=0.10.0
+
+# Optional: For advanced spatial analysis (if needed)
+# pyproj>=3.3.0
+# shapely>=1.8.0
+
+# Optional: For Bayesian analysis
+# pymc>=5.0.0
+# arviz>=0.12.0
