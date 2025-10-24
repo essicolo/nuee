@@ -4,7 +4,7 @@ nuee is a comprehensive Python implementation of the popular R package `nuee` fo
 
 ## Features
 
-### 🌿 Ordination Methods
+### Ordination Methods
 - **NMDS** (Non-metric Multidimensional Scaling) with `metaMDS()`
 - **RDA** (Redundancy Analysis) with `rda()`
 - **CCA** (Canonical Correspondence Analysis) with `cca()`
@@ -12,7 +12,7 @@ nuee is a comprehensive Python implementation of the popular R package `nuee` fo
 - **Environmental fitting** with `envfit()`
 - **Procrustes analysis** with `procrustes()`
 
-### 📊 Diversity Analysis
+### Diversity Analysis
 - **Shannon diversity** with `shannon()`
 - **Simpson diversity** with `simpson()`
 - **Fisher's alpha** with `fisher_alpha()`
@@ -21,7 +21,7 @@ nuee is a comprehensive Python implementation of the popular R package `nuee` fo
 - **Evenness measures** with `evenness()`
 - **Rarefaction** with `rarefy()` and `rarecurve()`
 
-### 📏 Dissimilarity Measures
+### Dissimilarity Measures
 - **Bray-Curtis**, **Jaccard**, **Euclidean**, and 15+ other distances with `vegdist()`
 - **PERMANOVA** with `adonis2()`
 - **ANOSIM** with `anosim()`
@@ -29,14 +29,14 @@ nuee is a comprehensive Python implementation of the popular R package `nuee` fo
 - **Mantel test** with `mantel()`
 - **Beta dispersion** with `betadisper()`
 
-### 📈 Visualization
+### Visualization
 - **Ordination plots** with `plot_ordination()`
 - **Biplots** with `biplot()`
 - **Diversity plots** with `plot_diversity()`
 - **Rarefaction curves** with `plot_rarecurve()`
 - **Confidence ellipses** with `ordiellipse()`
 
-### 🗂️ Sample Datasets
+### Sample Datasets
 - **varespec** & **varechem**: Lichen species and environmental data
 - **dune** & **dune_env**: Dutch dune meadow vegetation
 - **BCI**: Barro Colorado Island tree data  
@@ -209,21 +209,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 nuee is inspired by the excellent R package `nuee` developed by Jari Oksanen and the nuee development team. We acknowledge their pioneering work in making community ecology analysis accessible to researchers worldwide.
-
-## Citation
-
-If you use nuee in your research, please cite:
-
-```
-nuee Development Team. (2024). nuee: Community Ecology Analysis in Python. 
-```
-
-## Support
-
-- 📖 [Documentation](https://nuee.readthedocs.io/)
-- 🐛 [Issue Tracker](https://github.com/your-username/nuee/issues)
-- 💬 [Discussions](https://github.com/your-username/nuee/discussions)
-- 📧 [Email Support](mailto:support@nuee.org)
 
 ---
 
