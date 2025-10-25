@@ -1,6 +1,6 @@
 # nuee: Community Ecology Analysis in Python
 
-nuee is a comprehensive Python implementation of the popular R package `nuee` for community ecology analysis. It provides tools for ordination, diversity analysis, dissimilarity measures, and statistical testing commonly used in ecological research.
+`nuee` is a comprehensive Python implementation of the popular R package `vegan` for community ecology analysis. It provides tools for ordination, diversity analysis, dissimilarity measures, and statistical testing commonly used in ecological research.
 
 ## Features
 
