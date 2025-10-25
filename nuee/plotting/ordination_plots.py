@@ -155,8 +155,8 @@ def biplot(result: ConstrainedOrdinationResult,
                        textcoords='offset points', fontsize=8)
     
     # Add biplot arrows
-    if result.biplot is not None:
-        _add_biplot_arrows(ax, result.biplot, axes, correlation=correlation)
+    if hasattr(result, 'biplot_scores') and result.biplot_scores is not None:
+        _add_biplot_arrows(ax, result.biplot_scores, axes, correlation=correlation)
     
     # Set equal aspect ratio for biplots
     ax.set_aspect('equal', adjustable='box')
