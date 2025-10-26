@@ -57,14 +57,14 @@ class OrdinationResult:
     def biplot(self, **kwargs):
         """
         Create a biplot if applicable.
-        
+
         Parameters:
             **kwargs: Additional plotting arguments
-            
+
         Returns:
             matplotlib Figure object
         """
-        if hasattr(self, 'biplot') and self.biplot is not None:
+        if hasattr(self, 'biplot_scores') and self.biplot_scores is not None:
             from ..plotting.ordination_plots import biplot
             return biplot(self, **kwargs)
         else:
@@ -93,36 +93,23 @@ class ConstrainedOrdinationResult(OrdinationResult):
                  tot_chi: Optional[float] = None,
                  partial_chi: Optional[float] = None,
                  call: Optional[Dict[str, Any]] = None):
-        
+
         # Handle eigenvalues concatenation safely
         eig_parts = []
         if constrained_eig is not None and len(constrained_eig) > 0:
             eig_parts.append(constrained_eig)
         if unconstrained_eig is not None and len(unconstrained_eig) > 0:
             eig_parts.append(unconstrained_eig)
-        
+
         all_eig = np.concatenate(eig_parts) if eig_parts else np.array([])
         super().__init__(points, species, all_eig, call=call)
-        
+
         self.constrained_eig = constrained_eig
         self.unconstrained_eig = unconstrained_eig
-        self.biplot = biplot
+        self.biplot_scores = biplot
         self.centroids = centroids
         self.tot_chi = tot_chi
         self.partial_chi = partial_chi
-    
-    def biplot(self, **kwargs):
-        """
-        Create a biplot for constrained ordination with environmental arrows.
-        
-        Parameters:
-            **kwargs: Additional plotting arguments
-            
-        Returns:
-            matplotlib Figure object
-        """
-        from ..plotting.ordination_plots import biplot
-        return biplot(self, **kwargs)
         
     @property
     def rank(self) -> int:
