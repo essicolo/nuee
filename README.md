@@ -8,6 +8,23 @@
 pip install nuee
 ```
 
+## Documentation
+
+Full documentation is available at: [https://essicolo.github.io/nuee/](https://essicolo.github.io/nuee/)
+
+The documentation includes:
+- Installation instructions
+- Quick start guide
+- User guide with detailed examples
+- Complete API reference
+
+To build the documentation locally:
+```bash
+cd docs
+make html
+# Open docs/_build/html/index.html in your browser
+```
+
 ## Features
 
 ### Ordination Methods

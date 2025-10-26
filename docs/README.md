@@ -94,39 +94,39 @@ def function(param1, param2):
 ## Hosting Documentation
 
 The documentation can be hosted on:
+- **GitHub Pages**: Automatically deployed via GitHub Actions (recommended)
 - **Read the Docs**: Connect your GitHub repository to automatically build and host docs
-- **GitHub Pages**: Use GitHub Actions to build and deploy
 - **Any web server**: Copy the `_build/html` directory
 
+### GitHub Pages (Automated)
+
+The repository includes a GitHub Actions workflow (`.github/workflows/docs.yml`) that automatically builds and deploys documentation to GitHub Pages when:
+- A new version tag is pushed (e.g., `v0.1.0`)
+- Changes are pushed to the `main` branch
+- Manually triggered via the Actions tab
+
+**To enable GitHub Pages:**
+
+1. Go to your repository on GitHub
+2. Click **Settings** → **Pages**
+3. Under "Build and deployment":
+   - Source: Select **GitHub Actions**
+4. Push a tag or commit to `main` to trigger the deployment:
+   ```bash
+   git tag v0.1.0
+   git push origin v0.1.0
+   ```
+
+The documentation will be available at: `https://<username>.github.io/<repository>/`
+
+For this repository: `https://essicolo.github.io/nuee/`
+
 ### Read the Docs Setup
+
+The repository includes a `.readthedocs.yml` configuration file.
 
 1. Sign up at https://readthedocs.org/
 2. Import your GitHub repository
 3. RTD will automatically build docs on each commit
 
-### GitHub Pages
-
-Add a GitHub Actions workflow to build and deploy:
-
-```yaml
-name: Documentation
-
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.x
-      - run: pip install -e ".[dev]"
-      - run: cd docs && make html
-      - uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/_build/html
-```
+The documentation will be available at: `https://<project>.readthedocs.io/`
