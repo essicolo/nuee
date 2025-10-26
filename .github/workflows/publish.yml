@@ -1,7 +1,7 @@
 on:
   push:
     tags:
-      - 'v0.1.0'   # publish on semantic version tags like v1.2.3
+      - 'v*.*.*'
 
 jobs:
   build-and-publish:
