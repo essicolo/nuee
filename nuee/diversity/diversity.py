@@ -15,31 +15,102 @@ import warnings
 from .base import DiversityResult
 
 
-def diversity(x: Union[np.ndarray, pd.DataFrame], 
+def diversity(x: Union[np.ndarray, pd.DataFrame],
               index: str = "shannon",
               groups: Optional[Union[np.ndarray, pd.Series]] = None,
               base: float = np.e) -> Union[float, np.ndarray, pd.Series]:
     """
     Calculate diversity indices for community data.
-    
-    Parameters:
-        x: Community data matrix (samples x species) or vector
-        index: Diversity index to calculate ("shannon", "simpson", "invsimpson", "fisher")
-        groups: Grouping factor for pooled diversities
-        base: Base of logarithm for Shannon index
-        
-    Returns:
-        Diversity values for each sample or group
-        
-    Examples:
-        # Shannon diversity
-        div = diversity(data, index="shannon")
-        
-        # Simpson diversity
-        div = diversity(data, index="simpson")
-        
-        # Grouped diversity
-        div = diversity(data, index="shannon", groups=site_groups)
+
+    This function provides a unified interface for calculating various diversity
+    indices commonly used in ecology. It can calculate diversity for individual
+    samples or for pooled groups.
+
+    Parameters
+    ----------
+    x : np.ndarray or pd.DataFrame
+        Community data matrix with samples in rows and species in columns.
+        Values should be non-negative abundances or counts. Can also be a
+        1D array for a single sample.
+    index : {'shannon', 'simpson', 'invsimpson', 'fisher'}, default='shannon'
+        Diversity index to calculate:
+        - 'shannon': Shannon entropy H' = -sum(p_i * log(p_i))
+        - 'simpson': Simpson's index D = sum(p_i^2)
+        - 'invsimpson': Inverse Simpson 1/D
+        - 'fisher': Fisher's alpha
+    groups : np.ndarray or pd.Series, optional
+        Grouping factor for calculating pooled diversities. If provided,
+        samples are pooled within each group before calculating diversity.
+    base : float, default=e
+        Base of logarithm for Shannon index. Common choices:
+        - e (natural log): nats
+        - 2: bits
+        - 10: dits
+
+    Returns
+    -------
+    float, np.ndarray, or pd.Series
+        Diversity values for each sample (or group if groups is provided).
+        If input is a DataFrame, returns a pd.Series with sample/group names.
+
+    Notes
+    -----
+    Shannon diversity (H') measures both richness and evenness:
+    - Higher values indicate more diverse communities
+    - Ranges from 0 (single species) to log(S) where S is species richness
+    - Most common diversity index in ecology
+
+    Simpson's index (D) measures dominance:
+    - Values range from 0 to 1
+    - Higher values indicate lower diversity (more dominance)
+    - Often reported as 1-D (Gini-Simpson) or 1/D (inverse Simpson)
+
+    Fisher's alpha assumes a log-series distribution:
+    - Useful for abundance data
+    - Less sensitive to sample size than richness
+    - Can be slow for large datasets
+
+    Examples
+    --------
+    Calculate Shannon diversity:
+
+    >>> import nuee
+    >>> species = nuee.datasets.varespec()
+    >>> div = nuee.diversity(species, index="shannon")
+    >>> print(f"Mean diversity: {div.mean():.3f}")
+
+    Calculate Simpson diversity:
+
+    >>> div_simp = nuee.diversity(species, index="simpson")
+
+    Calculate diversity for grouped samples:
+
+    >>> import numpy as np
+    >>> groups = np.array(['A', 'A', 'B', 'B', 'C', 'C'])
+    >>> div_grouped = nuee.diversity(species[:6], index="shannon", groups=groups)
+
+    Use different logarithm bases:
+
+    >>> div_bits = nuee.diversity(species, index="shannon", base=2)
+    >>> print("Diversity in bits:", div_bits.mean())
+
+    See Also
+    --------
+    shannon : Shannon diversity (convenience function)
+    simpson : Simpson diversity (convenience function)
+    fisher_alpha : Fisher's alpha (convenience function)
+    renyi : Renyi entropy for multiple scales
+    specnumber : Species richness
+
+    References
+    ----------
+    .. [1] Shannon, C.E. (1948). A mathematical theory of communication.
+           Bell System Technical Journal 27, 379-423.
+    .. [2] Simpson, E.H. (1949). Measurement of diversity.
+           Nature 163, 688.
+    .. [3] Fisher, R.A., Corbet, A.S., Williams, C.B. (1943). The relation between
+           the number of species and the number of individuals in a random sample
+           of an animal population. Journal of Animal Ecology 12, 42-58.
     """
     # Convert input to appropriate format
     if isinstance(x, pd.DataFrame):

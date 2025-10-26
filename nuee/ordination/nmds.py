@@ -20,26 +20,77 @@ from ..dissimilarity import vegdist
 class NMDS(OrdinationMethod):
     """
     Non-metric Multidimensional Scaling for community ecology.
-    
-    This implementation follows the approach used in nuee's metaMDS function,
-    including multiple random starts and stress evaluation.
+
+    This implementation follows the approach used in vegan's metaMDS function,
+    including multiple random starts and stress evaluation. NMDS is a rank-based
+    ordination method that attempts to represent ecological distances in a
+    reduced dimensional space.
+
+    Parameters
+    ----------
+    n_components : int, default=2
+        Number of dimensions for the embedding (ordination axes).
+    max_iter : int, default=200
+        Maximum number of iterations for the optimization algorithm.
+    n_init : int, default=20
+        Number of random initializations. The solution with minimum stress
+        is returned.
+    eps : float, default=1e-3
+        Convergence tolerance for the stress value.
+    random_state : int, optional
+        Random seed for reproducibility. If None, the random state is not fixed.
+    dissimilarity : str, default="bray"
+        Distance metric to use. See :func:`nuee.vegdist` for available options.
+    n_jobs : int, optional
+        Number of parallel jobs for computation. If None, uses a single core.
+
+    Attributes
+    ----------
+    n_components : int
+        Number of dimensions.
+    max_iter : int
+        Maximum iterations.
+    n_init : int
+        Number of random starts.
+    eps : float
+        Convergence tolerance.
+
+    See Also
+    --------
+    metaMDS : High-level interface with automatic transformations
+    MDS : Scikit-learn's MDS implementation
+
+    Notes
+    -----
+    NMDS is particularly useful when:
+    - Relationships between samples are non-linear
+    - You want to use a specific distance metric
+    - You have presence/absence or abundance data
+
+    The stress value indicates goodness-of-fit:
+    - Values < 0.05 indicate excellent fit
+    - Values 0.05-0.10 indicate good fit
+    - Values > 0.20 indicate poor fit
+
+    References
+    ----------
+    .. [1] Kruskal, J.B. (1964). Nonmetric multidimensional scaling.
+           Psychometrika 29, 115-129.
+
+    Examples
+    --------
+    >>> from nuee.ordination import NMDS
+    >>> import nuee
+    >>> species = nuee.datasets.varespec()
+    >>> nmds = NMDS(n_components=2, n_init=20)
+    >>> result = nmds.fit(species)
+    >>> print(f"Stress: {result.stress:.3f}")
     """
-    
-    def __init__(self, n_components: int = 2, max_iter: int = 200, 
+
+    def __init__(self, n_components: int = 2, max_iter: int = 200,
                  n_init: int = 20, eps: float = 1e-3, random_state: Optional[int] = None,
                  dissimilarity: str = "bray", n_jobs: Optional[int] = None):
-        """
-        Initialize NMDS.
-        
-        Parameters:
-            n_components: Number of dimensions for the embedding
-            max_iter: Maximum number of iterations
-            n_init: Number of random initializations
-            eps: Convergence tolerance
-            random_state: Random seed for reproducibility
-            dissimilarity: Distance metric to use
-            n_jobs: Number of parallel jobs
-        """
+        """Initialize NMDS with specified parameters."""
         self.n_components = n_components
         self.max_iter = max_iter
         self.n_init = n_init
@@ -112,8 +163,8 @@ class NMDS(OrdinationMethod):
         )
 
 
-def metaMDS(X: Union[np.ndarray, pd.DataFrame], 
-            k: int = 2, 
+def metaMDS(X: Union[np.ndarray, pd.DataFrame],
+            k: int = 2,
             distance: str = "bray",
             trymax: int = 20,
             maxit: int = 200,
@@ -124,24 +175,102 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
             **kwargs) -> OrdinationResult:
     """
     Non-metric Multidimensional Scaling with automatic transformation.
-    
-    This function is designed to be similar to nuee's metaMDS function,
-    providing a high-level interface for NMDS with sensible defaults.
-    
-    Parameters:
-        X: Community data matrix (samples x species)
-        k: Number of dimensions
-        distance: Distance metric to use
-        trymax: Maximum number of random starts
-        maxit: Maximum number of iterations per start
-        trace: Whether to print progress information
-        autotransform: Whether to apply automatic data transformation
-        wascores: Whether to calculate species scores
-        expand: Whether to expand the result to include more information
-        **kwargs: Additional parameters passed to NMDS
-        
-    Returns:
-        OrdinationResult with NMDS coordinates and additional information
+
+    This function provides a high-level interface for NMDS ordination, following
+    the conventions of the R vegan package's metaMDS function. It automatically
+    handles data transformation and uses multiple random starts to find the best
+    ordination solution.
+
+    Parameters
+    ----------
+    X : np.ndarray or pd.DataFrame
+        Community data matrix with samples in rows and species in columns.
+        Values should be non-negative abundances or counts.
+    k : int, default=2
+        Number of dimensions for the ordination. Common choices are 2 or 3.
+    distance : str, default="bray"
+        Distance metric to use for calculating dissimilarities.
+        See :func:`nuee.vegdist` for available options.
+    trymax : int, default=20
+        Maximum number of random starts to find the best solution.
+        Higher values increase computation time but may find better solutions.
+    maxit : int, default=200
+        Maximum number of iterations for each random start.
+    trace : bool, default=False
+        If True, print progress information including stress values.
+    autotransform : bool, default=True
+        If True, automatically apply square root transformation to abundance data
+        (values > 1) to reduce the influence of dominant species.
+    wascores : bool, default=True
+        If True, calculate weighted average species scores based on site scores
+        and species abundances.
+    expand : bool, default=True
+        If True, expand the result to include additional information.
+    **kwargs : dict
+        Additional parameters passed to the NMDS class.
+
+    Returns
+    -------
+    OrdinationResult
+        Result object containing:
+        - points : pd.DataFrame
+            Site (sample) scores in the ordination space
+        - species : pd.DataFrame, optional
+            Species scores (if wascores=True)
+        - stress : float
+            Final stress value (lower is better)
+        - converged : bool
+            Whether the solution converged
+
+    Notes
+    -----
+    NMDS is a rank-based ordination method that attempts to preserve the rank
+    order of dissimilarities between samples. Unlike metric methods like PCA,
+    NMDS makes no assumptions about the linearity of relationships.
+
+    Stress values provide a measure of fit:
+    - < 0.05: excellent
+    - 0.05 - 0.10: good
+    - 0.10 - 0.20: acceptable
+    - > 0.20: poor (consider increasing k or using a different method)
+
+    The function uses multiple random starts (trymax) because NMDS can get stuck
+    in local optima. The solution with the lowest stress is returned.
+
+    Examples
+    --------
+    Basic NMDS ordination:
+
+    >>> import nuee
+    >>> species = nuee.datasets.varespec()
+    >>> nmds = nuee.metaMDS(species, k=2, distance="bray")
+    >>> print(f"Stress: {nmds.stress:.3f}")
+
+    With custom parameters:
+
+    >>> nmds = nuee.metaMDS(species, k=3, distance="bray", trymax=50, trace=True)
+
+    Visualize the ordination:
+
+    >>> import matplotlib.pyplot as plt
+    >>> fig = nuee.plot_ordination(nmds, display="sites")
+    >>> plt.show()
+
+    See Also
+    --------
+    NMDS : Lower-level NMDS class
+    rda : Redundancy Analysis (constrained ordination)
+    cca : Canonical Correspondence Analysis
+    pca : Principal Component Analysis
+
+    References
+    ----------
+    .. [1] Kruskal, J.B. (1964). Nonmetric multidimensional scaling: a numerical
+           method. Psychometrika 29, 115-129.
+    .. [2] Minchin, P.R. (1987). An evaluation of relative robustness of techniques
+           for ecological ordinations. Vegetatio 69, 89-107.
+    .. [3] Oksanen, J., et al. (2020). vegan: Community Ecology Package.
+           https://CRAN.R-project.org/package=vegan
     """
     # Validate input
     if isinstance(X, pd.DataFrame):

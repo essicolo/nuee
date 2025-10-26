@@ -1,21 +1,57 @@
 """
-nuee: Python implementation of R nuee package for community ecology.
+nuee: Community Ecology Analysis in Python
+===========================================
 
-This package provides tools for descriptive community ecology, including:
-- Ordination methods (NMDS, RDA, PCA, CA, CCA)
-- Diversity analysis
-- Dissimilarity analysis
-- Permutation tests
-- Environmental variable fitting
-- Plotting functions
+``nuee`` is a comprehensive Python implementation of the popular R package ``vegan``
+for community ecology analysis. It provides tools for ordination, diversity analysis,
+dissimilarity measures, and statistical testing commonly used in ecological research.
 
-Classes and functions are organized into modules:
-- ordination: Ordination methods and analysis
-- diversity: Diversity indices and analysis
-- dissimilarity: Dissimilarity measures and analysis
-- permutation: Permutation tests and statistics
-- plotting: Visualization functions
-- datasets: Sample datasets for testing and examples
+Modules
+-------
+ordination : module
+    Ordination methods including NMDS, RDA, CCA, PCA, and environmental fitting
+diversity : module
+    Diversity indices and rarefaction analysis
+dissimilarity : module
+    Distance measures and dissimilarity-based tests (PERMANOVA, ANOSIM, etc.)
+permutation : module
+    Permutation-based statistical tests
+plotting : module
+    Visualization functions for ecological data
+datasets : module
+    Sample datasets for testing and examples
+
+Examples
+--------
+Basic NMDS ordination:
+
+>>> import nuee
+>>> species_data = nuee.datasets.varespec()
+>>> nmds_result = nuee.metaMDS(species_data, k=2, distance="bray")
+>>> print(f"NMDS Stress: {nmds_result.stress:.3f}")
+
+Calculate diversity indices:
+
+>>> shannon_div = nuee.shannon(species_data)
+>>> simpson_div = nuee.simpson(species_data)
+>>> richness = nuee.specnumber(species_data)
+
+Perform PERMANOVA test:
+
+>>> distances = nuee.vegdist(species_data, method="bray")
+>>> env_data = nuee.datasets.varechem()
+>>> permanova_result = nuee.adonis2(distances, env_data)
+
+Notes
+-----
+nuee is inspired by the R package vegan developed by Jari Oksanen and the vegan
+development team. It aims to provide similar functionality in a Pythonic interface
+while leveraging the scientific Python ecosystem (NumPy, SciPy, pandas, matplotlib).
+
+References
+----------
+.. [1] Oksanen, J., et al. (2020). vegan: Community Ecology Package.
+       R package version 2.5-7. https://CRAN.R-project.org/package=vegan
 """
 
 __version__ = "0.1.0"
