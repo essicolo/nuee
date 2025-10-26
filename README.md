@@ -2,6 +2,12 @@
 
 `nuee` is a comprehensive Python implementation of the popular R package `vegan` for community ecology analysis. It provides tools for ordination, diversity analysis, dissimilarity measures, and statistical testing commonly used in ecological research.
 
+## Installation
+
+```bash
+pip install nuee
+```
+
 ## Features
 
 ### Ordination Methods
@@ -43,47 +49,6 @@
 - **mite** & **mite_env**: Oribatid mite data
 
 ## Installation
-
-### Option 1: Simple Installation (Recommended for Development)
-
-```bash
-git clone https://github.com/your-username/nuee.git
-cd nuee
-python install.py
-```
-
-### Option 2: Using pip (if available)
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Add to PYTHONPATH for development
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-```
-
-### Option 3: Manual Setup
-
-```bash
-# Install dependencies individually
-pip install numpy scipy pandas matplotlib seaborn scikit-learn patsy statsmodels
-
-# Test installation
-python -c "import sys; sys.path.insert(0, '.'); import nuee; print('✓ nuee ready!')"
-```
-
-### Verify Installation
-
-```bash
-python -c "
-import sys; sys.path.insert(0, '.')
-import nuee 
-species = nuee.datasets.varespec()
-nmds = nuee.metaMDS(species, k=2, trymax=5, trace=False)
-print(f'✓ Installation successful! NMDS stress: {nmds.stress:.3f}')
-"
-```
-
 ## Quick Start
 
 ```python
