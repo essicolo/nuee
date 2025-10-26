@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nuee"
 version = "0.1.0"
-description = "Python implementation of R nuee package for community ecology"
+description = "Community Ecology Analysis in Python"
 readme = "README.md"
 authors = [
     {name = "nuee Development Team"}
