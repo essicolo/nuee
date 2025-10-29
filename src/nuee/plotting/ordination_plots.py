@@ -84,8 +84,10 @@ def plot_ordination(result: OrdinationResult,
                               textcoords='offset points', fontsize=8, color='red')
     
     # Add biplot arrows for constrained ordination
-    if isinstance(result, ConstrainedOrdinationResult) and result.biplot is not None:
-        _add_biplot_arrows(ax, result.biplot, axes)
+    if isinstance(result, ConstrainedOrdinationResult):
+        biplot_scores = getattr(result, "biplot_scores", None)
+        if biplot_scores is not None:
+            _add_biplot_arrows(ax, biplot_scores, axes)
     
     # Set labels
     if hasattr(result, 'eigenvalues') and result.eigenvalues is not None:

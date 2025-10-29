@@ -75,6 +75,11 @@ from .diversity import (
     simpson,
     shannon,
     evenness,
+    rarefy,
+    rarecurve,
+    estimateR,
+    specaccum,
+    poolaccum,
 )
 
 from .dissimilarity import (
@@ -100,6 +105,11 @@ from .plotting import (
     plot_dissimilarity,
     biplot,
     ordiplot,
+    plot_rarecurve,
+    plot_specaccum,
+    ordiellipse,
+    ordispider,
+    plot_betadisper,
 )
 
 from . import datasets
@@ -121,6 +131,11 @@ __all__ = [
     "simpson",
     "shannon",
     "evenness",
+    "rarefy",
+    "rarecurve",
+    "estimateR",
+    "specaccum",
+    "poolaccum",
     # Dissimilarity
     "vegdist",
     "adonis2",
@@ -140,6 +155,11 @@ __all__ = [
     "plot_dissimilarity",
     "biplot",
     "ordiplot",
+    "plot_rarecurve",
+    "plot_specaccum",
+    "ordiellipse",
+    "ordispider",
+    "plot_betadisper",
     # Datasets
     "datasets",
 ]

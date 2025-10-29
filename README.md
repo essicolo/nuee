@@ -1,4 +1,6 @@
-# nuee: Community Ecology Analysis in Python
+**`nuee` has just been released, and is likely to contain errors and bugs. The code has not been thoroughly reviewed. Do NOT trust its results blindly.**
+
+# `nuee`: Community Ecology Analysis in Python
 
 `nuee` is a comprehensive Python implementation of the popular R package `vegan` for community ecology analysis. It provides tools for ordination, diversity analysis, dissimilarity measures, and statistical testing commonly used in ecological research.
 
@@ -164,9 +166,9 @@ anosim_result = nuee.anosim(dist_matrix, env['Substrate'])
 env_dist = nuee.vegdist(env[['SubsDens', 'WatrCont']], method="euclidean")
 mantel_result = nuee.mantel(dist_matrix, env_dist)
 
-print(f"PERMANOVA R²: {permanova_result.r_squared:.3f}")
-print(f"ANOSIM R: {anosim_result.r_statistic:.3f}")
-print(f"Mantel r: {mantel_result.r_statistic:.3f}")
+print(f"PERMANOVA R²: {permanova_result["r_squared"]:.3f}")
+print(f"ANOSIM R: {anosim_result["r_statistic"]:.3f}")
+print(f"Mantel r: {mantel_result["r_statistic"]:.3f}"))
 ```
 
 ## Dependencies
@@ -190,8 +192,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-nuee is inspired by the excellent R package `nuee` developed by Jari Oksanen and the nuee development team. We acknowledge their pioneering work in making community ecology analysis accessible to researchers worldwide.
-
----
-
-*Happy analyzing! 🌱*
+nuee is inspired by the excellent R package `vegan` developed by Jari Oksanen and the `vegan` development team. We acknowledge their pioneering work in making community ecology analysis accessible to researchers worldwide.
