@@ -35,10 +35,10 @@ dependencies = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = "."}
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["nuee*"]
 
 [project.optional-dependencies]

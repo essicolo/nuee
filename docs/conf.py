@@ -5,14 +5,14 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'nuee'
-copyright = '2024, nuee Development Team'
-author = 'nuee Development Team'
+copyright = '2025, Essi Parent'
+author = 'Essi Parent'
 release = '0.1.0'
 version = '0.1.0'
 
@@ -62,8 +62,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
+
+html_theme = 'alabaster'
 html_static_path = ['_static']
+html_logo = '_static/logo.png
 
 # Theme options
 html_theme_options = {
