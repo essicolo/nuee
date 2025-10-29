@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -8,14 +8,13 @@ app = marimo.App(width="medium")
 def _(mo):
     mo.md(
         r"""
-    # Chapter 4: Data Visualization with Holoviews
+    # Chapter 4: Data Visualization with plotnine
 
-    This chapter covers creating effective visualizations for ecological data using 
-    holoviews, a powerful declarative visualization library that works seamlessly 
-    in Pyodide environments.
+    This chapter covers creating effective visualizations for ecological data using plotnine, a powerful declarative visualization library that works seamlessly in Pyodide environments.
 
     ## Learning Objectives
-    - Master holoviews for ecological data visualization
+
+    - Master plotnine for ecological data visualization
     - Create publication-quality plots for ecological research
     - Build interactive visualizations and dashboards
     - Understand design principles for ecological graphics
@@ -25,298 +24,178 @@ def _(mo):
 
 
 @app.cell
-def __():
+def _():
     # Essential imports for visualization
     import pandas as pd
     import numpy as np
-    import holoviews as hv
-    from holoviews import opts, dim
-    import panel as pn
-    import warnings
-    warnings.filterwarnings('ignore')
-    
-    # Configure holoviews
-    hv.extension('bokeh')
-    pn.extension()
-    
-    print("✓ Visualization packages loaded")
-    return dim, hv, np, opts, pd, pn, warnings
+    import plotnine as p9
+    return np, p9, pd
 
 
 @app.cell
-def __():
-    """
-    ## Create Sample Ecological Dataset
-    """
+def _(mo):
+    mo.md(r"""## Create Sample Ecological Dataset""")
+    return
+
+
+@app.cell
+def _(np, pd):
     # Generate comprehensive ecological data for visualization examples
     np.random.seed(42)
-    
+
     # Site-level data
-    n_sites = 100
-    sites = [f"SITE_{i:03d}" for i in range(1, n_sites + 1)]
-    
-    ecological_data = pd.DataFrame({
+    _n_sites = 100
+    sites = [f"SITE_{i:03d}" for i in range(1, _n_sites + 1)]
+
+    ecological_data1 = pd.DataFrame({
         'site_id': sites,
-        'habitat': np.random.choice(['Forest', 'Grassland', 'Wetland', 'Urban', 'Shrubland'], n_sites, p=[0.3, 0.25, 0.2, 0.15, 0.1]),
-        'latitude': np.random.uniform(45.0, 48.0, n_sites),
-        'longitude': np.random.uniform(-75.0, -70.0, n_sites),
-        'elevation': np.random.uniform(50, 1200, n_sites),
-        'temperature': np.random.normal(15, 5, n_sites),
-        'precipitation': np.random.lognormal(6, 0.5, n_sites),
-        'soil_pH': np.random.normal(6.5, 1.2, n_sites),
-        'nitrogen': np.random.gamma(2, 5, n_sites),
-        'species_richness': np.random.poisson(15, n_sites),
-        'shannon_diversity': np.random.gamma(2, 0.7, n_sites),
-        'total_abundance': np.random.lognormal(4, 0.8, n_sites)
+        'habitat': np.random.choice(['Forest', 'Grassland', 'Wetland', 'Urban', 'Shrubland'], _n_sites, p=[0.3, 0.25, 0.2, 0.15, 0.1]),
+        'latitude': np.random.uniform(45.0, 48.0, _n_sites),
+        'longitude': np.random.uniform(-75.0, -70.0, _n_sites),
+        'elevation': np.random.uniform(50, 1200, _n_sites),
+        'temperature': np.random.normal(15, 5, _n_sites),
+        'precipitation': np.random.lognormal(6, 0.5, _n_sites),
+        'soil_pH': np.random.normal(6.5, 1.2, _n_sites),
+        'nitrogen': np.random.gamma(2, 5, _n_sites),
+        'species_richness': np.random.poisson(15, _n_sites),
+        'shannon_diversity': np.random.gamma(2, 0.7, _n_sites),
+        'total_abundance': np.random.lognormal(4, 0.8, _n_sites)
     })
-    
+
     # Add derived variables
-    ecological_data['simpson_diversity'] = 1 - (1 / (ecological_data['shannon_diversity'] + 1))
-    ecological_data['evenness'] = ecological_data['shannon_diversity'] / np.log(ecological_data['species_richness'])
-    
-    print(f"Dataset created: {ecological_data.shape}")
-    print(ecological_data.head())
-    return ecological_data, n_sites, sites
+    ecological_data1['simpson_diversity'] = 1 - (1 / (ecological_data1['shannon_diversity'] + 1))
+    ecological_data1['evenness'] = ecological_data1['shannon_diversity'] / np.log(ecological_data1['species_richness'])
+
+    ecological_data1['habitat'] = ecological_data1['habitat'].astype('category')
+
+    print(f"Dataset created: {ecological_data1.shape}")
+    print(ecological_data1.head())
+    return (ecological_data1,)
 
 
 @app.cell
-def __():
-    """
-    ## Basic Scatter Plots
-    """
-    # Simple scatter plot (equivalent to R's plot() or ggplot2's geom_point())
-    scatter_basic = hv.Scatter(
-        ecological_data, 
-        'temperature', 
-        'species_richness'
-    ).opts(
-        title="Species Richness vs Temperature",
-        xlabel="Temperature (°C)",
-        ylabel="Species Richness",
-        size=8,
-        alpha=0.7,
-        tools=['hover']
-    )
-    
-    # Enhanced scatter plot with color mapping
-    scatter_colored = hv.Scatter(
-        ecological_data, 
-        'temperature', 
-        'species_richness',
-        label='Species-Temperature Relationship'
-    ).opts(
-        color='habitat',
-        cmap='Category10',
-        size=10,
-        alpha=0.8,
-        title="Species Richness vs Temperature by Habitat",
-        xlabel="Temperature (°C)",
-        ylabel="Species Richness",
-        legend_position='top_left',
-        tools=['hover']
-    )
-    
-    # Display plots
-    print("Basic and colored scatter plots:")
-    scatter_basic + scatter_colored
-    return scatter_basic, scatter_colored
+def _(mo):
+    mo.md(r"""## Basic Scatter Plots""")
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Distributions and Histograms
-    """
-    # Histogram (equivalent to R's hist() or ggplot2's geom_histogram())
-    histogram = hv.Histogram(
-        np.histogram(ecological_data['species_richness'], bins=20)
-    ).opts(
-        title="Distribution of Species Richness",
-        xlabel="Species Richness",
-        ylabel="Frequency",
-        alpha=0.7
-    )
-    
-    # Density plot by habitat
-    density_plots = hv.Distribution(
-        ecological_data, 
-        'species_richness', 
-        groupby='habitat'
-    ).opts(
-        title="Species Richness Distribution by Habitat",
-        xlabel="Species Richness",
-        ylabel="Density",
-        alpha=0.6
-    ).overlay()
-    
-    # Box plots (equivalent to R's boxplot() or ggplot2's geom_boxplot())
-    box_plot = hv.BoxWhisker(
-        ecological_data, 
-        'habitat', 
-        'species_richness'
-    ).opts(
-        title="Species Richness by Habitat",
-        xlabel="Habitat Type",
-        ylabel="Species Richness",
-        box_alpha=0.7,
-        outlier_alpha=0.5
-    )
-    
-    print("Distribution visualizations:")
-    (histogram + density_plots + box_plot).cols(2)
-    return box_plot, density_plots, histogram
+def _(ecological_data1, p9):
+    (
+        p9.ggplot(ecological_data1, p9.aes(x='temperature', y='species_richness'))
+        + p9.geom_point()
+        + p9.labs(
+            title='Species Richness vs Temperature by Habitat',
+            x='Temperature (°C)',
+            y='Species Richness'
+        )
+    ).show()
+    return
 
 
 @app.cell
-def __():
-    """
+def _(ecological_data1, p9):
+    (
+        p9.ggplot(ecological_data1, p9.aes(x='temperature', y='species_richness'))
+        + p9.geom_point(p9.aes(color='habitat'), size=3, alpha=0.7)
+        + p9.theme_bw() # a theme
+        + p9.labs(
+            title='Species Richness vs Temperature by Habitat',
+            x='Temperature (°C)',
+            y='Species Richness'
+        )
+    ).show()
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""## Distributions and Histograms""")
+    return
+
+
+@app.cell
+def _(ecological_data1, p9):
+    (
+        p9.ggplot(ecological_data1, p9.aes(x='species_richness'))
+        + p9.geom_histogram(bins=20)
+    ).draw()
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
     ## Correlation and Relationship Plots
+
+    To plot a correlation matrix, you must compute it then make a table out of it. The table must be in long format to have the variable in a column, the variable is correlates to in another column, then the value of the correlation in the other.
     """
-    # Correlation heatmap
-    # Select numeric columns for correlation
+    )
+    return
+
+
+@app.cell
+def _(ecological_data1):
     numeric_cols = ['temperature', 'precipitation', 'soil_pH', 'nitrogen', 
                    'species_richness', 'shannon_diversity', 'total_abundance']
-    corr_matrix = ecological_data[numeric_cols].corr()
+    corr_matrix = ecological_data1[numeric_cols].corr()
+    corr_matrix = corr_matrix.corr().round(2)
+    corr_long = (
+        corr_matrix
+        .reset_index() # the row-wise variable is stored in the index, resetting put the variable in a column named "index" and makes a new index
+        .rename(columns={'index':'var1'})
+        .melt(id_vars='var1', var_name='var2', value_name='corr')
     
-    # Convert correlation matrix to format for heatmap
-    corr_data = []
-    for i, row_name in enumerate(corr_matrix.index):
-        for j, col_name in enumerate(corr_matrix.columns):
-            corr_data.append((row_name, col_name, corr_matrix.iloc[i, j]))
-    
-    corr_df = pd.DataFrame(corr_data, columns=['Variable1', 'Variable2', 'Correlation'])
-    
-    heatmap = hv.HeatMap(corr_df).opts(
-        title="Variable Correlation Matrix",
-        xlabel="Variables",
-        ylabel="Variables",
-        colorbar=True,
-        cmap='RdBu_r',
-        symmetric=True,
-        tools=['hover']
     )
-    
-    # Pair plot matrix (scatter plot matrix)
-    vars_for_pairs = ['temperature', 'precipitation', 'species_richness', 'shannon_diversity']
-    
-    def create_pair_plot(data, vars):
-        plots = {}
-        for i, var1 in enumerate(vars):
-            for j, var2 in enumerate(vars):
-                if i == j:
-                    # Diagonal: histograms
-                    plots[(var1, var2)] = hv.Histogram(np.histogram(data[var1], bins=15)).opts(
-                        alpha=0.7, xlabel=var1 if i == len(vars)-1 else '',
-                        ylabel='Frequency' if j == 0 else ''
-                    )
-                else:
-                    # Off-diagonal: scatter plots
-                    plots[(var1, var2)] = hv.Scatter(data, var2, var1).opts(
-                        size=4, alpha=0.6,
-                        xlabel=var2 if i == len(vars)-1 else '',
-                        ylabel=var1 if j == 0 else ''
-                    )
-        return plots
-    
-    pair_plots = create_pair_plot(ecological_data, vars_for_pairs)
-    
-    print("Correlation analysis:")
-    heatmap
-    return corr_data, corr_df, corr_matrix, heatmap, numeric_cols, pair_plots, vars_for_pairs
+    corr_long
+    return (corr_long,)
 
 
 @app.cell
-def __():
-    """
-    ## Geographic and Spatial Plots
-    """
-    # Geographic scatter plot
-    geo_plot = hv.Scatter(
-        ecological_data, 
-        'longitude', 
-        'latitude'
-    ).opts(
-        color='species_richness',
-        size='total_abundance',
-        cmap='viridis',
-        title="Geographic Distribution of Sites",
-        xlabel="Longitude",
-        ylabel="Latitude",
-        colorbar=True,
-        tools=['hover'],
-        alpha=0.8
-    )
-    
-    # Elevation profile
-    elevation_plot = hv.Scatter(
-        ecological_data, 
-        'elevation', 
-        'species_richness'
-    ).opts(
-        color='habitat',
-        size=8,
-        alpha=0.7,
-        title="Species Richness vs Elevation",
-        xlabel="Elevation (m)",
-        ylabel="Species Richness",
-        cmap='Category10'
-    )
-    
-    # Add trend line
-    from scipy import stats
-    slope, intercept, r_value, p_value, std_err = stats.linregress(
-        ecological_data['elevation'], 
-        ecological_data['species_richness']
-    )
-    
-    x_trend = np.linspace(ecological_data['elevation'].min(), ecological_data['elevation'].max(), 100)
-    y_trend = slope * x_trend + intercept
-    
-    trend_line = hv.Curve((x_trend, y_trend)).opts(
-        color='red', 
-        line_dash='dashed',
-        line_width=2
-    )
-    
-    elevation_with_trend = elevation_plot * trend_line
-    
-    print("Spatial and environmental relationships:")
-    geo_plot + elevation_with_trend
-    return (
-        elevation_plot,
-        elevation_with_trend,
-        geo_plot,
-        intercept,
-        p_value,
-        r_value,
-        slope,
-        stats,
-        std_err,
-        trend_line,
-        x_trend,
-        y_trend,
-    )
+def _(corr_long, p9):
+    (
+        p9.ggplot(corr_long, p9.aes(x='var1', y='var2', fill='corr'))
+        + p9.geom_tile()
+        + p9.geom_text(p9.aes(label='corr'), size=8)
+        + p9.scale_fill_gradient2(low='#2166ac', mid='#f7f7f7', high='#b2182b', midpoint=0)
+        + p9.labs(x='', y='', title='Correlation matrix')
+        + p9.theme_minimal()
+        + p9.theme(
+            axis_text_x=p9.element_text(rotation=45, ha='right', size=8),
+            axis_text_y=p9.element_text(size=8),
+            plot_title=p9.element_text(size=11, weight='bold'),
+            figure_size=(6,6)
+        )
+    ).draw()
+    return
 
 
 @app.cell
-def __():
-    """
+def _():
     ## Time Series and Temporal Data
+    return
+
+
+@app.cell
+def _(hv, np, pd):
+    """
+
     """
     # Create temporal data for demonstration
     start_date = pd.to_datetime('2020-01-01')
     dates = pd.date_range(start_date, periods=365*3, freq='D')
-    
+
     # Simulate seasonal patterns in biodiversity
     day_of_year = dates.dayofyear
     seasonal_pattern = np.sin(2 * np.pi * day_of_year / 365) * 5 + 15
     random_noise = np.random.normal(0, 2, len(dates))
     temperature_ts = seasonal_pattern + random_noise
-    
+
     # Simulate species observations with seasonal patterns
     species_activity = np.sin(2 * np.pi * day_of_year / 365 + np.pi/4) * 10 + 20 + np.random.normal(0, 3, len(dates))
     species_activity = np.maximum(species_activity, 0)  # No negative observations
-    
+
     temporal_data = pd.DataFrame({
         'date': dates,
         'temperature': temperature_ts,
@@ -325,7 +204,7 @@ def __():
         'month': dates.month,
         'day_of_year': day_of_year
     })
-    
+
     # Time series plot
     temp_ts = hv.Curve(temporal_data, 'date', 'temperature').opts(
         title="Temperature Time Series",
@@ -334,7 +213,7 @@ def __():
         color='red',
         line_width=1
     )
-    
+
     species_ts = hv.Curve(temporal_data, 'date', 'species_observations').opts(
         title="Species Observations Over Time",
         xlabel="Date", 
@@ -342,48 +221,34 @@ def __():
         color='green',
         line_width=1
     )
-    
+
     # Seasonal decomposition visualization
     monthly_avg = temporal_data.groupby(['year', 'month']).agg({
         'temperature': 'mean',
         'species_observations': 'mean'
     }).reset_index()
-    
+
     monthly_avg['date'] = pd.to_datetime(monthly_avg[['year', 'month']].assign(day=1))
-    
+
     monthly_temp = hv.Curve(monthly_avg, 'date', 'temperature').opts(
         title="Monthly Average Temperature",
         color='orange',
         line_width=3
     )
-    
+
     monthly_species = hv.Curve(monthly_avg, 'date', 'species_observations').opts(
         title="Monthly Average Species Observations",
         color='blue',
         line_width=3
     )
-    
+
     print("Temporal patterns:")
     (temp_ts + species_ts + monthly_temp + monthly_species).cols(2)
-    return (
-        dates,
-        day_of_year,
-        monthly_avg,
-        monthly_species,
-        monthly_temp,
-        random_noise,
-        seasonal_pattern,
-        species_activity,
-        species_ts,
-        start_date,
-        temp_ts,
-        temperature_ts,
-        temporal_data,
-    )
+    return
 
 
 @app.cell
-def __():
+def _(ecological_data, hv, pn):
     """
     ## Interactive Visualizations
     """
@@ -392,64 +257,55 @@ def __():
         data = ecological_data.copy()
         if habitat_filter != 'All':
             data = data[data['habitat'] == habitat_filter]
-        
+
         return hv.Scatter(data, x_var, y_var).opts(
             title=f"{y_var} vs {x_var}" + (f" ({habitat_filter})" if habitat_filter != 'All' else ""),
             size=8,
             alpha=0.7,
             tools=['hover']
         )
-    
+
     # Create interactive plot with panel widgets
     x_select = pn.widgets.Select(
         name='X Variable', 
         value='temperature',
         options=['temperature', 'precipitation', 'soil_pH', 'nitrogen', 'elevation']
     )
-    
+
     y_select = pn.widgets.Select(
         name='Y Variable',
         value='species_richness', 
         options=['species_richness', 'shannon_diversity', 'total_abundance', 'simpson_diversity']
     )
-    
+
     habitat_select = pn.widgets.Select(
         name='Habitat Filter',
         value='All',
         options=['All'] + list(ecological_data['habitat'].unique())
     )
-    
+
     # Linked brushing example
     scatter1 = hv.Scatter(ecological_data, 'temperature', 'species_richness').opts(
         tools=['box_select', 'lasso_select'],
         title="Temperature vs Species Richness"
     )
-    
+
     scatter2 = hv.Scatter(ecological_data, 'precipitation', 'shannon_diversity').opts(
         tools=['box_select', 'lasso_select'],
         title="Precipitation vs Shannon Diversity"
     )
-    
+
     # Selection streams for brushing
     selection1 = hv.streams.Selection1D(source=scatter1)
     selection2 = hv.streams.Selection1D(source=scatter2)
-    
+
     print("Interactive plots with selection:")
     scatter1 + scatter2
-    return (
-        habitat_select,
-        interactive_scatter,
-        scatter1,
-        scatter2,
-        selection1,
-        selection2,
-        x_select,
-        y_select,
-    )
+    return
 
 
 @app.cell
-def __():
+def _(ecological_data, hv, np, pd):
     """
     ## Ecological Specialized Plots
     """
@@ -457,17 +313,17 @@ def __():
     np.random.seed(42)
     n_samples = 20
     cumulative_species = []
-    
+
     for i in range(1, n_samples + 1):
         # Simulate cumulative species discovery
         base_species = 5 * np.log(i + 1) + np.random.normal(0, 0.5)
         cumulative_species.append(max(1, base_species))
-    
+
     accumulation_data = pd.DataFrame({
         'samples': range(1, n_samples + 1),
         'species_count': np.cumsum([1, 2, 1, 3, 1, 1, 2, 0, 1, 2, 1, 0, 1, 1, 0, 2, 1, 0, 1, 1])
     })
-    
+
     accumulation_curve = hv.Curve(accumulation_data, 'samples', 'species_count').opts(
         title="Species Accumulation Curve",
         xlabel="Number of Samples",
@@ -475,20 +331,20 @@ def __():
         line_width=3,
         color='green'
     )
-    
+
     # Rank-abundance plot (species abundance distribution)
     # Simulate species abundances following a log-normal distribution
     n_species = 25
     abundances = np.random.lognormal(2, 1.5, n_species)
     abundances = sorted(abundances, reverse=True)
     ranks = range(1, len(abundances) + 1)
-    
+
     rank_abundance_data = pd.DataFrame({
         'rank': ranks,
         'abundance': abundances,
         'log_abundance': np.log(abundances)
     })
-    
+
     rank_abundance = hv.Scatter(rank_abundance_data, 'rank', 'log_abundance').opts(
         title="Rank-Abundance Plot",
         xlabel="Species Rank",
@@ -496,15 +352,15 @@ def __():
         size=8,
         color='orange'
     )
-    
+
     # Rarefaction curves for different habitats
     habitats = ecological_data['habitat'].unique()
     rarefaction_data = []
-    
+
     for habitat in habitats:
         habitat_data = ecological_data[ecological_data['habitat'] == habitat]
         n_sites = len(habitat_data)
-        
+
         for n in range(1, min(n_sites + 1, 21)):
             # Simulate rarefied species richness
             mean_richness = habitat_data['species_richness'].mean()
@@ -514,59 +370,45 @@ def __():
                 'n_sites': n,
                 'rarefied_richness': max(1, rarefied)
             })
-    
+
     rarefaction_df = pd.DataFrame(rarefaction_data)
-    
+
     rarefaction_curves = hv.Curve(rarefaction_df, 'n_sites', 'rarefied_richness', groupby='habitat').opts(
         title="Rarefaction Curves by Habitat",
         xlabel="Number of Sites",
         ylabel="Rarefied Species Richness",
         line_width=2
     ).overlay()
-    
+
     print("Ecological diversity plots:")
     (accumulation_curve + rank_abundance + rarefaction_curves).cols(2)
-    return (
-        accumulation_curve,
-        accumulation_data,
-        abundances,
-        cumulative_species,
-        habitats,
-        n_samples,
-        n_species,
-        rarefaction_curves,
-        rarefaction_data,
-        rarefaction_df,
-        rank_abundance,
-        rank_abundance_data,
-        ranks,
-    )
+    return
 
 
 @app.cell
-def __():
+def _(ecological_data, hv, np, pd):
     """
     ## Ordination Plots
     """
     # Simulate ordination results for demonstration
     np.random.seed(42)
     n_sites = len(ecological_data)
-    
+
     # Simulate PCA scores
     pca_axis1 = np.random.normal(0, 2, n_sites)
     pca_axis2 = np.random.normal(0, 1.5, n_sites)
-    
+
     # Make scores somewhat related to environmental variables
     temp_effect = (ecological_data['temperature'] - ecological_data['temperature'].mean()) / ecological_data['temperature'].std()
     precip_effect = (ecological_data['precipitation'] - ecological_data['precipitation'].mean()) / ecological_data['precipitation'].std()
-    
+
     pca_axis1 += temp_effect * 0.5
     pca_axis2 += precip_effect * 0.3
-    
+
     ordination_data = ecological_data.copy()
     ordination_data['PCA1'] = pca_axis1
     ordination_data['PCA2'] = pca_axis2
-    
+
     # PCA biplot
     site_plot = hv.Scatter(ordination_data, 'PCA1', 'PCA2').opts(
         color='habitat',
@@ -577,7 +419,7 @@ def __():
         ylabel="PC2",
         cmap='Category10'
     )
-    
+
     # Add environmental vectors
     vector_data = pd.DataFrame({
         'variable': ['Temperature', 'Precipitation', 'Soil pH', 'Nitrogen'],
@@ -586,7 +428,7 @@ def __():
         'PCA1_end': [0, 0, 0, 0],
         'PCA2_end': [0, 0, 0, 0]
     })
-    
+
     # Create arrows for environmental vectors
     arrows = []
     for _, row in vector_data.iterrows():
@@ -595,27 +437,27 @@ def __():
             line_width=2,
             arrow_size=10
         )
-        
+
         # Add text labels
         text = hv.Text(row['PCA1']*1.1, row['PCA2']*1.1, row['variable']).opts(
             color='red',
             fontsize=10
         )
-        
+
         arrows.append(arrow * text)
-    
+
     biplot = site_plot
     for arrow in arrows:
         biplot *= arrow
-    
+
     biplot = biplot.opts(
         title="PCA Biplot with Environmental Vectors"
     )
-    
+
     # NMDS stress plot
     stress_values = [0.25, 0.18, 0.12, 0.08, 0.06, 0.05, 0.049, 0.048]
     dimensions = list(range(1, len(stress_values) + 1))
-    
+
     stress_plot = hv.Curve((dimensions, stress_values)).opts(
         title="NMDS Stress vs Dimensions",
         xlabel="Number of Dimensions",
@@ -626,29 +468,14 @@ def __():
         size=10,
         color='purple'
     )
-    
+
     print("Ordination visualizations:")
     biplot + stress_plot
-    return (
-        arrow,
-        arrows,
-        biplot,
-        dimensions,
-        ordination_data,
-        pca_axis1,
-        pca_axis2,
-        precip_effect,
-        site_plot,
-        stress_plot,
-        stress_values,
-        temp_effect,
-        text,
-        vector_data,
-    )
+    return
 
 
 @app.cell
-def __():
+def _(ecological_data, hv, np, stats):
     """
     ## Publication-Quality Plots
     """
@@ -673,41 +500,41 @@ def __():
         width=600,
         height=400
     )
-    
+
     # Add regression lines for each habitat
     regression_lines = []
     colors = ['red', 'blue', 'green', 'orange', 'purple']
-    
+
     for i, habitat in enumerate(ecological_data['habitat'].unique()):
         habitat_data = ecological_data[ecological_data['habitat'] == habitat]
-        
+
         if len(habitat_data) > 2:  # Need at least 3 points for regression
             slope, intercept, r_val, p_val, std_err = stats.linregress(
                 habitat_data['temperature'], 
                 habitat_data['species_richness']
             )
-            
+
             x_range = np.linspace(
                 habitat_data['temperature'].min(), 
                 habitat_data['temperature'].max(), 
                 50
             )
             y_pred = slope * x_range + intercept
-            
+
             reg_line = hv.Curve((x_range, y_pred)).opts(
                 color=colors[i % len(colors)],
                 line_width=2,
                 line_dash='dashed',
                 alpha=0.8
             )
-            
+
             regression_lines.append(reg_line)
-    
+
     # Combine main plot with regression lines
     publication_plot = main_plot
     for line in regression_lines:
         publication_plot *= line
-    
+
     # Marginal distributions
     temp_hist = hv.Histogram(np.histogram(ecological_data['temperature'], bins=20)).opts(
         xlabel="Temperature (°C)",
@@ -715,36 +542,21 @@ def __():
         alpha=0.7,
         color='lightblue'
     )
-    
+
     richness_hist = hv.Histogram(np.histogram(ecological_data['species_richness'], bins=20)).opts(
         xlabel="Species Richness", 
         ylabel="Frequency",
         alpha=0.7,
         color='lightgreen'
     )
-    
+
     print("Publication-quality visualization:")
     publication_plot
-    return (
-        colors,
-        habitat_data,
-        intercept,
-        line,
-        main_plot,
-        publication_plot,
-        r_val,
-        reg_line,
-        regression_lines,
-        richness_hist,
-        slope,
-        temp_hist,
-        x_range,
-        y_pred,
-    )
+    return
 
 
 @app.cell
-def __():
+def _():
     """
     ## Design Principles for Ecological Graphics
 
@@ -786,7 +598,7 @@ def __():
 
 
 @app.cell
-def __():
+def _(ecological_data, hv):
     """
     ## Interactive Dashboard Example
     """
@@ -798,7 +610,7 @@ def __():
             'shannon_diversity': 'mean',
             'temperature': 'mean'
         }).round(2)
-        
+
         # Main scatter plot
         scatter = hv.Scatter(
             ecological_data, 
@@ -813,7 +625,7 @@ def __():
             width=500,
             height=350
         )
-        
+
         # Distribution plot
         dist_plot = hv.Distribution(
             ecological_data, 
@@ -825,31 +637,31 @@ def __():
             width=400,
             height=250
         ).overlay()
-        
+
         # Correlation heatmap (simplified)
         simple_corr = ecological_data[['temperature', 'precipitation', 'species_richness', 'shannon_diversity']].corr()
-        
+
         return scatter, dist_plot, summary_stats, simple_corr
-    
+
     dashboard_plots = create_dashboard()
-    
+
     print("Dashboard components created")
     print("Summary statistics by habitat:")
     print(dashboard_plots[2])  # summary_stats
-    
+
     # Display main visualizations
     dashboard_plots[0] + dashboard_plots[1]  # scatter + dist_plot
-    return create_dashboard, dashboard_plots, simple_corr, summary_stats
+    return
 
 
 @app.cell
-def __():
+def _(ecological_data, hv):
     """
     ## Saving and Exporting Plots
     """
     # Example of how to save plots for publication
     # Note: In Marimo/Pyodide environment, direct file saving may be limited
-    
+
     # Configure high-quality output
     publication_scatter = hv.Scatter(
         ecological_data, 
@@ -867,39 +679,39 @@ def __():
         width=800,
         height=600
     )
-    
+
     # Tips for saving plots:
     print("""
     Saving Plots for Publication:
-    
+
     1. Use high DPI (300+ for print, 150+ for web)
     2. Choose appropriate file formats:
        - SVG: Vector graphics, perfect for line plots
        - PNG: High-quality raster, good for complex plots
        - PDF: Vector format, ideal for publications
-    
+
     3. Standard figure sizes:
        - Single column: 3.5 inches width
        - Double column: 7 inches width
        - Full page: 8.5 x 11 inches
-    
+
     4. Font considerations:
        - Use sans-serif fonts (Arial, Helvetica)
        - Minimum 8pt font size
        - Consistent font sizing across figures
-    
+
     5. Color considerations:
        - Test in grayscale
        - Use colorblind-friendly palettes
        - High contrast for accessibility
     """)
-    
+
     publication_scatter
-    return publication_scatter,
+    return
 
 
 @app.cell
-def __():
+def _():
     """
     ## Summary
 

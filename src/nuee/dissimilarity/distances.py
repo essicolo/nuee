@@ -13,7 +13,7 @@ from scipy.stats import rankdata
 import warnings
 
 
-def vegdist(x: Union[np.ndarray, pd.DataFrame], 
+def vegdist(x: Union[np.ndarray, pd.DataFrame],
            method: str = "bray",
            binary: bool = False,
            diag: bool = False,
@@ -21,39 +21,49 @@ def vegdist(x: Union[np.ndarray, pd.DataFrame],
            na_rm: bool = False) -> np.ndarray:
     """
     Calculate ecological distance matrices.
-    
+
     This function calculates various dissimilarity indices commonly used
-    in community ecology. The function is designed to be compatible with
-    the R nuee vegdist function.
-    
-    Parameters:
-        x: Community data matrix (samples x species)
-        method: Distance measure to use
-        binary: Convert to binary (presence/absence) data
-        diag: Include diagonal in output
-        upper: Include upper triangle in output
-        na_rm: Remove missing values
-        
-    Returns:
-        Distance matrix as numpy array
-        
-    Available methods:
-        - "bray": Bray-Curtis dissimilarity (also "braycurtis")
-        - "jaccard": Jaccard distance
-        - "gower": Gower distance
-        - "altGower": Alternative Gower distance
-        - "morisita": Morisita distance
-        - "horn": Horn distance
-        - "mountford": Mountford distance
-        - "raup": Raup-Crick distance
-        - "binomial": Binomial distance
-        - "chao": Chao distance
-        - "cao": Cao distance
-        - "kulczynski": Kulczynski distance
-        - "mahalanobis": Mahalanobis distance
-        - "manhattan": Manhattan distance (also "cityblock")
-        - "euclidean": Euclidean distance
-        - "canberra": Canberra distance
+    in community ecology. It is designed to be compatible with the R vegan
+    package's vegdist function.
+
+    Parameters
+    ----------
+    x : np.ndarray or pd.DataFrame
+        Community data matrix with samples in rows and species in columns.
+    method : str, default='bray'
+        Distance measure: 'bray', 'jaccard', 'euclidean', 'manhattan',
+        'canberra', 'gower', 'altGower', 'morisita', 'horn', 'mountford',
+        'raup', 'binomial', 'chao', 'cao', 'kulczynski', 'mahalanobis'
+    binary : bool, default=False
+        Convert data to presence/absence before calculating distances.
+    diag : bool, default=False
+        Include diagonal elements in output.
+    upper : bool, default=False
+        Include upper triangle in output.
+    na_rm : bool, default=False
+        Remove samples with missing values.
+
+    Returns
+    -------
+    np.ndarray
+        Square symmetric distance matrix of shape (n_samples, n_samples).
+
+    Examples
+    --------
+    >>> import nuee
+    >>> species = nuee.datasets.varespec()
+    >>> dist = nuee.vegdist(species, method="bray")
+    >>> print(f"Shape: {dist.shape}")
+
+    See Also
+    --------
+    adonis2 : PERMANOVA using distance matrices
+    betadisper : Test for homogeneity of dispersions
+    mantel : Mantel test for matrix correlation
+
+    References
+    ----------
+    .. [1] Legendre, P. and Legendre, L. (2012). Numerical Ecology. Elsevier.
     """
     # Convert input to numpy array
     if isinstance(x, pd.DataFrame):

@@ -81,6 +81,7 @@ celerybeat-schedule
 # Environments
 .env
 .venv
+.venv_win
 env/
 venv/
 ENV/
@@ -99,6 +100,5 @@ ENV/
 .mypy_cache/
 
 
-# R
-.RData
-.Rhistory
+__marimo__
+.claude

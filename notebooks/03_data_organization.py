@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.10.6"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -24,33 +24,32 @@ def _(mo):
 
 
 @app.cell
-def __():
-    # Essential imports for data manipulation
+def _():
     import pandas as pd
     import numpy as np
     import holoviews as hv
     from holoviews import opts
     import warnings
     warnings.filterwarnings('ignore')
-    
     hv.extension('bokeh')
-    
-    print("✓ Data manipulation packages loaded")
-    return hv, np, opts, pd, warnings
+    return np, pd
 
 
 @app.cell
-def __():
-    """
-    ## Creating Ecological DataFrames
-    """
+def _(mo):
+    mo.md(r"""## Creating Ecological DataFrames""")
+    return
+
+
+@app.cell
+def _(np, pd):
     # Create a comprehensive ecological dataset
     np.random.seed(42)  # For reproducibility
-    
+
     # Generate sample data
     n_sites = 50
     sites = [f"SITE_{i:03d}" for i in range(1, n_sites + 1)]
-    
+
     ecological_data = pd.DataFrame({
         'site_id': sites,
         'habitat': np.random.choice(['Forest', 'Grassland', 'Wetland', 'Urban', 'Agricultural'], n_sites),
@@ -65,140 +64,145 @@ def __():
         'species_richness': np.random.poisson(15, n_sites),
         'total_abundance': np.random.lognormal(4, 0.8, n_sites)
     })
-    
+
     # Add some missing values (realistic in ecological data)
     missing_indices = np.random.choice(n_sites, size=8, replace=False)
     ecological_data.loc[missing_indices[:4], 'soil_pH'] = np.nan
     ecological_data.loc[missing_indices[4:], 'nitrogen'] = np.nan
-    
-    print("Ecological dataset created:")
-    print(f"Shape: {ecological_data.shape}")
-    print(ecological_data.head())
-    return ecological_data, missing_indices, n_sites, sites
+    ecological_data
+    return ecological_data, sites
 
 
 @app.cell
-def __():
-    """
-    ## Data Inspection and Summary (R's str() and summary())
-    """
+def _(mo):
+    mo.md(r"""## Data Inspection and Summary""")
+    return
+
+
+@app.cell
+def _(ecological_data):
     # Basic information about the dataset
     print("Dataset Information:")
     print(ecological_data.info())
-    
+
     print("\nSummary Statistics:")
     print(ecological_data.describe())
-    
+
     print("\nMissing Values:")
     print(ecological_data.isnull().sum())
-    
+
     print("\nData Types:")
     print(ecological_data.dtypes)
     return
 
 
 @app.cell
-def __():
-    """
-    ## Selecting and Filtering Data (R's select() and filter())
-    """
+def _(mo):
+    mo.md(r"""## Selecting and Filtering Data""")
+    return
+
+
+@app.cell
+def _(ecological_data):
     # Select specific columns (similar to R's select())
     environmental_vars = ecological_data[['site_id', 'temperature', 'precipitation', 'soil_pH', 'nitrogen']]
-    
+
     # Select columns by pattern (similar to R's starts_with(), ends_with())
     spatial_cols = [col for col in ecological_data.columns if col in ['latitude', 'longitude', 'elevation']]
     spatial_data = ecological_data[['site_id'] + spatial_cols]
-    
+
     # Filter rows (similar to R's filter())
     forest_sites = ecological_data[ecological_data['habitat'] == 'Forest']
     high_diversity = ecological_data[ecological_data['species_richness'] > 15]
     northern_sites = ecological_data[ecological_data['latitude'] > 46.5]
-    
+
     # Complex filtering with multiple conditions
+    # each condition is enclosed in () to avoid any confusion with operator precedence
     rich_forest_sites = ecological_data[
         (ecological_data['habitat'] == 'Forest') & 
         (ecological_data['species_richness'] > 12) &
         (ecological_data['temperature'] > 10)
     ]
-    
+
     print(f"Forest sites: {len(forest_sites)}")
     print(f"High diversity sites: {len(high_diversity)}")
     print(f"Rich forest sites: {len(rich_forest_sites)}")
-    return (
-        environmental_vars,
-        forest_sites,
-        high_diversity,
-        northern_sites,
-        rich_forest_sites,
-        spatial_cols,
-        spatial_data,
-    )
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Creating New Variables (R's mutate())
-    """
+def _(mo):
+    mo.md(r"""## Creating New Variables""")
+    return
+
+
+@app.cell
+def _(ecological_data, np, pd):
     # Add new calculated columns
     ecological_data_enhanced = ecological_data.copy()
-    
+
     # Calculate derived variables
     ecological_data_enhanced['temp_fahrenheit'] = ecological_data_enhanced['temperature'] * 9/5 + 32
     ecological_data_enhanced['log_precipitation'] = np.log(ecological_data_enhanced['precipitation'])
     ecological_data_enhanced['diversity_per_abundance'] = (
         ecological_data_enhanced['species_richness'] / ecological_data_enhanced['total_abundance']
     )
-    
+
     # Categorical variables from continuous ones
     ecological_data_enhanced['elevation_category'] = pd.cut(
         ecological_data_enhanced['elevation'], 
         bins=[0, 300, 600, 1200], 
         labels=['Low', 'Medium', 'High']
     )
-    
+
     ecological_data_enhanced['temp_category'] = pd.cut(
         ecological_data_enhanced['temperature'],
         bins=[-10, 10, 20, 30],
         labels=['Cold', 'Moderate', 'Warm']
     )
-    
+
     # Boolean flags
     ecological_data_enhanced['is_acidic'] = ecological_data_enhanced['soil_pH'] < 6.0
     ecological_data_enhanced['high_nitrogen'] = ecological_data_enhanced['nitrogen'] > ecological_data_enhanced['nitrogen'].median()
-    
+
     print("Enhanced dataset columns:")
     print(list(ecological_data_enhanced.columns))
-    return ecological_data_enhanced,
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Arranging Data (R's arrange())
-    """
+def _(mo):
+    mo.md(r"""## Sorting Data""")
+    return
+
+
+@app.cell
+def _(ecological_data):
     # Sort by single column
     sorted_by_richness = ecological_data.sort_values('species_richness', ascending=False)
-    
+
     # Sort by multiple columns
     sorted_multi = ecological_data.sort_values(['habitat', 'species_richness'], ascending=[True, False])
-    
+
     # Sort by index
     sorted_by_site = ecological_data.sort_values('site_id')
-    
+
     print("Top 5 sites by species richness:")
     print(sorted_by_richness[['site_id', 'habitat', 'species_richness']].head())
-    
+
     print("\nSites sorted by habitat then richness:")
     print(sorted_multi[['site_id', 'habitat', 'species_richness']].head(10))
-    return sorted_by_richness, sorted_by_site, sorted_multi
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Grouping and Summarizing (R's group_by() and summarise())
-    """
+def _(mo):
+    mo.md(r"""## Grouping and Summarizing (R's group_by() and summarise())""")
+    return
+
+
+@app.cell
+def _(ecological_data, np):
     # Group by habitat and calculate summary statistics
     habitat_summary = ecological_data.groupby('habitat').agg({
         'species_richness': ['mean', 'std', 'min', 'max'],
@@ -207,31 +211,34 @@ def __():
         'precipitation': 'mean',
         'soil_pH': 'mean'
     }).round(2)
-    
+
     print("Summary by habitat:")
     print(habitat_summary)
-    
+
     # Custom aggregation functions
     def coefficient_of_variation(x):
         return x.std() / x.mean() if x.mean() != 0 else np.nan
-    
+
     diversity_stats = ecological_data.groupby('habitat')['species_richness'].agg([
         'count', 'mean', 'std', coefficient_of_variation
     ]).round(3)
-    
+
     print("\nDiversity statistics by habitat:")
     print(diversity_stats)
-    return coefficient_of_variation, diversity_stats, habitat_summary
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Reshaping Data (R's pivot_longer() and pivot_wider())
-    """
+def _(mo):
+    mo.md(r"""## Reshaping Data""")
+    return
+
+
+@app.cell
+def _(ecological_data, pd):
     # Create a dataset for reshaping demonstration
     sample_data = ecological_data[['site_id', 'habitat', 'species_richness', 'total_abundance']].head(10)
-    
+
     # Pivot longer (melt): wide to long format
     long_format = pd.melt(
         sample_data, 
@@ -240,32 +247,35 @@ def __():
         var_name='metric',
         value_name='value'
     )
-    
+
     print("Long format (melted):")
     print(long_format.head(8))
-    
+
     # Pivot wider: long to wide format
     wide_format = long_format.pivot_table(
         index=['site_id', 'habitat'], 
         columns='metric', 
         values='value'
     ).reset_index()
-    
+
     print("\nWide format (pivoted):")
     print(wide_format.head())
-    return long_format, sample_data, wide_format
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Joining Datasets (R's left_join(), inner_join(), etc.)
-    """
+def _(mo):
+    mo.md(r"""## Joining Datasets""")
+    return
+
+
+@app.cell
+def _(ecological_data, pd):
     # Create separate datasets to demonstrate joins
     site_info = ecological_data[['site_id', 'habitat', 'latitude', 'longitude']].copy()
     environmental_data = ecological_data[['site_id', 'temperature', 'precipitation', 'soil_pH']].copy()
     species_data = ecological_data[['site_id', 'species_richness', 'total_abundance']].copy()
-    
+
     # Add some extra sites to demonstrate different join types
     extra_sites = pd.DataFrame({
         'site_id': ['SITE_051', 'SITE_052'],
@@ -274,141 +284,127 @@ def __():
         'soil_pH': [6.8, 7.2]
     })
     environmental_extended = pd.concat([environmental_data, extra_sites], ignore_index=True)
-    
+
     # Inner join (only matching records)
     inner_joined = pd.merge(site_info, environmental_data, on='site_id', how='inner')
-    
+
     # Left join (all records from left table)
     left_joined = pd.merge(site_info, environmental_extended, on='site_id', how='left')
-    
+
     # Outer join (all records from both tables)
     outer_joined = pd.merge(site_info, environmental_extended, on='site_id', how='outer')
-    
+
     print(f"Original site_info: {len(site_info)} rows")
     print(f"Extended environmental: {len(environmental_extended)} rows")
     print(f"Inner join: {len(inner_joined)} rows")
     print(f"Left join: {len(left_joined)} rows")
     print(f"Outer join: {len(outer_joined)} rows")
-    
-    return (
-        environmental_data,
-        environmental_extended,
-        extra_sites,
-        inner_joined,
-        left_joined,
-        outer_joined,
-        site_info,
-        species_data,
-    )
+
+    return
 
 
 @app.cell
-def __():
+def _(ecological_data, pd):
     """
     ## Handling Missing Data
     """
     # Examine missing data patterns
     missing_summary = ecological_data.isnull().sum()
     missing_percentage = (ecological_data.isnull().sum() / len(ecological_data) * 100).round(1)
-    
+
     missing_df = pd.DataFrame({
         'Missing_Count': missing_summary,
         'Missing_Percentage': missing_percentage
     })
-    
+
     print("Missing data summary:")
     print(missing_df[missing_df['Missing_Count'] > 0])
-    
+
     # Different strategies for handling missing data
-    
+
     # 1. Drop rows with any missing values
     complete_cases = ecological_data.dropna()
     print(f"\nComplete cases: {len(complete_cases)} out of {len(ecological_data)}")
-    
+
     # 2. Drop rows with missing values in specific columns
     ph_complete = ecological_data.dropna(subset=['soil_pH'])
     print(f"pH complete cases: {len(ph_complete)}")
-    
+
     # 3. Fill missing values with mean/median
     data_filled = ecological_data.copy()
     data_filled['soil_pH'].fillna(data_filled['soil_pH'].mean(), inplace=True)
     data_filled['nitrogen'].fillna(data_filled['nitrogen'].median(), inplace=True)
-    
+
     # 4. Forward fill or backward fill
     data_ffill = ecological_data.sort_values('site_id').fillna(method='ffill')
-    
+
     # 5. Fill with group means
     data_group_fill = ecological_data.copy()
     data_group_fill['soil_pH'] = data_group_fill.groupby('habitat')['soil_pH'].transform(
         lambda x: x.fillna(x.mean())
     )
-    
+
     print(f"After filling missing values: {data_filled.isnull().sum().sum()} missing values remain")
-    return (
-        complete_cases,
-        data_ffill,
-        data_filled,
-        data_group_fill,
-        missing_df,
-        missing_percentage,
-        missing_summary,
-        ph_complete,
-    )
+    return
 
 
 @app.cell
-def __():
-    """
-    ## String Operations for Ecological Data
-    """
+def _(mo):
+    mo.md(r"""## String Operations for Ecological Data""")
+    return
+
+
+@app.cell
+def _(np, pd):
     # Create species data with scientific names
     species_names = [
         "Quercus alba", "Acer saccharum", "Betula papyrifera", 
         "Pinus strobus", "Fagus grandifolia", "Tsuga canadensis",
         "Fraxinus americana", "Tilia americana", "Ulmus americana"
     ]
-    
+
     species_df = pd.DataFrame({
         'species_name': species_names,
         'abundance': np.random.poisson(10, len(species_names)),
         'origin': np.random.choice(['Native', 'Non-native', 'Unknown'], len(species_names))
     })
-    
+
     # Extract genus and species
     species_df['genus'] = species_df['species_name'].str.split(' ').str[0]
     species_df['species'] = species_df['species_name'].str.split(' ').str[1]
-    
+
     # String operations
     species_df['name_length'] = species_df['species_name'].str.len()
     species_df['has_americana'] = species_df['species_name'].str.contains('americana')
     species_df['genus_upper'] = species_df['genus'].str.upper()
-    
+
     # Filter by string patterns
     acer_species = species_df[species_df['genus'] == 'Acer']
     americana_species = species_df[species_df['species_name'].str.contains('americana')]
-    
+
     print("Species data with string operations:")
     print(species_df)
-    
+
     print(f"\nAcer species: {len(acer_species)}")
     print(f"Americana species: {len(americana_species)}")
-    return (
-        acer_species,
-        americana_species,
-        species_df,
-        species_names,
-    )
+    return
 
 
 @app.cell
-def __():
+def _(mo):
+    mo.md(r"""## Working with Dates and Times""")
+    return
+
+
+@app.cell
+def _(np, pd, sites):
     """
-    ## Working with Dates and Times
+
     """
     # Create temporal ecological data
     start_date = pd.to_datetime('2020-01-01')
     end_date = pd.to_datetime('2023-12-31')
-    
+
     # Generate random sampling dates
     n_samples = 100
     random_dates = pd.to_datetime(
@@ -417,14 +413,14 @@ def __():
             size=n_samples
         )
     )
-    
+
     temporal_data = pd.DataFrame({
         'sampling_date': random_dates,
         'site_id': np.random.choice(sites[:20], n_samples),
         'bird_count': np.random.poisson(8, n_samples),
         'temperature': np.random.normal(15, 10, n_samples)
     })
-    
+
     # Extract date components
     temporal_data['year'] = temporal_data['sampling_date'].dt.year
     temporal_data['month'] = temporal_data['sampling_date'].dt.month
@@ -435,39 +431,34 @@ def __():
         6: 'Summer', 7: 'Summer', 8: 'Summer',
         9: 'Fall', 10: 'Fall', 11: 'Fall'
     })
-    
+
     # Group by temporal units
     monthly_summary = temporal_data.groupby(['year', 'month']).agg({
         'bird_count': ['mean', 'sum'],
         'temperature': 'mean'
     }).round(2)
-    
+
     seasonal_summary = temporal_data.groupby('season')['bird_count'].agg(['mean', 'std']).round(2)
-    
+
     print("Temporal data sample:")
     print(temporal_data.head())
-    
+
     print("\nSeasonal bird count summary:")
     print(seasonal_summary)
-    return (
-        end_date,
-        monthly_summary,
-        n_samples,
-        random_dates,
-        seasonal_summary,
-        start_date,
-        temporal_data,
-    )
+    return
 
 
 @app.cell
-def __():
-    """
-    ## Chaining Operations (Method Chaining)
-    """
+def _(mo):
+    mo.md(r"""## Chaining Operations""")
+    return
+
+
+@app.cell
+def _(ecological_data, np):
     # Combine multiple operations in a single chain
     # Similar to R's pipe operator %>%
-    
+
     processed_data = (
         ecological_data
         .query('species_richness > 10')  # Filter
@@ -485,25 +476,26 @@ def __():
         .round(2)                       # Round results
         .sort_values('species_richness', ascending=False)  # Sort
     )
-    
+
     print("Chained operations result:")
     print(processed_data)
-    
+
     # Alternative syntax using backslashes for line continuation
     processed_data_alt = ecological_data \
         .query('temperature > 10 and precipitation > 500') \
         .groupby('habitat')['species_richness'] \
         .agg(['count', 'mean', 'std']) \
         .round(2)
-    
+
     print("\nAlternative chaining syntax:")
     print(processed_data_alt)
-    return processed_data, processed_data_alt
+    return
 
 
-@app.cell
-def __():
-    """
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ## Performance Tips for Large Ecological Datasets
 
     **Memory optimization**:
@@ -521,42 +513,48 @@ def __():
     - Check for memory usage with .memory_usage()
     - Use .copy() when modifying subsets to avoid warnings
     """
-    
-    # Demonstrate data type optimization
-    optimized_data = ecological_data.copy()
-    
-    # Convert habitat to category (saves memory)
-    optimized_data['habitat'] = optimized_data['habitat'].astype('category')
-    
-    # Check memory usage
-    original_memory = ecological_data.memory_usage(deep=True).sum()
-    optimized_memory = optimized_data.memory_usage(deep=True).sum()
-    
-    print(f"Original memory usage: {original_memory:,} bytes")
-    print(f"Optimized memory usage: {optimized_memory:,} bytes")
-    print(f"Memory saved: {original_memory - optimized_memory:,} bytes ({((original_memory - optimized_memory)/original_memory*100):.1f}%)")
-    
-    return optimized_data, optimized_memory, original_memory
+    )
+    return
 
 
 @app.cell
-def __():
-    """
+def _(ecological_data):
+    # Demonstrate data type optimization
+    optimized_data = ecological_data.copy()
+
+    # Convert habitat to category (saves memory)
+    optimized_data['habitat'] = optimized_data['habitat'].astype('category')
+
+    # Check memory usage
+    original_memory = ecological_data.memory_usage(deep=True).sum()
+    optimized_memory = optimized_data.memory_usage(deep=True).sum()
+
+    print(f"Original memory usage: {original_memory:,} bytes")
+    print(f"Optimized memory usage: {optimized_memory:,} bytes")
+    print(f"Memory saved: {original_memory - optimized_memory:,} bytes ({((original_memory - optimized_memory)/original_memory*100):.1f}%)")
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ## Summary
 
     In this chapter, we covered essential pandas operations for ecological data:
 
-    ✓ **DataFrame creation and inspection**
-    ✓ **Selecting and filtering** (select, filter equivalents)
-    ✓ **Creating new variables** (mutate equivalent)
-    ✓ **Sorting data** (arrange equivalent)
-    ✓ **Grouping and summarizing** (group_by, summarise equivalents)
-    ✓ **Reshaping data** (pivot_longer, pivot_wider equivalents)
-    ✓ **Joining datasets** (left_join, inner_join equivalents)
-    ✓ **Handling missing data** (various strategies)
-    ✓ **String operations** for species names and text data
-    ✓ **Date/time operations** for temporal ecological data
-    ✓ **Method chaining** for readable data pipelines
+    - **DataFrame creation and inspection**
+    - **Selecting and filtering** (select, filter equivalents)
+    - **Creating new variables** (mutate equivalent)
+    - **Sorting data** (arrange equivalent)
+    - **Grouping and summarizing** (group_by, summarise equivalents)
+    - **Reshaping data** (pivot_longer, pivot_wider equivalents)
+    - **Joining datasets** (left_join, inner_join equivalents)
+    - **Handling missing data** (various strategies)
+    - **String operations** for species names and text data
+    - **Date/time operations** for temporal ecological data
+    - **Method chaining** for readable data pipelines
 
     **Next chapter**: Data visualization with holoviews
 
@@ -567,11 +565,11 @@ def __():
     - `.merge()` for combining environmental and species data
     - `.fillna()` and `.dropna()` for missing data handling
     """
-    print("✓ Chapter 3 complete! Ready for data visualization.")
+    )
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     return (mo,)
