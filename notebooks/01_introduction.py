@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.10"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -10,14 +10,11 @@ def _(mo):
         r"""
     # Mathematical Ecology with Python
 
+    > Warning: The book is currently a first attempt to translate to English and Python the book *Analyse et modélisation d'agroécosystèmes*, written by Essi Parent, in French for R, in part done with vibe coding. Narrow explanations, bugs and mistakes may be present. 
+
     ## Chapter 1: Introduction to Mathematical Ecology
 
-    Welcome to Mathematical Ecology with Python! This book provides a comprehensive 
-    introduction to ecological data analysis and modeling using modern Python tools.
-
-    Originally based on "Analyse et modélisation d'agroécosystèmes" by Serge-Étienne Parent,
-    this English adaptation uses Python's scientific computing ecosystem to explore 
-    mathematical ecology concepts.
+    Welcome to Mathematical Ecology with Python! Originally based on "Analyse et modélisation d'agroécosystèmes", this English adaptation uses Python's scientific computing ecosystem to explore mathematical ecology concepts.
 
     ### Learning Objectives
 
@@ -27,6 +24,7 @@ def _(mo):
     - Develop reproducible workflows for ecological research
 
     ### Python Ecosystem for Ecology
+
     This book leverages key Python packages that are Pyodide-compatible:
 
     - **pandas**: Data manipulation and analysis
@@ -55,9 +53,10 @@ def _():
     return
 
 
-@app.cell
-def _():
-    """
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ### About This Book
 
     **Target Audience**: Graduate students and researchers in:
@@ -68,7 +67,7 @@ def _():
 
     **Prerequisites**:
     - Basic knowledge of ecology and statistics
-    - Some programming experience (R or Python)
+    - Some programming experience
     - Familiarity with linear algebra concepts
 
     **Book Structure**:
@@ -77,12 +76,14 @@ def _():
     - Reproducible examples using Marimo notebooks
     - Integration of statistical theory with practical applications
     """
+    )
     return
 
 
-@app.cell
-def _():
-    """
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ### Chapter Overview
 
     1. **Introduction** - Mathematical ecology concepts and Python ecosystem
@@ -100,12 +101,14 @@ def _():
     13. **Spatial Data** - Geospatial analysis for ecology
     14. **Mechanistic Modeling** - Process-based ecological models
     """
+    )
     return
 
 
-@app.cell
-def _():
-    """
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ### Mathematical Ecology: Core Concepts
 
     Mathematical ecology applies quantitative methods to understand:
@@ -130,12 +133,14 @@ def _():
     - Landscape ecology
     - Spatial autocorrelation and scale effects
     """
+    )
     return
 
 
-@app.cell
-def _():
-    """
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ### Why Python for Ecology?
 
     **Advantages of Python**:
@@ -152,12 +157,14 @@ def _():
     - **pandas**: Data manipulation and analysis
     - **holoviews**: Interactive and publication-quality visualizations
     """
+    )
     return
 
 
-@app.cell
-def _():
-    """
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(
+        r"""
     ## Next Steps
 
     In the following chapters, we'll progressively build your skills in:
@@ -172,6 +179,7 @@ def _():
 
     **Continue to Chapter 2: Python Fundamentals →**
     """
+    )
     return
 
 
