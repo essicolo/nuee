@@ -62,19 +62,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-
+# theme
 html_theme = 'alabaster'
 html_static_path = ['_static']
 html_logo = '_static/logo.png'
-
-# Theme options
-html_theme_options = {
-    'navigation_depth': 4,
-    'collapse_navigation': False,
-    'sticky_navigation': True,
-    'includehidden': True,
-    'titles_only': False
-}
 
 # Intersphinx mapping
 intersphinx_mapping = {
