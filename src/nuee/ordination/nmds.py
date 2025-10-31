@@ -7,11 +7,29 @@ scikit-learn's MDS with additional functionality for community ecology.
 
 import numpy as np
 import pandas as pd
-from typing import Union, Optional, Callable, Dict, Any
-from sklearn.manifold import MDS
-from sklearn.metrics import pairwise_distances
+from typing import Union, Optional, Callable, Dict, Any, List, Tuple
+from sklearn.manifold import smacof
 from scipy.spatial.distance import squareform
 import warnings
+
+
+def _cmdscale_init(dist_matrix: np.ndarray, n_components: int) -> Optional[np.ndarray]:
+    n_samples = dist_matrix.shape[0]
+    if n_samples == 0:
+        return None
+    J = np.eye(n_samples) - np.ones((n_samples, n_samples)) / n_samples
+    B = -0.5 * J @ (dist_matrix ** 2) @ J
+    evals, evecs = np.linalg.eigh(B)
+    idx = np.argsort(evals)[::-1]
+    evals = evals[idx]
+    evecs = evecs[:, idx]
+    positive = evals > 0
+    if not np.any(positive):
+        return None
+    evals = np.sqrt(evals[positive])
+    evecs = evecs[:, positive]
+    k = min(n_components, evecs.shape[1])
+    return evecs[:, :k] * evals[:k]
 
 from .base import OrdinationResult, OrdinationMethod
 from ..dissimilarity import vegdist
@@ -132,35 +150,96 @@ class NMDS(OrdinationMethod):
             else:
                 raise ValueError("Distance matrix dimensions are incompatible")
                 
-        # Perform NMDS using sklearn's MDS
-        mds = MDS(n_components=self.n_components, 
-                  max_iter=self.max_iter,
-                  n_init=self.n_init,
-                  eps=self.eps,
-                  random_state=self.random_state,
-                  dissimilarity='precomputed',
-                  n_jobs=self.n_jobs)
-        
-        points = mds.fit_transform(dist_matrix)
-        stress = mds.stress_
-        
-        # Normalize stress (following nuee convention)
-        stress = stress / np.sum(dist_matrix**2) * 100
+        # Perform NMDS using SMACOF, keeping track of each random start
+        best_points = None
+        best_stress = np.inf
+        best_n_iter = None
+        best_run = None
+        best_seed = None
+        stress_history = []
+        tol = 1e-9
+
+        rng = np.random.default_rng(self.random_state)
+
+        stress_scale = dist_matrix.shape[0] * max(dist_matrix.shape[0] - 1, 1)
+        best_raw_stress = None
+
+        cmdscale_init = _cmdscale_init(dist_matrix, self.n_components)
+
+        for run_idx in range(self.n_init):
+            if self.random_state is None:
+                seed = None
+            else:
+                seed = int(rng.integers(0, 2**32 - 1))
+
+            init = None
+            if run_idx == 0 and cmdscale_init is not None:
+                init = cmdscale_init
+
+            embedding, raw_stress, n_iter = smacof(
+                dist_matrix,
+                metric=False,
+                n_components=self.n_components,
+                init=init,
+                n_init=1,
+                max_iter=self.max_iter,
+                verbose=0,
+                eps=self.eps,
+                random_state=seed,
+                return_n_iter=True,
+                n_jobs=self.n_jobs,
+                normalized_stress=False,
+            )
+
+            raw_stress = float(raw_stress)
+            stress = float(np.sqrt(raw_stress / stress_scale)) if stress_scale > 0 else 0.0
+            stress_history.append({
+                'run': run_idx + 1,
+                'stress': stress,
+                'raw_stress': raw_stress,
+                'n_iter': n_iter,
+                'random_state': seed,
+            })
+
+            if stress + tol < best_stress:
+                best_points = embedding
+                best_stress = stress
+                best_n_iter = n_iter
+                best_run = run_idx + 1
+                best_seed = seed
+                best_raw_stress = raw_stress
+
+        best_repeats = sum(
+            1 for entry in stress_history
+            if abs(entry['stress'] - best_stress) <= tol
+        )
         
         call_info = {
             'method': 'NMDS',
             'dissimilarity': self.dissimilarity,
             'n_components': self.n_components,
             'n_init': self.n_init,
-            'max_iter': self.max_iter
+            'max_iter': self.max_iter,
+            'best_run': best_run,
+            'best_seed': best_seed,
         }
         
-        return OrdinationResult(
-            points=points,
-            stress=stress,
-            converged=mds.n_iter_ < self.max_iter,
+        result = OrdinationResult(
+            points=best_points,
+            stress=best_stress,
+            converged=best_n_iter is not None and best_n_iter < self.max_iter,
             call=call_info
         )
+
+        result.stress_history = stress_history
+        result.best_run = best_run
+        result.best_n_iter = best_n_iter
+        result.best_repeats = best_repeats
+        result.n_init = self.n_init
+        result.distance_method = self.dissimilarity
+        result.raw_stress = best_raw_stress if best_stress is not None else None
+
+        return result
 
 
 def metaMDS(X: Union[np.ndarray, pd.DataFrame],
@@ -172,6 +251,7 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
             autotransform: bool = True,
             wascores: bool = True,
             expand: bool = True,
+            random_state: Optional[int] = None,
             **kwargs) -> OrdinationResult:
     """
     Non-metric Multidimensional Scaling with automatic transformation.
@@ -206,6 +286,9 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
         and species abundances.
     expand : bool, default=True
         If True, expand the result to include additional information.
+    random_state : int, optional
+        Seed used for reproducible random starts. If ``None``, each run is
+        initialised independently.
     **kwargs : dict
         Additional parameters passed to the NMDS class.
 
@@ -272,6 +355,13 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     .. [3] Oksanen, J., et al. (2020). vegan: Community Ecology Package.
            https://CRAN.R-project.org/package=vegan
     """
+    warnings.warn(
+        "nuee.metaMDS currently relies on a SMACOF implementation that may "
+        "produce slightly different stress values than vegan::metaMDS. The "
+        "ordination is still valid, but expect mild numerical differences.",
+        UserWarning,
+        stacklevel=2,
+    )
     # Validate input
     if isinstance(X, pd.DataFrame):
         row_names = X.index.tolist()
@@ -283,30 +373,58 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
         col_names = [f"Species{i+1}" for i in range(X_array.shape[1])]
     
     # Data transformation
+    transform = kwargs.pop('transform', None)
+    transformations_applied: List[str] = []
+
     if autotransform:
-        # Apply Wisconsin double standardization if requested
-        if 'wisconsin' in kwargs.get('transform', []):
-            X_array = _wisconsin_transform(X_array)
-        
-        # Apply square root transformation for abundance data
-        if np.any(X_array > 1):
+        if np.max(X_array) > 1:
             if trace:
                 print("Applying square root transformation")
             X_array = np.sqrt(X_array)
+            transformations_applied.append('sqrt')
+        if trace:
+            print("Applying Wisconsin double standardization")
+        X_array = _wisconsin_transform(X_array)
+        transformations_applied.append('wisconsin')
+    elif transform:
+        if isinstance(transform, (list, tuple, set)):
+            transforms = transform
+        else:
+            transforms = [transform]
+        for name in transforms:
+            if name == 'sqrt':
+                if trace:
+                    print("Applying square root transformation")
+                X_array = np.sqrt(X_array)
+                transformations_applied.append('sqrt')
+            elif name == 'wisconsin':
+                if trace:
+                    print("Applying Wisconsin double standardization")
+                X_array = _wisconsin_transform(X_array)
+                transformations_applied.append('wisconsin')
+            else:
+                raise ValueError(f"Unknown transform '{name}'")
     
     # Perform NMDS
-    nmds = NMDS(n_components=k, 
+    nmds = NMDS(n_components=k,
                 max_iter=maxit,
                 n_init=trymax,
                 dissimilarity=distance,
+                random_state=random_state,
                 **kwargs)
     
     result = nmds.fit(X_array)
     
     # Calculate species scores if requested
     if wascores and X_array.shape[1] > 0:
-        species_scores = _calculate_species_scores(X_array, result.points)
-        result.species = species_scores
+        scores, shrinkage, centre = _calculate_species_scores(
+            X_array, result.points, expand=expand
+        )
+        result.species = scores
+        if shrinkage is not None:
+            result.species_shrinkage = shrinkage
+        if centre is not None:
+            result.species_centre = centre
     
     # Add row and column names
     if hasattr(result, 'points'):
@@ -318,6 +436,12 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
         result.species = pd.DataFrame(result.species,
                                     index=col_names,
                                     columns=[f"NMDS{i+1}" for i in range(k)])
+        if hasattr(result, "species_shrinkage"):
+            result.species.attrs["shrinkage"] = result.species_shrinkage
+            delattr(result, "species_shrinkage")
+        if hasattr(result, "species_centre"):
+            result.species.attrs["centre"] = result.species_centre
+            delattr(result, "species_centre")
     
     if trace:
         print(f"NMDS stress: {result.stress:.4f}")
@@ -325,7 +449,27 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
             print("NMDS converged")
         else:
             print("NMDS did not converge")
-    
+
+    # Attach metadata similar to vegan's output
+    result.transformations = transformations_applied
+    result.distance_method = distance
+    result.trymax = trymax
+    result.maxit = maxit
+    result.random_state = random_state
+    result.stress_per_run = [entry['stress'] for entry in getattr(result, 'stress_history', [])]
+    result.raw_stress_per_run = [entry.get('raw_stress') for entry in getattr(result, 'stress_history', [])]
+    result.best_stress = result.stress
+    result.best_run_repeats = getattr(result, 'best_repeats', 1)
+
+    if result.call is not None:
+        result.call.update({
+            'transformations': transformations_applied,
+            'trymax': trymax,
+            'maxit': maxit,
+            'distance': distance,
+            'random_state': random_state,
+        })
+
     return result
 
 
@@ -348,18 +492,85 @@ def _wisconsin_transform(X: np.ndarray) -> np.ndarray:
     return X_std
 
 
-def _calculate_species_scores(X: np.ndarray, points: np.ndarray) -> np.ndarray:
+def _calculate_species_scores(X: np.ndarray,
+                              points: np.ndarray,
+                              expand: bool = True) -> Tuple[np.ndarray, Optional[np.ndarray], Optional[np.ndarray]]:
     """
-    Calculate weighted average species scores.
-    
-    Species scores are calculated as weighted averages of site scores,
-    with species abundances as weights.
+    Calculate weighted average species scores using vegan's wascores logic.
+
+    Parameters
+    ----------
+    X : ndarray
+        Community matrix (sites x species) in the same order as `points`.
+    points : ndarray
+        Site scores from the NMDS ordination.
+    expand : bool, optional
+        Apply variance inflation correction to match vegan::wascores(expand=TRUE).
+
+    Returns
+    -------
+    scores : ndarray
+        Weighted average species scores.
+    shrinkage : ndarray or None
+        Shrinkage factors applied during expansion (1 / multiplier^2).
+    centre : ndarray or None
+        Weighted centroid used for expansion.
     """
-    # Normalize abundances to weights
-    weights = X / np.sum(X, axis=0)[np.newaxis, :]
-    weights = np.nan_to_num(weights)  # Handle division by zero
-    
-    # Calculate weighted average coordinates
-    species_scores = np.dot(weights.T, points)
-    
-    return species_scores
+    X = np.asarray(X, dtype=float)
+    points = np.asarray(points, dtype=float)
+    species_totals = np.sum(X, axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        weights = np.divide(X, species_totals[np.newaxis, :],
+                            out=np.zeros_like(X, dtype=float),
+                            where=species_totals[np.newaxis, :] > 0)
+    species_scores = weights.T @ points
+
+    shrinkage = None
+    centre = None
+    if expand and species_scores.size:
+        valid = species_totals > 0
+        x_weights = np.sum(X, axis=1)
+        x_cov, x_center = _weighted_covariance(points, x_weights)
+
+        if np.any(valid):
+            ewa = species_scores[valid, :]
+            ewa_weights = species_totals[valid]
+            wa_cov, wa_center = _weighted_covariance(ewa, ewa_weights)
+
+            if wa_cov is not None:
+                diag_wa = np.diag(wa_cov)
+                diag_x = np.diag(x_cov) if x_cov is not None else np.zeros_like(diag_wa)
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    mul = np.sqrt(np.divide(diag_x, diag_wa,
+                                            out=np.ones_like(diag_wa),
+                                            where=diag_wa > 0))
+                ewa_centered = ewa - wa_center
+                ewa = ewa_centered * mul + wa_center
+                species_scores[valid, :] = ewa
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    shrinkage = np.divide(1.0, mul**2,
+                                          out=np.zeros_like(mul),
+                                          where=mul != 0)
+                centre = wa_center
+
+    return species_scores, shrinkage, centre
+
+
+def _weighted_covariance(matrix: np.ndarray,
+                         weights: np.ndarray) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    """Replicate R's cov.wt(..., method='ML') for non-negative weights."""
+    matrix = np.asarray(matrix, dtype=float)
+    weights = np.asarray(weights, dtype=float).reshape(-1)
+
+    mask = weights > 0
+    matrix = matrix[mask]
+    weights = weights[mask]
+    if matrix.size == 0 or np.sum(weights) == 0:
+        return None, None
+
+    w_sum = np.sum(weights)
+    norm_weights = weights / w_sum
+    centre = (matrix * norm_weights[:, None]).sum(axis=0)
+    centred = matrix - centre
+    cov = (centring := centred * norm_weights[:, None]).T @ centred
+    return cov, centre

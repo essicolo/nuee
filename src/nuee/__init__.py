@@ -89,6 +89,7 @@ from .dissimilarity import (
     mrpp,
     betadisper,
     mantel,
+    mantel_partial,
     protest,
 )
 
@@ -143,6 +144,7 @@ __all__ = [
     "mrpp",
     "betadisper",
     "mantel",
+    "mantel_partial",
     "protest",
     # Permutation
     "permanova",

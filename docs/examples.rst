@@ -38,6 +38,13 @@ Complete analysis of lichen community data with environmental correlates.
    nmds = nuee.metaMDS(species, k=2, distance="bray")
    print(f"NMDS stress: {nmds.stress:.3f}")
 
+.. note::
+
+   ``metaMDS`` currently relies on a SMACOF backend adapted from scikit-learn.
+   It applies vegan's data transformations but does not yet replicate the exact
+   optimisation path of ``vegan::metaMDS``. Expect modest differences in the
+   reported stress until the implementation is fully aligned.
+
    # Plot NMDS
    fig = nuee.plot_ordination(nmds, display="sites")
    plt.title(f"NMDS Ordination (stress: {nmds.stress:.3f})")
@@ -47,6 +54,12 @@ Complete analysis of lichen community data with environmental correlates.
    # Fit environmental vectors
    envfit_result = nuee.envfit(nmds, env)
    print(envfit_result)
+
+.. note::
+
+   ``envfit`` mirrors vegan’s API, but vector scaling and permutation tests are
+   still under active development. Numerical results may differ from
+   ``vegan::envfit`` in the current release.
 
    # RDA with environmental constraints
    rda = nuee.rda(species, env[['N', 'P', 'K']])
@@ -97,6 +110,12 @@ Dune meadow vegetation with management types.
    perm = nuee.adonis2(dist, env['Management'])
    print(f"PERMANOVA R²: {perm.r_squared:.3f}, p-value: {perm.p_value:.3f}")
 
+.. note::
+
+   ``nuee.adonis2`` now performs sequential PERMANOVA with permutation
+   p-values. Minor numerical differences from ``vegan::adonis2`` are expected,
+   but the test is fully functional.
+
    # 3. Test homogeneity of dispersions
    betadisp = nuee.betadisper(dist, env['Management'])
    print(betadisp)
@@ -132,7 +151,7 @@ Barro Colorado Island tree census data.
    # 1. Multiple diversity indices
    diversity_df = pd.DataFrame({
        'Shannon': nuee.shannon(species),
-       'Simpson': nuee.simpson(species),
+       'Gini-Simpson': nuee.simpson(species),
        'Richness': nuee.specnumber(species),
        'Fisher': nuee.fisher_alpha(species),
        'Evenness': nuee.evenness(species, method='pielou')

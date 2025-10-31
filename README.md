@@ -39,7 +39,7 @@ make html
 
 ### Diversity Analysis
 - **Shannon diversity** with `shannon()`
-- **Simpson diversity** with `simpson()`
+- **Gini-Simpson diversity** with `simpson()` (1 - sum(p^2))
 - **Fisher's alpha** with `fisher_alpha()`
 - **Renyi entropy** with `renyi()`
 - **Species richness** with `specnumber()`
@@ -90,7 +90,7 @@ plt.show()
 shannon_div = nuee.shannon(species_data)
 simpson_div = nuee.simpson(species_data)
 print(f"Shannon diversity: {shannon_div.mean():.3f}")
-print(f"Simpson diversity: {simpson_div.mean():.3f}")
+print(f"Gini-Simpson diversity: {simpson_div.mean():.3f}")
 
 # RDA with environmental variables
 rda_result = nuee.rda(species_data, env_data)
@@ -166,7 +166,7 @@ anosim_result = nuee.anosim(dist_matrix, env['Substrate'])
 env_dist = nuee.vegdist(env[['SubsDens', 'WatrCont']], method="euclidean")
 mantel_result = nuee.mantel(dist_matrix, env_dist)
 
-print(f"PERMANOVA R²: {permanova_result["r_squared"]:.3f}")
+print(f"PERMANOVA R^2: {permanova_result["r_squared"]:.3f}")
 print(f"ANOSIM R: {anosim_result["r_statistic"]:.3f}")
 print(f"Mantel r: {mantel_result["r_statistic"]:.3f}"))
 ```
@@ -192,4 +192,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-nuee is inspired by the excellent R package `vegan` developed by Jari Oksanen and the `vegan` development team. We acknowledge their pioneering work in making community ecology analysis accessible to researchers worldwide.
+nuee is inspired by the excellent R package `vegan` developed by Jari Oksanen and the `vegan` development team. Both `vegan` and `nuee` were inspired by the book ["Numerical Ecology"](https://shop.elsevier.com/books/numerical-ecology/legendre/978-0-444-53868-0), by Pierre Legendre and Louis Legendre (3rd edition, 2012). We acknowledge their pioneering work in developping the science of numerical ecology and making it accessible to researchers.

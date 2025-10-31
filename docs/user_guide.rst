@@ -108,6 +108,14 @@ Basic Ordination Workflow
    # Stress < 0.20: acceptable
    # Stress > 0.20: poor
 
+.. note::
+
+   ``nuee.metaMDS`` follows vegan's data transformations and SMACOF optimisation,
+   but the underlying implementation is still evolving. Recent regression tests
+   show small differences in the reported stress compared to ``vegan::metaMDS``.
+   This does not invalidate the ordination, but if you require vegan-identical
+   results you should re-run the analysis in R for the time being.
+
 Diversity Analysis Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -122,7 +130,7 @@ Diversity Analysis Workflow
    # Calculate multiple diversity indices
    diversity_df = pd.DataFrame({
        'Shannon': nuee.shannon(species),
-       'Simpson': nuee.simpson(species),
+       'Gini-Simpson': nuee.simpson(species),
        'Richness': nuee.specnumber(species),
        'Fisher': nuee.fisher_alpha(species)
    })

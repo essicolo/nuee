@@ -1,6 +1,8 @@
 nuee: Community Ecology Analysis in Python
 ==========================================
 
+**``nuee`` has just been released, and is likely to contain errors and bugs. The code has not been thoroughly reviewed. Do NOT trust its results blindly.**
+
 ``nuee`` is a comprehensive Python implementation of the popular R package ``vegan`` for community ecology analysis. It provides tools for ordination, diversity analysis, dissimilarity measures, and statistical testing commonly used in ecological research.
 
 .. toctree::
@@ -48,42 +50,47 @@ Features
 Ordination Methods
 ------------------
 
-* **NMDS** (Non-metric Multidimensional Scaling) with ``metaMDS()``
-* **RDA** (Redundancy Analysis) with ``rda()``
-* **CCA** (Canonical Correspondence Analysis) with ``cca()``
-* **PCA** (Principal Component Analysis) with ``pca()``
-* **Environmental fitting** with ``envfit()``
-* **Procrustes analysis** with ``procrustes()``
+* **NMDS**. Non-metric Multidimensional Scaling with ``nuee.metaMDS()`` (stress
+  values may differ slightly from ``vegan::metaMDS`` pending full parity)
+* **RDA**. Redundancy Analysis with ``nuee.rda()``
+* **CCA**. Canonical Correspondence Analysis with ``nuee.cca()``
+* **PCA**. Principal Component Analysis with ``nuee.pca()``
+* **Environmental fitting** with ``nuee.envfit()`` (permutation statistics are
+  evolving and can diverge from vegan’s output)
+* **Procrustes analysis** with ``nuee.procrustes()`` (currently reports slightly
+  different residual sums-of-squares than ``vegan::procrustes`` because of
+  upstream NMDS differences)
 
 Diversity Analysis
 ------------------
 
-* **Shannon diversity** with ``shannon()``
-* **Simpson diversity** with ``simpson()``
-* **Fisher's alpha** with ``fisher_alpha()``
-* **Renyi entropy** with ``renyi()``
-* **Species richness** with ``specnumber()``
-* **Evenness measures** with ``evenness()``
-* **Rarefaction** with ``rarefy()`` and ``rarecurve()``
+* **Shannon diversity** with ``nuee.shannon()``
+* **Gini-Simpson diversity** with ``nuee.simpson()``
+* **Fisher's alpha** with ``nuee.fisher_alpha()``
+* **Renyi entropy** with ``nuee.renyi()``
+* **Species richness** with ``nuee.specnumber()``
+* **Evenness measures** with ``nuee.evenness()``
+* **Rarefaction** with ``nuee.rarefy()`` and ``nuee.rarecurve()``
 
 Dissimilarity Measures
 ----------------------
 
-* **Bray-Curtis**, **Jaccard**, **Euclidean**, and 15+ other distances with ``vegdist()``
-* **PERMANOVA** with ``adonis2()``
-* **ANOSIM** with ``anosim()``
-* **MRPP** with ``mrpp()``
-* **Mantel test** with ``mantel()``
-* **Beta dispersion** with ``betadisper()``
+* **Bray-Curtis**, **Jaccard**, **Euclidean**, and 15+ other distances with ``nuee.vegdist()``
+* **PERMANOVA** with ``nuee.adonis2()`` (sequential sums-of-squares with
+  permutation p-values; minor numeric differences from vegan can occur)
+* **ANOSIM** with ``nuee.anosim()`` (rank-based test with permutation p-values)
+* **MRPP** with ``nuee.mrpp()`` (observed/expected within-group distances with permutation p-values; defaults to Euclidean distances matching vegan)
+* **Mantel test** with ``nuee.mantel()`` (Pearson/Spearman correlation with permutation p-values)
+* **Beta dispersion** with ``nuee.betadisper()``
 
 Visualization
 -------------
 
-* **Ordination plots** with ``plot_ordination()``
-* **Biplots** with ``biplot()``
-* **Diversity plots** with ``plot_diversity()``
-* **Rarefaction curves** with ``plot_rarecurve()``
-* **Confidence ellipses** with ``ordiellipse()``
+* **Ordination plots** with ``nuee.plot_ordination()``
+* **Biplots** with ``nuee.biplot()``
+* **Diversity plots** with ``nuee.plot_diversity()``
+* **Rarefaction curves** with ``nuee.plot_rarecurve()``
+* **Confidence ellipses** with ``nuee.ordiellipse()``
 
 Indices and tables
 ==================

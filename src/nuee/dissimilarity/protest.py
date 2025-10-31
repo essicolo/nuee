@@ -1,57 +1,90 @@
 """
-Protest (Procrustes rotation) for comparing configurations.
+Protest (Procrustean randomization test) for comparing ordination configurations.
 """
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from typing import Union
+import warnings
+from typing import Dict, Optional, Union
+
 from ..ordination.procrustes import procrustes
+from .mantel import _draw_permutation, _normalize_rng  # reuse internal helpers
 
 
-def protest(x: Union[np.ndarray, pd.DataFrame],
-            y: Union[np.ndarray, pd.DataFrame],
+ArrayLike = Union[np.ndarray, pd.DataFrame]
+
+
+def _as_matrix(values: ArrayLike) -> np.ndarray:
+    if isinstance(values, pd.DataFrame):
+        values = values.values
+    array = np.asarray(values, dtype=float)
+    if array.ndim != 2:
+        raise ValueError("Input configuration must be a 2-D array.")
+    return array
+
+
+def protest(x: ArrayLike,
+            y: ArrayLike,
             permutations: int = 999,
-            **kwargs) -> dict:
+            *,
+            random_state: Optional[Union[int, np.random.RandomState, np.random.Generator]] = None,
+            scale: bool = True) -> Dict[str, Union[float, int, np.ndarray]]:
     """
-    Protest analysis using Procrustes rotation.
-    
-    Parameters:
-        x: First configuration matrix
-        y: Second configuration matrix
-        permutations: Number of permutations
-        **kwargs: Additional parameters
-        
-    Returns:
-        Dictionary with Protest results
+    Perform a Procrustean randomization test (PROTEST) between two ordinations.
+
+    Parameters
+    ----------
+    x, y:
+        Configuration matrices with matched observations (rows) and axes (columns).
+    permutations:
+        Number of row permutations applied to ``y`` to approximate the null
+        distribution. Set to ``0`` to skip permutation testing.
+    random_state:
+        Seed or numpy RNG used for the permutation stream. When ``None`` the
+        global numpy RNG is used.
+    scale:
+        Forwarded to :func:`nuee.procrustes` to control symmetric scaling.
+
+    Returns
+    -------
+    dict
+        Dictionary capturing the observed correlation, permutation p-value,
+        number of permutations, and Procrustes transformation details.
     """
-    # Perform Procrustes analysis
-    procrustes_result = procrustes(x, y)
-    
-    # Permutation test
-    observed_correlation = procrustes_result['correlation']
-    permuted_correlations = []
-    
-    if isinstance(y, pd.DataFrame):
-        y_values = y.values
-    else:
-        y_values = np.asarray(y)
-    
-    for _ in range(permutations):
-        # Permute rows of y
-        perm_indices = np.random.permutation(y_values.shape[0])
-        y_perm = y_values[perm_indices]
-        
-        perm_result = procrustes(x, y_perm)
-        permuted_correlations.append(perm_result['correlation'])
-    
-    # Calculate p-value
-    permuted_correlations = np.array(permuted_correlations)
-    p_value = np.sum(permuted_correlations >= observed_correlation) / permutations
-    
+    X = _as_matrix(x)
+    Y = _as_matrix(y)
+
+    if X.shape != Y.shape:
+        raise ValueError(f"Configurations must share the same shape; received {X.shape} vs {Y.shape}.")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        observed = procrustes(X, Y, scale=scale)
+    r_obs = float(observed["correlation"])
+
+    p_value = np.nan
+    if permutations and permutations > 0:
+        rng = _normalize_rng(random_state)
+        exceed = 0
+        for _ in range(permutations):
+            perm = _draw_permutation(Y.shape[0], rng)
+            Y_perm = Y[perm, :]
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                permuted = procrustes(X, Y_perm, scale=scale)
+            if float(permuted["correlation"]) >= r_obs - 1e-12:
+                exceed += 1
+        p_value = (exceed + 1) / (permutations + 1)
+
     return {
-        'correlation': observed_correlation,
-        'p_value': p_value,
-        'permutations': permutations,
-        'rotation': procrustes_result['rotation'],
-        'ss': procrustes_result['ss']
+        "correlation": r_obs,
+        "p_value": float(p_value) if np.isfinite(p_value) else np.nan,
+        "permutations": permutations,
+        "rotation": observed["rotation"],
+        "ss": observed["ss"],
+        "dilation": observed["dilation"],
+        "translation": observed["translation"],
+        "scale": scale,
     }

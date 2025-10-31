@@ -13,15 +13,16 @@ from scipy.stats import chi2
 from ..ordination.base import OrdinationResult, ConstrainedOrdinationResult
 
 
-def plot_ordination(result: OrdinationResult, 
-                   axes: Tuple[int, int] = (0, 1),
-                   display: str = "sites",
-                   choices: Optional[List[int]] = None,
-                   type: str = "points",
-                   groups: Optional[Union[np.ndarray, pd.Series]] = None,
-                   colors: Optional[List[str]] = None,
-                   figsize: Tuple[int, int] = (8, 6),
-                   **kwargs) -> plt.Figure:
+def plot_ordination(result: OrdinationResult,
+                    axes: Tuple[int, int] = (0, 1),
+                    display: str = "sites",
+                    choices: Optional[List[int]] = None,
+                    type: str = "points",
+                    groups: Optional[Union[np.ndarray, pd.Series]] = None,
+                    colors: Optional[List[str]] = None,
+                    figsize: Tuple[int, int] = (8, 6),
+                    scaling: Optional[Union[int, str]] = None,
+                    **kwargs) -> plt.Figure:
     """
     Plot ordination results.
     
@@ -43,20 +44,31 @@ def plot_ordination(result: OrdinationResult,
         axes = tuple(np.array(choices) - 1)  # Convert to 0-based indexing
     
     fig, ax = plt.subplots(figsize=figsize)
+
+    scaling_id = None
+    if hasattr(result, "_normalize_scaling"):
+        try:
+            scaling_id = result._normalize_scaling(scaling)
+        except ValueError:
+            scaling_id = None
+
+    scaling_to_use = scaling_id if scaling_id is not None else scaling
+
+    try:
+        site_scores, species_scores = result.get_scores(display="both", scaling=scaling_to_use)
+    except (AttributeError, ValueError):
+        site_scores = getattr(result, "points", None)
+        species_scores = getattr(result, "species", None)
+        scaling_id = None
     
     # Plot sites
     if display in ["sites", "both"]:
-        if hasattr(result, 'points') and result.points is not None:
-            points = result.points
-            if isinstance(points, pd.DataFrame):
-                x = points.iloc[:, axes[0]]
-                y = points.iloc[:, axes[1]]
-                labels = points.index
-            else:
-                x = points[:, axes[0]]
-                y = points[:, axes[1]]
-                labels = [f"Site{i+1}" for i in range(len(x))]
-            
+        if site_scores is not None:
+            points = site_scores
+            x = points[:, axes[0]]
+            y = points[:, axes[1]]
+            labels = [f"Site{i+1}" for i in range(len(x))]
+
             if groups is not None:
                 _plot_grouped_points(ax, x, y, labels, groups, colors, type, **kwargs)
             else:
@@ -64,30 +76,32 @@ def plot_ordination(result: OrdinationResult,
     
     # Plot species
     if display in ["species", "both"]:
-        if hasattr(result, 'species') and result.species is not None:
-            species = result.species
-            if isinstance(species, pd.DataFrame):
-                x_sp = species.iloc[:, axes[0]]
-                y_sp = species.iloc[:, axes[1]]
-                labels_sp = species.index
-            else:
-                x_sp = species[:, axes[0]]
-                y_sp = species[:, axes[1]]
-                labels_sp = [f"Sp{i+1}" for i in range(len(x_sp))]
-            
-            # Plot species as red triangles
+        if species_scores is not None:
+            x_sp = species_scores[:, axes[0]]
+            y_sp = species_scores[:, axes[1]]
+            labels_sp = [f"Sp{i+1}" for i in range(len(x_sp))]
+
             ax.scatter(x_sp, y_sp, c='red', marker='^', s=50, alpha=0.7, label='Species')
-            
+
             if type == "text":
                 for i, label in enumerate(labels_sp):
-                    ax.annotate(label, (x_sp[i], y_sp[i]), xytext=(5, 5), 
+                    ax.annotate(label, (x_sp[i], y_sp[i]), xytext=(5, 5),
                               textcoords='offset points', fontsize=8, color='red')
     
     # Add biplot arrows for constrained ordination
     if isinstance(result, ConstrainedOrdinationResult):
         biplot_scores = getattr(result, "biplot_scores", None)
         if biplot_scores is not None:
-            _add_biplot_arrows(ax, biplot_scores, axes)
+            arrows = np.array(biplot_scores, copy=True)
+            if scaling_id in (2, 3):
+                try:
+                    _, species_mult = result._scaling_multipliers(scaling_id)
+                    cols = min(arrows.shape[1], len(species_mult))
+                    for idx in range(cols):
+                        arrows[:, idx] *= species_mult[idx]
+                except (AttributeError, ValueError):
+                    pass
+            _add_biplot_arrows(ax, arrows, axes, scaling=scaling_id)
     
     # Set labels
     if hasattr(result, 'eigenvalues') and result.eigenvalues is not None:
@@ -123,114 +137,61 @@ def biplot(result: ConstrainedOrdinationResult,
            **kwargs) -> plt.Figure:
     """
     Create a biplot for constrained ordination results.
-
-    Parameters:
-        result: ConstrainedOrdinationResult object
-        axes: Which axes to plot
-        scaling: Type of scaling (1/"sites", 2/"species", 3/"symmetric")
-                 - 1/"sites": Focus on sites (distances between sites meaningful)
-                 - 2/"species": Focus on species (distances between species meaningful)
-                 - 3/"symmetric": Symmetric scaling of both sites and species
-        correlation: Whether to show correlation biplot
-        figsize: Figure size
-        **kwargs: Additional plotting arguments
-
-    Returns:
-        matplotlib Figure object
     """
-    # Normalize scaling parameter
     scaling_map = {
-        1: "sites", "sites": "sites",
-        2: "species", "species": "species",
-        3: "symmetric", "symmetric": "symmetric"
+        1: 1, "sites": 1,
+        2: 2, "species": 2,
+        3: 3, "symmetric": 3, "sym": 3
     }
-    scaling = scaling_map.get(scaling, "species")
+    scaling_id = scaling_map.get(scaling, 2)
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Get eigenvalues for scaling
-    if hasattr(result, 'eigenvalues') and result.eigenvalues is not None:
-        eigenvalues = result.eigenvalues
-    else:
-        eigenvalues = np.ones(result.ndim)
+    try:
+        sites, species = result.get_scores(display="both", scaling=scaling_id)
+    except (AttributeError, ValueError):
+        sites = getattr(result, "points", None)
+        species = getattr(result, "species", None)
+        scaling_id = None
 
-    # Calculate scaling factors based on eigenvalues
-    if len(eigenvalues) > max(axes):
-        eig_axis1 = eigenvalues[axes[0]]
-        eig_axis2 = eigenvalues[axes[1]]
-    else:
-        eig_axis1 = eig_axis2 = 1.0
-
-    # Plot sites with appropriate scaling
-    if hasattr(result, 'points') and result.points is not None:
-        points = result.points
-        if isinstance(points, pd.DataFrame):
-            x = points.iloc[:, axes[0]].values
-            y = points.iloc[:, axes[1]].values
-            labels = points.index
-        else:
-            x = points[:, axes[0]]
-            y = points[:, axes[1]]
-            labels = [f"Site{i+1}" for i in range(len(x))]
-
-        # Apply scaling to site scores
-        if scaling == "sites":
-            # Scale sites by sqrt(eigenvalue) for type 1 scaling
-            x = x * np.sqrt(eig_axis1)
-            y = y * np.sqrt(eig_axis2)
-        elif scaling == "symmetric":
-            # Symmetric scaling: scale by eigenvalue^(1/4)
-            x = x * (eig_axis1 ** 0.25)
-            y = y * (eig_axis2 ** 0.25)
-        # For "species" scaling, use raw site scores (divided by sqrt(eig) implicitly)
+    if sites is not None:
+        x = sites[:, axes[0]]
+        y = sites[:, axes[1]]
+        labels = [f"Site{i+1}" for i in range(len(x))]
 
         ax.scatter(x, y, alpha=0.7, **kwargs)
-
-        # Add site labels
         for i, label in enumerate(labels):
             ax.annotate(label, (x[i], y[i]), xytext=(3, 3),
                        textcoords='offset points', fontsize=8)
 
-    # Plot species if available
-    if hasattr(result, 'species') and result.species is not None:
-        species = result.species
-        if isinstance(species, pd.DataFrame):
-            x_sp = species.iloc[:, axes[0]].values
-            y_sp = species.iloc[:, axes[1]].values
-            labels_sp = species.index
-        else:
-            x_sp = species[:, axes[0]]
-            y_sp = species[:, axes[1]]
-            labels_sp = [f"Sp{i+1}" for i in range(len(x_sp))]
+    if species is not None:
+        x_sp = species[:, axes[0]]
+        y_sp = species[:, axes[1]]
+        labels_sp = [f"Sp{i+1}" for i in range(len(x_sp))]
 
-        # Apply scaling to species scores (opposite of sites)
-        if scaling == "species":
-            # Scale species by sqrt(eigenvalue) for type 2 scaling
-            x_sp = x_sp * np.sqrt(eig_axis1)
-            y_sp = y_sp * np.sqrt(eig_axis2)
-        elif scaling == "symmetric":
-            # Symmetric scaling
-            x_sp = x_sp * (eig_axis1 ** 0.25)
-            y_sp = y_sp * (eig_axis2 ** 0.25)
-
-        # Plot species as red triangles
         ax.scatter(x_sp, y_sp, c='red', marker='^', s=50, alpha=0.7, label='Species')
         for i, label in enumerate(labels_sp):
             ax.annotate(label, (x_sp[i], y_sp[i]), xytext=(3, 3),
                        textcoords='offset points', fontsize=8, color='red')
 
-    # Add biplot arrows (environmental variables)
     if hasattr(result, 'biplot_scores') and result.biplot_scores is not None:
-        _add_biplot_arrows(ax, result.biplot_scores, axes, scaling, eig_axis1, eig_axis2, correlation)
+        biplot_scores = np.array(result.biplot_scores, copy=True)
+        if scaling_id in (2, 3):
+            try:
+                _, species_mult = result._scaling_multipliers(scaling_id)
+                cols = min(biplot_scores.shape[1], len(species_mult))
+                for idx in range(cols):
+                    biplot_scores[:, idx] *= species_mult[idx]
+            except (AttributeError, ValueError):
+                pass
+        _add_biplot_arrows(ax, biplot_scores, axes,
+                           scaling=scaling_id,
+                           correlation=correlation)
 
-    # Set equal aspect ratio for biplots
     ax.set_aspect('equal', adjustable='box')
     ax.grid(True, alpha=0.3)
-
-    # Add axis labels
     ax.set_xlabel(f'Axis {axes[0]+1}')
     ax.set_ylabel(f'Axis {axes[1]+1}')
-
     plt.tight_layout()
     return fig
 
@@ -239,6 +200,7 @@ def ordiplot(result: OrdinationResult,
              axes: Tuple[int, int] = (0, 1),
              display: str = "sites",
              figsize: Tuple[int, int] = (8, 6),
+             scaling: Optional[Union[int, str]] = None,
              **kwargs) -> plt.Figure:
     """
     Basic ordination plot.
@@ -253,8 +215,8 @@ def ordiplot(result: OrdinationResult,
     Returns:
         matplotlib Figure object
     """
-    return plot_ordination(result, axes=axes, display=display, 
-                          figsize=figsize, **kwargs)
+    return plot_ordination(result, axes=axes, display=display,
+                          figsize=figsize, scaling=scaling, **kwargs)
 
 
 def ordiellipse(result: OrdinationResult,
@@ -262,6 +224,7 @@ def ordiellipse(result: OrdinationResult,
                 axes: Tuple[int, int] = (0, 1),
                 conf: float = 0.95,
                 figsize: Tuple[int, int] = (8, 6),
+                scaling: Optional[Union[int, str]] = None,
                 **kwargs) -> plt.Figure:
     """
     Add confidence ellipses to ordination plot.
@@ -280,19 +243,15 @@ def ordiellipse(result: OrdinationResult,
     fig, ax = plt.subplots(figsize=figsize)
     
     # Plot basic ordination
-    plot_ordination(result, axes=axes, groups=groups, **kwargs)
+    plot_ordination(result, axes=axes, groups=groups, scaling=scaling, **kwargs)
     
     # Add ellipses
     if isinstance(groups, pd.Series):
         groups = groups.values
     
-    points = result.points
-    if isinstance(points, pd.DataFrame):
-        x = points.iloc[:, axes[0]].values
-        y = points.iloc[:, axes[1]].values
-    else:
-        x = points[:, axes[0]]
-        y = points[:, axes[1]]
+    points = result.get_scores(display="sites", scaling=scaling)
+    x = points[:, axes[0]]
+    y = points[:, axes[1]]
     
     unique_groups = np.unique(groups)
     colors = plt.cm.Set1(np.linspace(0, 1, len(unique_groups)))
@@ -327,6 +286,7 @@ def ordispider(result: OrdinationResult,
                groups: Union[np.ndarray, pd.Series],
                axes: Tuple[int, int] = (0, 1),
                figsize: Tuple[int, int] = (8, 6),
+               scaling: Optional[Union[int, str]] = None,
                **kwargs) -> plt.Figure:
     """
     Add spider plots (lines from centroid to points) to ordination.
@@ -344,19 +304,15 @@ def ordispider(result: OrdinationResult,
     fig, ax = plt.subplots(figsize=figsize)
     
     # Plot basic ordination
-    plot_ordination(result, axes=axes, groups=groups, **kwargs)
+    plot_ordination(result, axes=axes, groups=groups, scaling=scaling, **kwargs)
     
     # Add spider lines
     if isinstance(groups, pd.Series):
         groups = groups.values
     
-    points = result.points
-    if isinstance(points, pd.DataFrame):
-        x = points.iloc[:, axes[0]].values
-        y = points.iloc[:, axes[1]].values
-    else:
-        x = points[:, axes[0]]
-        y = points[:, axes[1]]
+    points = result.get_scores(display="sites", scaling=scaling)
+    x = points[:, axes[0]]
+    y = points[:, axes[1]]
     
     unique_groups = np.unique(groups)
     colors = plt.cm.Set1(np.linspace(0, 1, len(unique_groups)))
@@ -435,6 +391,9 @@ def _add_biplot_arrows(ax, biplot, axes, scaling="species", eig_axis1=1.0, eig_a
     """
     if biplot.shape[1] <= max(axes):
         return
+
+    if isinstance(scaling, int):
+        scaling = {1: "sites", 2: "species", 3: "symmetric"}.get(scaling, "species")
 
     # Get arrow coordinates
     arrow_x = biplot[:, axes[0]]

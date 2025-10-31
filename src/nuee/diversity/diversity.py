@@ -35,8 +35,8 @@ def diversity(x: Union[np.ndarray, pd.DataFrame],
     index : {'shannon', 'simpson', 'invsimpson', 'fisher'}, default='shannon'
         Diversity index to calculate:
         - 'shannon': Shannon entropy H' = -sum(p_i * log(p_i))
-        - 'simpson': Simpson's index D = sum(p_i^2)
-        - 'invsimpson': Inverse Simpson 1/D
+        - 'simpson': Gini-Simpson index 1 - sum(p_i^2)
+        - 'invsimpson': Inverse Simpson 1 / sum(p_i^2)
         - 'fisher': Fisher's alpha
     groups : np.ndarray or pd.Series, optional
         Grouping factor for calculating pooled diversities. If provided,
@@ -60,10 +60,10 @@ def diversity(x: Union[np.ndarray, pd.DataFrame],
     - Ranges from 0 (single species) to log(S) where S is species richness
     - Most common diversity index in ecology
 
-    Simpson's index (D) measures dominance:
-    - Values range from 0 to 1
-    - Higher values indicate lower diversity (more dominance)
-    - Often reported as 1-D (Gini-Simpson) or 1/D (inverse Simpson)
+    Simpson's index measures dominance:
+    - We report the Gini-Simpson form (1 - sum(p_i^2)), matching vegan::diversity
+    - Larger values indicate greater diversity
+    - The inverse Simpson (1 / sum(p_i^2)) is available via ``index='invsimpson'``
 
     Fisher's alpha assumes a log-series distribution:
     - Useful for abundance data
@@ -136,7 +136,7 @@ def diversity(x: Union[np.ndarray, pd.DataFrame],
     elif index.lower() == "simpson":
         result = _simpson_diversity(x_array)
     elif index.lower() == "invsimpson":
-        result = 1 / _simpson_diversity(x_array)
+        result = _inverse_simpson_diversity(x_array)
     elif index.lower() == "fisher":
         result = _fisher_alpha(x_array)
     else:
@@ -170,9 +170,7 @@ def shannon(x: Union[np.ndarray, pd.DataFrame],
 
 def simpson(x: Union[np.ndarray, pd.DataFrame]) -> DiversityResult:
     """
-    Calculate Simpson diversity index.
-    
-    D = sum(p_i^2)
+    Calculate Gini-Simpson diversity (1 - sum(p_i^2)).
     
     Parameters:
         x: Community data matrix or vector
@@ -262,7 +260,7 @@ def evenness(x: Union[np.ndarray, pd.DataFrame],
         
     elif method.lower() == "simpson":
         # Simpson's evenness: (1/D) / S
-        D = _simpson_diversity(x_array)
+        D = _simpson_dominance(x_array)
         S = np.sum(x_array > 0, axis=1)
         evenness_vals = (1 / D) / S
         evenness_vals[S <= 1] = 0
@@ -359,16 +357,26 @@ def _shannon_diversity(x: np.ndarray, base: float = np.e) -> np.ndarray:
 
 
 def _simpson_diversity(x: np.ndarray) -> np.ndarray:
-    """Calculate Simpson diversity index."""
-    # Calculate relative abundances
+    """Calculate Gini-Simpson diversity (1 - sum(p_i^2))."""
+    dominance = _simpson_dominance(x)
+    return 1.0 - dominance
+
+
+def _inverse_simpson_diversity(x: np.ndarray) -> np.ndarray:
+    """Calculate inverse Simpson diversity (1 / sum(p_i^2))."""
+    dominance = _simpson_dominance(x)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        inv = 1.0 / dominance
+    inv[~np.isfinite(inv)] = 0.0
+    return inv
+
+
+def _simpson_dominance(x: np.ndarray) -> np.ndarray:
+    """Return Simpson dominance sum(p_i^2)."""
     totals = np.sum(x, axis=1, keepdims=True)
-    totals[totals == 0] = 1  # Avoid division by zero
+    totals[totals == 0] = 1
     p = x / totals
-    
-    # Calculate Simpson index
-    simpson = np.sum(p**2, axis=1)
-    
-    return simpson
+    return np.sum(p**2, axis=1)
 
 
 def _fisher_alpha(x: np.ndarray) -> np.ndarray:
@@ -456,7 +464,7 @@ def _grouped_diversity(x: np.ndarray, index: str, groups: np.ndarray,
         elif index.lower() == "simpson":
             div_val = _simpson_diversity(pooled_data)[0]
         elif index.lower() == "invsimpson":
-            div_val = 1 / _simpson_diversity(pooled_data)[0]
+            div_val = _inverse_simpson_diversity(pooled_data)[0]
         elif index.lower() == "fisher":
             div_val = _fisher_alpha(pooled_data)[0]
         

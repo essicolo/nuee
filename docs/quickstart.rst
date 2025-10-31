@@ -38,9 +38,9 @@ Diversity Analysis
    shannon_div = nuee.shannon(species)
    print(f"Mean Shannon diversity: {shannon_div.mean():.3f}")
 
-   # Calculate Simpson diversity
+   # Calculate Gini-Simpson diversity (1 - sum(p^2))
    simpson_div = nuee.simpson(species)
-   print(f"Mean Simpson diversity: {simpson_div.mean():.3f}")
+   print(f"Mean Gini-Simpson diversity: {simpson_div.mean():.3f}")
 
    # Calculate species richness
    richness = nuee.specnumber(species)
@@ -73,6 +73,12 @@ Constrained Ordination (RDA)
    # Fit environmental vectors
    envfit_result = nuee.envfit(rda_result, env)
    print(envfit_result)
+
+.. note::
+
+   ``envfit`` replicates vegan’s API but the permutation p-values and vector
+   scaling are still being tuned. Results may differ slightly from
+   ``vegan::envfit``.
 
 PERMANOVA Test
 --------------

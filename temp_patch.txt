@@ -1,0 +1,51 @@
+*** Begin Patch
+*** Update File: src/nuee/ordination/base.py
+@@
+-    def __init__(self, points: np.ndarray, species: Optional[np.ndarray] = None,
+-                 eigenvalues: Optional[np.ndarray] = None, stress: Optional[float] = None,
+-                 converged: bool = True, call: Optional[Dict[str, Any]] = None):
+-        self._raw_points = None if points is None else np.array(points, copy=True)
+-        self._raw_species = None if species is None else np.array(species, copy=True)
+-
+-        self.points = None if self._raw_points is None else np.array(self._raw_points, copy=True)
+-        self.species = None if self._raw_species is None else np.array(self._raw_species, copy=True)
++    def __init__(self,
++                 points: Optional[np.ndarray],
++                 species: Optional[np.ndarray] = None,
++                 eigenvalues: Optional[np.ndarray] = None,
++                 stress: Optional[float] = None,
++                 converged: bool = True,
++                 call: Optional[Dict[str, Any]] = None,
++                 site_u: Optional[np.ndarray] = None,
++                 species_v: Optional[np.ndarray] = None,
++                 singular_values: Optional[np.ndarray] = None,
++                 site_u_unconstrained: Optional[np.ndarray] = None,
++                 species_v_unconstrained: Optional[np.ndarray] = None,
++                 singular_values_unconstrained: Optional[np.ndarray] = None,
++                 row_weights: Optional[np.ndarray] = None,
++                 column_weights: Optional[np.ndarray] = None):
++
++        self._raw_points = None if points is None else np.array(points, copy=True)
++        self._raw_species = None if species is None else np.array(species, copy=True)
++
++        self.points = None if self._raw_points is None else np.array(self._raw_points, copy=True)
++        self.species = None if self._raw_species is None else np.array(self._raw_species, copy=True)
+         self.eigenvalues = eigenvalues
+         self.stress = stress
+         self.converged = converged
+         self.nobj = self.points.shape[0] if self.points is not None else 0
+         self.ndim = self.points.shape[1] if self.points is not None else 0
+         self.call = call or {}
+         self.n_samples = self.nobj
++
++        self._site_u_constrained = None if site_u is None else np.array(site_u, copy=True)
++        self._species_v_constrained = None if species_v is None else np.array(species_v, copy=True)
++        self._singular_constrained = None if singular_values is None else np.array(singular_values, copy=True)
++
++        self._site_u_unconstrained = None if site_u_unconstrained is None else np.array(site_u_unconstrained, copy=True)
++        self._species_v_unconstrained = None if species_v_unconstrained is None else np.array(species_v_unconstrained, copy=True)
++        self._singular_unconstrained = None if singular_values_unconstrained is None else np.array(singular_values_unconstrained, copy=True)
++
++        self._row_weights = None if row_weights is None else np.array(row_weights, copy=True)
++        self._column_weights = None if column_weights is None else np.array(column_weights, copy=True)
+*** End Patch
