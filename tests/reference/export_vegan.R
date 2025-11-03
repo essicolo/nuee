@@ -189,6 +189,27 @@ protest_correlation <- sqrt(max(0, 1 - protest_ss))
 protest_signif <- as.numeric(protest_model$signif)
 anova_rda <- stats::anova(rda_model, permutations = 199)
 permutest_rda <- vegan::permutest(rda_model, permutations = 199)
+permutest_rda_tab <- permutest_rda$tab
+if (is.null(permutest_rda_tab) || nrow(permutest_rda_tab) == 0) {
+  permutest_rda_tab <- data.frame(
+    Df = c(permutest_rda$df, permutest_rda$df.residual),
+    Variance = c(permutest_rda$tot.chi, permutest_rda$res.chi),
+    F = c(permutest_rda$f, NA_real_),
+    `Pr(>F)` = c(permutest_rda$signif, NA_real_)
+  )
+  rownames(permutest_rda_tab) <- c("Model", "Residual")
+}
+permutest_rda_permutations <- permutest_rda$permutations
+if (is.null(permutest_rda_permutations)) {
+  permutest_rda_permutations <- attr(permutest_rda, "permutations")
+}
+if (is.null(permutest_rda_permutations)) {
+  permutest_rda_permutations <- 199
+}
+if (is.list(permutest_rda_permutations) && !is.null(permutest_rda_permutations$nperm)) {
+  permutest_rda_permutations <- permutest_rda_permutations$nperm
+}
+permutest_rda_permutations <- as.integer(permutest_rda_permutations)
 
 dissimilarity_reference <- list(
   vegdist_bray = dist_payload(vegdist_bray),
@@ -232,8 +253,8 @@ dissimilarity_reference <- list(
   ),
   anova_rda = table_payload(anova_rda),
   permutest_rda = list(
-    tab = table_payload(permutest_rda$tab),
-    permutations = permutest_rda$permutations
+    tab = table_payload(permutest_rda_tab),
+    permutations = permutest_rda_permutations
   )
 )
 

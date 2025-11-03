@@ -64,21 +64,30 @@ class RDA(OrdinationMethod):
         -------
         ConstrainedOrdinationResult
         """
-        sample_names = list(X.index) if isinstance(X, pd.DataFrame) else None
-        species_names = list(X.columns) if isinstance(X, pd.DataFrame) else None
+        X_is_df = isinstance(X, pd.DataFrame)
+        sample_names = list(X.index) if X_is_df else None
+        species_names = list(X.columns) if X_is_df else None
+        raw_response_matrix = np.asarray(X.values if X_is_df else X, dtype=float).copy()
         X_matrix = self._validate_data(X)
 
         constraint_names = None
+        raw_constraints: Union[pd.DataFrame, np.ndarray]
+        raw_conditioning_matrix: Optional[Union[pd.DataFrame, np.ndarray]] = None
+        conditioning_is_df = isinstance(Z, pd.DataFrame)
         if self.formula is not None:
             if not isinstance(Y, pd.DataFrame):
                 raise ValueError("DataFrame required for formula interface")
             Y_matrix, constraint_names = self._parse_formula(self.formula, Y)
+            raw_constraints = Y.copy(deep=True)
         else:
             if Y is None:
                 raise ValueError("Either formula or Y matrix must be provided")
             if isinstance(Y, pd.DataFrame):
                 constraint_names = list(Y.columns)
+                raw_constraints = Y.copy(deep=True)
             Y_matrix = self._validate_data(Y)
+            if not isinstance(Y, pd.DataFrame):
+                raw_constraints = np.asarray(Y, dtype=float).copy()
 
         if Y_matrix.shape[1] == 0:
             raise ValueError("No constraining variables supplied for RDA.")
@@ -98,7 +107,8 @@ class RDA(OrdinationMethod):
         if Z is not None:
             Z_matrix = self._validate_data(Z)
             call_info["mode"] = "partial"
-            return self._partial_rda(
+            raw_conditioning_matrix = Z.copy(deep=True) if conditioning_is_df else np.asarray(Z, dtype=float).copy()
+            result = self._partial_rda(
                 X_matrix,
                 Y_matrix,
                 Z_matrix,
@@ -106,15 +116,51 @@ class RDA(OrdinationMethod):
                 species_names=species_names,
                 call_info=call_info
             )
+            result._raw_response = raw_response_matrix
+            result._response_is_dataframe = X_is_df
+            if X_is_df:
+                result._response_columns = list(species_names) if species_names is not None else None
+                result._response_index = list(sample_names) if sample_names is not None else None
+            else:
+                result._response_columns = None
+                result._response_index = None
+            result._raw_constraints = raw_constraints
+            result._constraints_is_dataframe = isinstance(raw_constraints, pd.DataFrame)
+            result._raw_conditioning = raw_conditioning_matrix
+            result._conditioning_is_dataframe = conditioning_is_df
+            result._permutation_spec = {
+                "formula": self.formula,
+                "scale": self.scale,
+                "center": self.center
+            }
+            return result
 
         call_info["mode"] = "simple"
-        return self._simple_rda(
+        result = self._simple_rda(
             X_matrix,
             Y_matrix,
             sample_names=sample_names,
             species_names=species_names,
             call_info=call_info
         )
+        result._raw_response = raw_response_matrix
+        result._response_is_dataframe = X_is_df
+        if X_is_df:
+            result._response_columns = list(species_names) if species_names is not None else None
+            result._response_index = list(sample_names) if sample_names is not None else None
+        else:
+            result._response_columns = None
+            result._response_index = None
+        result._raw_constraints = raw_constraints
+        result._constraints_is_dataframe = isinstance(raw_constraints, pd.DataFrame)
+        result._raw_conditioning = None
+        result._conditioning_is_dataframe = False
+        result._permutation_spec = {
+            "formula": self.formula,
+            "scale": self.scale,
+            "center": self.center
+        }
+        return result
 
     def _parse_formula(self, formula: str, data: pd.DataFrame) -> Tuple[np.ndarray, list[str]]:
         """Parse formula string to create design matrix and retain column names."""

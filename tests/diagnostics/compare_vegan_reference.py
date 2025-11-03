@@ -546,8 +546,24 @@ def compare_protest(reference: Dict[str, Any],
     assert_close_scalar("protest.p_value", float(result["p_value"]), float(ref_p), abs_tol=1e-3, rel_tol=1e-3)
 
 
-def compare_permutest_rda(reference: Dict[str, Any]) -> None:
-    raise AssertionError("permutest(rda) comparison not implemented in nuee.")
+def compare_permutest_rda(reference: Dict[str, Any],
+                          rda_result: Any) -> None:
+    ref = reference["dissimilarity"]["permutest_rda"]
+    ref_table = matrix_from_payload(ref.get("tab"))
+    if ref_table is None:
+        raise AssertionError("Vegan reference missing permutest(rda) table; regenerate export_vegan.R.")
+    ref_permutations = ref.get("permutations", 0) or 0
+    np.random.seed(123)
+    result = nuee.permutest(rda_result, permutations=199, random_state=123)
+    if not isinstance(result, dict):
+        raise AssertionError(f"Expected dict from nuee.permutest, got {type(result).__name__}")
+    result_table = ensure_frame(result.get("tab"), rows=ref_table.index if ref_table is not None else None,
+                                cols=ref_table.columns if ref_table is not None else None)
+    if ref_table is not None:
+        assert_close_frame("permutest(rda).table", result_table, ref_table, abs_tol=1e-6, rel_tol=1e-6)
+    if ref_permutations:
+        if int(result.get("permutations", 0)) != int(ref_permutations):
+            raise AssertionError(f"permutest(rda).permutations mismatch: {result.get('permutations')} vs {ref_permutations}")
 
 
 def compare_anova_rda(reference: Dict[str, Any],
@@ -556,9 +572,11 @@ def compare_anova_rda(reference: Dict[str, Any],
     result = nuee.anova_cca(rda_result, permutations=199)
     if not isinstance(result, dict):
         raise AssertionError(f"Expected dict from nuee.anova_cca, got {type(result).__name__}")
-    raise AssertionError(
-        f"anova_cca returned keys {sorted(result.keys())}, expected table with columns {list(ref.columns)}."
-    )
+    result_table = result.get("tab")
+    if result_table is None:
+        raise AssertionError("anova_cca did not return an ANOVA table.")
+    result_frame = ensure_frame(result_table, rows=ref.index, cols=ref.columns)
+    assert_close_frame("anova_cca.table", result_frame, ref, abs_tol=1e-6, rel_tol=1e-6)
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -630,7 +648,7 @@ def main() -> None:
     run("protest", lambda: compare_protest(reference,
                                            protest_meta_points.to_numpy() if protest_meta_points is not None else meta.points.values,
                                            protest_rda_sites.to_numpy() if protest_rda_sites is not None else rda_sites_for_procrustes.values))
-    run("permutest_rda", lambda: compare_permutest_rda(reference))
+    run("permutest_rda", lambda: compare_permutest_rda(reference, rda_result))
     run("anova_rda", lambda: compare_anova_rda(reference, rda_result))
     run("diversity", lambda: compare_diversity_metrics(reference, species))
 

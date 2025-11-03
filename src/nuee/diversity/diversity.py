@@ -9,7 +9,83 @@ import numpy as np
 import pandas as pd
 from typing import Union, Optional, List, Dict, Any
 from scipy.special import gammaln, digamma
-from scipy.optimize import minimize_scalar
+from scipy.optimize import brentq
+
+
+def _uniroot_r_style(func, lower: float, upper: float,
+                     tol: float = np.finfo(float).eps ** 0.25,
+                     maxiter: int = 1000) -> float:
+    """Port of R's uniroot (Brent's method with R tolerances)."""
+    a = float(lower)
+    b = float(upper)
+    fa = func(a)
+    fb = func(b)
+    if np.isnan(fa) or np.isnan(fb):
+        raise ValueError("Function returned NaN in root finding")
+    if fa == 0:
+        return a
+    if fb == 0:
+        return b
+    if fa * fb > 0:
+        raise ValueError("Root not bracketed for Fisher alpha calculation")
+
+    c = a
+    fc = fa
+    d = e = b - a
+    eps = np.finfo(float).eps
+
+    for _ in range(maxiter):
+        if abs(fc) < abs(fb):
+            a, b = b, c
+            c = a
+            fa, fb = fb, fc
+            fc = fa
+
+        tol_act = 2 * eps * abs(b) + tol / 2
+        m = 0.5 * (c - b)
+
+        if abs(m) <= tol_act or fb == 0.0:
+            return b
+
+        if abs(e) < tol_act or abs(fa) <= abs(fb):
+            d = m
+            e = m
+        else:
+            s = fb / fa
+            if a == c:
+                p = 2 * m * s
+                q = 1 - s
+            else:
+                q = fa / fc
+                r = fb / fc
+                p = s * (2 * m * q * (q - r) - (b - a) * (r - 1))
+                q = (q - 1) * (r - 1) * (s - 1)
+            if p > 0:
+                q = -q
+            p = abs(p)
+            min1 = 3 * m * q - abs(tol_act * q)
+            min2 = abs(e * q)
+            if 2 * p < (min1 if min1 < min2 else min2):
+                e = d
+                d = p / q
+            else:
+                d = m
+                e = m
+
+        a = b
+        fa = fb
+        if abs(d) > tol_act:
+            b += d
+        else:
+            b += tol_act if m > 0 else -tol_act
+        fb = func(b)
+        if (fb > 0 and fc > 0) or (fb < 0 and fc < 0):
+            c = a
+            fc = fa
+            d = b - a
+            e = d
+
+    raise RuntimeError("uniroot did not converge")
 import warnings
 
 from .base import DiversityResult
@@ -383,33 +459,45 @@ def _fisher_alpha(x: np.ndarray) -> np.ndarray:
     """Calculate Fisher's alpha diversity index."""
     n_samples = x.shape[0]
     alpha_values = np.zeros(n_samples)
-    
+
     for i in range(n_samples):
-        sample = x[i, :]
-        sample = sample[sample > 0]  # Remove zeros
-        
-        if len(sample) == 0:
-            alpha_values[i] = 0
+        raw = x[i, :]
+        counts = np.rint(raw).astype(int)
+        counts = counts[counts > 0]
+
+        if counts.size == 0:
+            alpha_values[i] = 0.0
             continue
-            
-        N = np.sum(sample)
-        S = len(sample)
-        
-        if S <= 1:
-            alpha_values[i] = 0
+
+        N = int(counts.sum())
+        S = int(counts.size)
+        if S <= 1 or N <= 1:
+            alpha_values[i] = 0.0
             continue
-        
-        # Solve for alpha using maximum likelihood
-        def fisher_likelihood(alpha):
-            return abs(alpha * np.log(1 + N/alpha) - S)
-        
-        # Initial guess
-        alpha_guess = S / np.log(N) if N > 1 else 1
-        
-        # Optimize
-        result = minimize_scalar(fisher_likelihood, bounds=(0.1, 1000), method='bounded')
-        alpha_values[i] = result.x
-    
+
+        target = float(S)
+
+        def equation(alpha: float) -> float:
+            return alpha * np.log1p(N / alpha) - target
+
+        lower = 0.1
+        upper = 50.0
+        f_lower = equation(lower)
+        f_upper = equation(upper)
+        expansion = 0
+        while f_lower * f_upper > 0 and expansion < 50:
+            upper *= 2.0
+            f_upper = equation(upper)
+            expansion += 1
+        if f_lower * f_upper > 0:
+            alpha_values[i] = max(S / np.log(max(N, 2)), 0.0)
+            continue
+
+        try:
+            alpha_values[i] = _uniroot_r_style(equation, lower, upper)
+        except (ValueError, RuntimeError):
+            alpha_values[i] = max(S / np.log(max(N, 2)), 0.0)
+
     return alpha_values
 
 

@@ -418,6 +418,15 @@ class ConstrainedOrdinationResult(OrdinationResult):
         self.centroids = centroids
         self.tot_chi = tot_chi
         self.partial_chi = partial_chi
+        self._raw_response = None
+        self._response_is_dataframe = False
+        self._response_columns = None
+        self._response_index = None
+        self._raw_constraints = None
+        self._constraints_is_dataframe = False
+        self._raw_conditioning = None
+        self._conditioning_is_dataframe = False
+        self._permutation_spec = {}
         
     @property
     def rank(self) -> int:
