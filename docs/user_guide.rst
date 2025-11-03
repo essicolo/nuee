@@ -1,16 +1,11 @@
-User Guide
+﻿User Guide
 ==========
 
 This guide provides detailed information on using nuee for community ecology analysis.
 
-.. toctree::
-   :maxdepth: 2
-
-   user_guide/ordination
-   user_guide/diversity
-   user_guide/dissimilarity
-   user_guide/permutation_tests
-   user_guide/plotting
+.. contents::
+   :local:
+   :depth: 2
 
 Overview
 --------
@@ -57,9 +52,9 @@ Environmental data should have the same number of rows as the community data:
 .. code-block:: python
 
    env_data = pd.DataFrame({
-       'Temperature': np.random.rand(10),
-       'pH': np.random.rand(10),
-       'Moisture': np.random.rand(10)
+       "Temperature": np.random.rand(10),
+       "pH": np.random.rand(10),
+       "Moisture": np.random.rand(10)
    }, index=data_df.index)
 
 Distance Matrices
@@ -76,7 +71,7 @@ Workflow Examples
 -----------------
 
 Basic Ordination Workflow
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 1. Load and prepare data
 2. Choose an ordination method
@@ -117,7 +112,7 @@ Basic Ordination Workflow
    results you should re-run the analysis in R for the time being.
 
 Diversity Analysis Workflow
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -129,10 +124,10 @@ Diversity Analysis Workflow
 
    # Calculate multiple diversity indices
    diversity_df = pd.DataFrame({
-       'Shannon': nuee.shannon(species),
-       'Gini-Simpson': nuee.simpson(species),
-       'Richness': nuee.specnumber(species),
-       'Fisher': nuee.fisher_alpha(species)
+       "Shannon": nuee.shannon(species),
+       "Gini-Simpson": nuee.simpson(species),
+       "Richness": nuee.specnumber(species),
+       "Fisher": nuee.fisher_alpha(species)
    })
 
    # Summary statistics
@@ -143,7 +138,7 @@ Diversity Analysis Workflow
    # diversity_by_group = diversity_df.groupby(groups).mean()
 
 Hypothesis Testing Workflow
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: python
 
@@ -158,7 +153,7 @@ Hypothesis Testing Workflow
 
    # Test for group differences (PERMANOVA)
    perm_result = nuee.adonis2(dist, env['Management'])
-   print(f"R²: {perm_result.r_squared:.3f}")
+   print(f"R^2: {perm_result.r_squared:.3f}")
    print(f"p-value: {perm_result.p_value:.3f}")
 
    # Test for homogeneity of dispersions
@@ -166,10 +161,10 @@ Hypothesis Testing Workflow
    print(betadisp)
 
 Tips and Best Practices
-------------------------
+-----------------------
 
 Choosing an Ordination Method
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * **NMDS**: Robust, works with any distance metric, no linearity assumptions
 * **RDA**: Linear relationships, environmental variables available
@@ -177,7 +172,7 @@ Choosing an Ordination Method
 * **PCA**: Quick exploration, linear relationships
 
 Choosing a Distance Metric
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * **Bray-Curtis**: General purpose, abundance data
 * **Jaccard**: Presence/absence data
@@ -204,8 +199,89 @@ Data Transformation
        x_std = x_std / x_std.sum(axis=1, keepdims=True)
        return x_std
 
+Compositional Data Workflows
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``nuee.composition`` brings compositional data analysis tools into the package
+without requiring SciPy.  These utilities are NumPy-only ports of scikit-bio's
+composition module.
+
+.. code-block:: python
+
+   from nuee import composition
+   import numpy as np
+
+   # Raw counts with zeros
+   counts = np.array([[0, 5, 10], [3, 0, 9]])
+
+   # Replace zeros and apply closure
+   replaced = composition.multiplicative_replacement(counts)
+   closed = composition.closure(replaced)
+
+   # Transform to log-ratio space
+   clr_coords = composition.clr(closed)
+   ilr_coords = composition.ilr(closed)
+
+   # Invert transforms if required
+   recovered = composition.ilr_inv(ilr_coords)
+
+Mathematical Definitions
+------------------------
+
+The following formulas summarise the core quantities computed by nuee.
+
+Shannon Diversity
+~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   H' = -\sum_{i=1}^{S} p_i \ln p_i
+
+where :math:`p_i = \frac{x_i}{\sum_{j=1}^{S} x_j}` is the relative abundance of
+species :math:`i` in a community of size :math:`S`.
+
+Gini-Simpson Diversity
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   D = 1 - \sum_{i=1}^{S} p_i^2
+
+which measures the probability that two individuals drawn at random belong to
+different species.
+
+Bray-Curtis Dissimilarity
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   BC_{ij} = 1 - \frac{2 \sum_{k=1}^{S} \min(x_{ik}, x_{jk})}{\sum_{k=1}^{S} x_{ik} + \sum_{k=1}^{S} x_{jk}}
+
+where :math:`x_{ik}` and :math:`x_{jk}` denote the abundances of species
+:math:`k` in sites :math:`i` and :math:`j`.
+
+Hellinger Transformation
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   h_{ik} = \sqrt{\frac{x_{ik}}{\sum_{j=1}^{S} x_{ij}}}
+
+which stabilises variances prior to linear ordination methods such as RDA.
+
+PERMANOVA F-statistic
+~~~~~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   F = \frac{SS_{\text{between}} / (g - 1)}{SS_{\text{within}} / (N - g)}
+
+where :math:`g` is the number of groups and :math:`N` is the number of
+observations. Permutation p-values are obtained by recalculating :math:`F`
+across random group assignments.
+
 Interpretation Guidelines
---------------------------
+-------------------------
 
 NMDS Stress Values
 ~~~~~~~~~~~~~~~~~~
@@ -226,6 +302,6 @@ RDA/CCA Interpretation
 PERMANOVA Results
 ~~~~~~~~~~~~~~~~~
 
-* R²: Proportion of variance explained
+* R^2: Proportion of variance explained
 * F-statistic: Ratio of between-group to within-group variance
-* p-value: Significance (typically α = 0.05)
+* p-value: Significance (typically alpha = 0.05)

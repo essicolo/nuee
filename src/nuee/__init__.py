@@ -18,6 +18,8 @@ permutation : module
     Permutation-based statistical tests
 plotting : module
     Visualization functions for ecological data
+composition : module
+    Compositional data analysis utilities (CLR/ILR/ALR transforms, closure, etc.)
 datasets : module
     Sample datasets for testing and examples
 
@@ -113,6 +115,23 @@ from .plotting import (
     plot_betadisper,
 )
 
+from .composition import (
+    closure,
+    multiplicative_replacement,
+    power,
+    clr,
+    clr_inv,
+    inner,
+    ilr,
+    ilr_inv,
+    alr,
+    alr_inv,
+    sbp_basis,
+    center,
+    centralize,
+)
+
+from . import composition
 from . import datasets
 
 __all__ = [
@@ -162,6 +181,21 @@ __all__ = [
     "ordiellipse",
     "ordispider",
     "plot_betadisper",
+    # Composition
+    "closure",
+    "multiplicative_replacement",
+    "power",
+    "clr",
+    "clr_inv",
+    "inner",
+    "ilr",
+    "ilr_inv",
+    "alr",
+    "alr_inv",
+    "sbp_basis",
+    "center",
+    "centralize",
+    "composition",
     # Datasets
     "datasets",
 ]

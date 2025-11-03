@@ -9,6 +9,7 @@ This page contains the API reference for the nuee package.
    api/ordination
    api/diversity
    api/dissimilarity
+   api/composition
    api/permutation
    api/plotting
    api/datasets
