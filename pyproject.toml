@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuee"
-version = "0.1.4"
+version = "0.1.5"
 description = "Community Ecology Analysis in Python"
 readme = "README.md"
 authors = [
@@ -14,7 +14,7 @@ license = {text = "MIT"}
 requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Intended Audience :: Science/Research", 
+    "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",

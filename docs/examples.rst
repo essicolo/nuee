@@ -63,7 +63,7 @@ Complete analysis of lichen community data with environmental correlates.
 
    # RDA with environmental constraints
    rda = nuee.rda(species, env[['N', 'P', 'K']])
-   fig = nuee.biplot(rda)
+   fig = nuee.ordiplot(rda)
    plt.title("RDA: Species ~ N + P + K")
    plt.show()
 
@@ -130,7 +130,7 @@ Dune meadow vegetation with management types.
    # Select numeric variables
    numeric_env = env.select_dtypes(include=[np.number])
    cca = nuee.cca(species, numeric_env)
-   fig = nuee.biplot(cca)
+   fig = nuee.ordiplot(cca)
    plt.title("CCA: Vegetation ~ Environment")
    plt.show()
 

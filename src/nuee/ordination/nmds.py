@@ -161,7 +161,10 @@ class NMDS(OrdinationMethod):
 
         rng = np.random.default_rng(self.random_state)
 
-        stress_scale = dist_matrix.shape[0] * max(dist_matrix.shape[0] - 1, 1)
+        condensed_distances = dist_matrix[np.triu_indices(dist_matrix.shape[0], k=1)]
+        stress_denominator = float(np.sum(condensed_distances ** 2))
+        if not np.isfinite(stress_denominator) or stress_denominator <= 0.0:
+            stress_denominator = float(dist_matrix.shape[0] * max(dist_matrix.shape[0] - 1, 1))
         best_raw_stress = None
 
         cmdscale_init = _cmdscale_init(dist_matrix, self.n_components)
@@ -192,7 +195,7 @@ class NMDS(OrdinationMethod):
             )
 
             raw_stress = float(raw_stress)
-            stress = float(np.sqrt(raw_stress / stress_scale)) if stress_scale > 0 else 0.0
+            stress = float(np.sqrt(raw_stress / stress_denominator)) if stress_denominator > 0 else 0.0
             stress_history.append({
                 'run': run_idx + 1,
                 'stress': stress,

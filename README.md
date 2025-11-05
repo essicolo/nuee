@@ -56,7 +56,7 @@ make html
 
 ### Visualization
 - **Ordination plots** with `plot_ordination()`
-- **Biplots** with `biplot()`
+- **Ordiplots** with `ordiplot()`
 - **Diversity plots** with `plot_diversity()`
 - **Rarefaction curves** with `plot_rarecurve()`
 - **Confidence ellipses** with `ordiellipse()`
@@ -92,9 +92,9 @@ simpson_div = nuee.simpson(species_data)
 print(f"Shannon diversity: {shannon_div.mean():.3f}")
 print(f"Gini-Simpson diversity: {simpson_div.mean():.3f}")
 
-# RDA with environmental variables
+# RDA with environmental variables (auto-scales loadings/arrows)
 rda_result = nuee.rda(species_data, env_data)
-fig = nuee.biplot(rda_result)
+fig = nuee.ordiplot(rda_result, loading_factor=0, predictor_factor=0)
 plt.show()
 
 # PERMANOVA
@@ -102,6 +102,13 @@ distances = nuee.vegdist(species_data, method="bray")
 permanova_result = nuee.adonis2(distances, env_data)
 print(permanova_result)
 ```
+
+`loading_factor` and `predictor_factor` accept any numeric value. Set them to `0` to
+match the longest sample vector automatically; use other values to shrink or stretch
+species loadings and environmental arrows manually.
+
+To explore the residual (unconstrained) component of an RDA, pass
+`axes_source="unconstrained"` when calling `ordiplot`.
 
 ## Advanced Examples
 

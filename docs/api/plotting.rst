@@ -10,9 +10,14 @@ Ordination Plots
 
 .. autofunction:: plot_ordination
 
+.. autofunction:: ordiplot
+
 .. autofunction:: biplot
 
-.. autofunction:: ordiplot
+.. deprecated:: 0.1.2
+   :func:`biplot` is kept for compatibility only. New code should call
+   :func:`ordiplot`, which also exposes the ``loading_factor`` and
+   ``predictor_factor`` scaling parameters.
 
 Diversity Plots
 ---------------

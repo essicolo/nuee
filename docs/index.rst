@@ -90,7 +90,8 @@ Visualization
 -------------
 
 * **Ordination plots** with ``nuee.plot_ordination()``
-* **Biplots** with ``nuee.biplot()``
+* **Ordiplots** with ``nuee.ordiplot()`` (choose constrained or residual axes via
+  ``axes_source``)
 * **Diversity plots** with ``nuee.plot_diversity()``
 * **Rarefaction curves** with ``nuee.plot_rarecurve()``
 * **Confidence ellipses** with ``nuee.ordiellipse()``

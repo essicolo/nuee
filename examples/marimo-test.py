@@ -8,6 +8,7 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import nuee
+
     return (nuee,)
 
 
@@ -42,7 +43,7 @@ def _(env_data, nuee, species_data):
 
 @app.cell
 def _(nuee, rda_result):
-    nuee.biplot(rda_result)
+    nuee.ordiplot(rda_result)
     return
 
 

@@ -65,10 +65,25 @@ Constrained Ordination (RDA)
    # Perform RDA
    rda_result = nuee.rda(species, env)
 
-   # Create biplot
-   fig = nuee.biplot(rda_result)
-   plt.title("RDA Biplot of Dune Meadow Vegetation")
+   # Create ordiplot (automatically balances scores and vectors)
+   fig = nuee.ordiplot(rda_result, loading_factor=0, predictor_factor=0)
+   plt.title("RDA Ordiplot of Dune Meadow Vegetation")
    plt.show()
+
+   # Any numeric factor can be supplied to loading_factor / predictor_factor
+   # to shrink or stretch species loadings and environmental arrows manually.
+
+.. tip::
+
+   ``loading_factor`` and ``predictor_factor`` accept any numeric value. Use
+   ``0`` to rescale vectors so they match the longest sample score, or provide
+   a manual multiplier when you need tighter or looser arrows.
+
+   To inspect residual (unconstrained) axes, supply ``axes_source="unconstrained"``:
+
+   .. code-block:: python
+
+      nuee.ordiplot(rda_result, axes_source="unconstrained", axes=(0, 1))
 
    # Fit environmental vectors
    envfit_result = nuee.envfit(rda_result, env)

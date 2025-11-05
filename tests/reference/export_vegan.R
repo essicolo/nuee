@@ -10,7 +10,22 @@
 library(vegan)
 library(jsonlite)
 
-setwd("C:/Users/parse01/documents-locaux/GitHub/nuee")
+#getwd management for portability
+get_script_dir <- function() {
+  args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep('^--file=', args, value = TRUE)
+  if (length(file_arg)) {
+    return(dirname(normalizePath(sub('^--file=', '', file_arg[1]))))
+  }
+  frame <- sys.frames()[[1]]
+  if (!is.null(frame$ofile)) {
+    return(dirname(normalizePath(frame$ofile)))
+  }
+  return(getwd())
+}
+script_dir <- get_script_dir()
+repo_root <- normalizePath(file.path(script_dir, '..', '..'))
+setwd(repo_root)
 
 set.seed(123)
 
@@ -191,13 +206,26 @@ anova_rda <- stats::anova(rda_model, permutations = 199)
 permutest_rda <- vegan::permutest(rda_model, permutations = 199)
 permutest_rda_tab <- permutest_rda$tab
 if (is.null(permutest_rda_tab) || nrow(permutest_rda_tab) == 0) {
-  permutest_rda_tab <- data.frame(
-    Df = c(permutest_rda$df, permutest_rda$df.residual),
-    Variance = c(permutest_rda$tot.chi, permutest_rda$res.chi),
-    F = c(permutest_rda$f, NA_real_),
-    `Pr(>F)` = c(permutest_rda$signif, NA_real_)
+  model_row <- data.frame(
+    Df = if (length(permutest_rda$df) > 0) permutest_rda$df[[1]] else NA_real_,
+    Variance = if (length(permutest_rda$tot.chi) > 0) permutest_rda$tot.chi[[1]] else NA_real_,
+    F = if (length(permutest_rda$f) > 0) permutest_rda$f[[1]] else NA_real_,
+    `Pr(>F)` = if (length(permutest_rda$signif) > 0) permutest_rda$signif[[1]] else NA_real_,
+    row.names = "Model"
   )
-  rownames(permutest_rda_tab) <- c("Model", "Residual")
+
+  residual_row <- NULL
+  if (!is.null(permutest_rda$df.residual) && length(permutest_rda$df.residual) > 0) {
+    residual_row <- data.frame(
+      Df = permutest_rda$df.residual[[1]],
+      Variance = if (length(permutest_rda$res.chi) > 0) permutest_rda$res.chi[[1]] else NA_real_,
+      F = NA_real_,
+      `Pr(>F)` = NA_real_,
+      row.names = "Residual"
+    )
+  }
+
+  permutest_rda_tab <- rbind(model_row, residual_row)
 }
 permutest_rda_permutations <- permutest_rda$permutations
 if (is.null(permutest_rda_permutations)) {
