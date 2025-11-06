@@ -99,6 +99,10 @@ ENV/
 # mypy
 .mypy_cache/
 
+# R
+.RData
+.Rhistory
 
 __marimo__
 .claude
+
