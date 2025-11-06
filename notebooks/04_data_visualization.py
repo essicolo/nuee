@@ -5,121 +5,290 @@ app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
+def __():
+    import marimo as mo
+    return mo,
+
+
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-    # Chapter 4: Data Visualization with plotnine
+        # Chapter 4: Data Visualization
 
-    This chapter covers creating effective visualizations for ecological data using plotnine, a powerful declarative visualization library that works seamlessly in Pyodide environments.
+        ## Learning Objectives
 
-    ## Learning Objectives
+        By the end of this chapter, you will:
 
-    - Master plotnine for ecological data visualization
-    - Create publication-quality plots for ecological research
-    - Build interactive visualizations and dashboards
-    - Understand design principles for ecological graphics
-    """
+        - Understand the importance of data exploration through visualization
+        - Understand general guidelines for creating appropriate graphics
+        - Understand the difference between imperative and declarative approaches
+        - Be able to create scatter plots, lines, histograms, bar charts, and boxplots
+        - Know how to export graphics for publication
+
+        ---
+
+        Creating graphics is a common task in scientific workflows. A well-designed graphic is dense with information. Data visualization allows us to explore tables and create visual elements for publication, conveying information that would otherwise be difficult or impossible to communicate adequately.
+
+        Most graphics you generate won't be destined for publication. They'll probably first aim to explore data, allowing you to highlight new perspectives.
+
+        ## Why Visualize Graphically?
+
+        Let's take two variables, $X$ and $Y$. You calculate their mean, standard deviation, and correlation. Can summary statistics tell you everything about your data? Not quite.
+
+        To demonstrate that these statistics won't teach you much about data structure, [Matejka and Fitzmaurice (2017)](https://www.autodeskresearch.com/publications/samestats) generated 12 datasets of $X$ and $Y$, each having practically the same statistics. But with very different structures! This is the famous **Datasaurus Dozen** - a powerful reminder that you must always visualize your data.
+        """
     )
     return
 
 
 @app.cell
-def _():
-    # Essential imports for visualization
+def __():
+    # Essential imports
     import pandas as pd
     import numpy as np
-    import plotnine as p9
-    return np, p9, pd
+    from lets_plot import *
+
+    # Initialize lets-plot for notebook use
+    LetsPlot.setup_html()
+
+    # For classic datasets
+    from sklearn.datasets import load_iris
+
+    print("lets-plot initialized successfully!")
+    return LetsPlot, load_iris, np, pd
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Create Sample Ecological Dataset""")
+    mo.md(
+        r"""
+        ## Five Qualities of Good Visualization
+
+        Alberto Cairo, researcher specialized in data visualization, published in 2016 [*The Truthful Art*](http://www.thefunctionalart.com/p/the-truthful-art-book.html), noting five qualities of well-designed visualization:
+
+        > **1. It is truthful**, as it is based on thorough and honest research.
+
+        **Present data according to the most accurate interpretation**. Avoid cherry-picking (removing inconvenient data) and over-interpreting (seeing patterns in noise).
+
+        > **2. It is functional**, constituting an accurate representation of data, built to let observers make consequential initiatives.
+
+        Choosing the right graphic is a **rational approach to the objective** of presenting information, not just aesthetics.
+
+        > **3. It is attractive** and intriguing, aesthetically pleasing for the target audience.
+
+        **Present information, not decorations**. Minimize unnecessary elements. Provide maximum information with minimum graphical elements.
+
+        > **4. It is insightful**, revealing scientific evidence otherwise difficult to access.
+
+        **Generate an idea at a glance**. A good visualization elicits a "eureka" moment.
+
+        > **5. It is enlightening**, changing our perception for the better when we accept its evidence.
+
+        **Select the information to transmit** carefully and purposefully.
+
+        ## Choosing the Right Plot Type
+
+        The site [from data to viz](https://www.data-to-viz.com/) provides decision trees guiding you toward appropriate options for presenting your data. [Ann K. Emery's site](https://annkemery.com/essentials/) presents guidelines for the right graphic according to data in hand.
+
+        Key considerations:
+
+        1. **Think about your message**: Compare categories, visualize change over time, show relationships, or display spatial distribution?
+        2. **Try different representations**: You might need more than one graphic
+        3. **Organize your data**: Follow tidy data principles (Chapter 3)
+        4. **Test the result**: "Hey, what do you understand from this?" If they shrug, reevaluate
+
+        ## Grammar of Graphics with lets-plot
+
+        **lets-plot** is Python's implementation of the Grammar of Graphics, inspired by R's ggplot2. The approach is **declarative** - you specify *what* to display, not *how* to display it.
+
+        > Declarative visualization lets you think about data and relationships, rather than accessory details.
+
+        A grammar of graphics has 5 components:
+
+        1. **Data**: Your DataFrame
+        2. **Geometries** (markers): Points, lines, polygons, bars, etc. (`geom_point()`, `geom_line()`)
+        3. **Aesthetics** (encoded attributes): Position, size, color, shape
+        4. **Global attributes**: Constant attributes (don't depend on a variable)
+        5. **Themes**: Customize how the graphic is rendered
+
+        Workflow:
+        ```
+        With my DataFrame,
+        Create a marker (
+            encode(position X = column A,
+                   position Y = column B,
+                   color = column C),
+            global shape = 1)
+        With a black and white theme
+        ```
+        """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## First lets-plot Example
+
+        Let's load the classic iris dataset (published in 1936 by biostatistician Ronald Fisher):
+        """
+    )
+    return
+
+
+@app.cell
+def _(load_iris, pd):
+    # Load iris dataset
+    iris_data = load_iris(as_frame=True)
+    iris = iris_data.frame
+    iris['species'] = iris_data.target_names[iris_data.target]
+
+    print("Iris dataset:")
+    print(iris.head())
+    print(f"\nColumns: {iris.columns.tolist()}")
+    return iris, iris_data
+
+
+@app.cell
+def _(aes, geom_point, ggplot, iris):
+    # Basic scatter plot
+    (ggplot(iris, aes(x='sepal length (cm)', y='sepal width (cm)'))
+     + geom_point())
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        Following the lets-plot grammar:
+
+        1. `ggplot(data, aes(...))` - specify data and aesthetic mappings
+        2. Add geometries with `+` (just like ggplot2 in R)
+        3. `geom_point()` creates points
+
+        ### Adding Color, Size, and Transparency
+
+        We can encode additional variables:
+        """
+    )
+    return
+
+
+@app.cell
+def _(aes, geom_point, ggplot, iris):
+    # Scatter plot with color and size
+    (ggplot(iris, aes(x='sepal length (cm)',
+                      y='sepal width (cm)',
+                      color='species',
+                      size='petal length (cm)'))
+     + geom_point(alpha=0.6))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Available Geometries
+
+        lets-plot provides many geometry types:
+
+        - `geom_point()` - scatter plots
+        - `geom_line()` - line plots
+        - `geom_bar()`, `geom_col()` - bar charts
+        - `geom_histogram()` - histograms
+        - `geom_boxplot()` - box plots
+        - `geom_density()` - density plots
+        - `geom_smooth()` - smoothed trend lines
+        - `geom_errorbar()`, `geom_pointrange()` - error bars
+        - `geom_tile()` - heatmaps
+        - etc.
+
+        ## Available Aesthetics
+
+        - Position: `x`, `y`, `z`
+        - Size: `size`
+        - Shape: `shape`
+        - Color: `color` (outline), `fill` (interior)
+        - Line type: `linetype`
+        - Transparency: `alpha`
+
+        ## Facets
+
+        **Facets** split your plot into multiple subplots based on categorical variables:
+
+        - `facet_wrap()` - wraps facets into rectangular layout
+        - `facet_grid()` - creates a grid
+
+        Facets are conventionally placed right after `ggplot()`:
+        """
+    )
+    return
+
+
+@app.cell
+def _(aes, facet_wrap, geom_point, ggplot, iris):
+    # Faceted plot
+    (ggplot(iris, aes(x='sepal length (cm)', y='sepal width (cm)'))
+     + facet_wrap('species', ncol=2)
+     + geom_point(aes(color='species'), alpha=0.6))
+    return
+
+
+@app.cell
+def _(aes, facet_grid, geom_point, ggplot, iris, pd):
+    # Facet grid with discretized variable
+    iris_disc = iris.copy()
+    iris_disc['petal_cat'] = pd.cut(iris['petal length (cm)'],
+                                     bins=[0, 2, 4, 6, 8],
+                                     labels=['0-2', '2-4', '4-6', '6-8'])
+
+    (ggplot(iris_disc, aes(x='sepal length (cm)', y='sepal width (cm)'))
+     + facet_grid('species ~ petal_cat')
+     + geom_point(aes(color='species'), alpha=0.5))
+    return iris_disc,
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Line Plots
+
+        Lines show trends over time or ordered sequences. Let's create time series data:
+        """
+    )
     return
 
 
 @app.cell
 def _(np, pd):
-    # Generate comprehensive ecological data for visualization examples
+    # Create time series
     np.random.seed(42)
-
-    # Site-level data
-    _n_sites = 100
-    sites = [f"SITE_{i:03d}" for i in range(1, _n_sites + 1)]
-
-    ecological_data1 = pd.DataFrame({
-        'site_id': sites,
-        'habitat': np.random.choice(['Forest', 'Grassland', 'Wetland', 'Urban', 'Shrubland'], _n_sites, p=[0.3, 0.25, 0.2, 0.15, 0.1]),
-        'latitude': np.random.uniform(45.0, 48.0, _n_sites),
-        'longitude': np.random.uniform(-75.0, -70.0, _n_sites),
-        'elevation': np.random.uniform(50, 1200, _n_sites),
-        'temperature': np.random.normal(15, 5, _n_sites),
-        'precipitation': np.random.lognormal(6, 0.5, _n_sites),
-        'soil_pH': np.random.normal(6.5, 1.2, _n_sites),
-        'nitrogen': np.random.gamma(2, 5, _n_sites),
-        'species_richness': np.random.poisson(15, _n_sites),
-        'shannon_diversity': np.random.gamma(2, 0.7, _n_sites),
-        'total_abundance': np.random.lognormal(4, 0.8, _n_sites)
+    time_data = pd.DataFrame({
+        'time': list(range(100)) * 3,
+        'value': np.concatenate([
+            np.cumsum(np.random.randn(100)) + 10,
+            np.cumsum(np.random.randn(100)) + 15,
+            np.cumsum(np.random.randn(100)) + 5
+        ]),
+        'tree': ['Tree 1'] * 100 + ['Tree 2'] * 100 + ['Tree 3'] * 100
     })
 
-    # Add derived variables
-    ecological_data1['simpson_diversity'] = 1 - (1 / (ecological_data1['shannon_diversity'] + 1))
-    ecological_data1['evenness'] = ecological_data1['shannon_diversity'] / np.log(ecological_data1['species_richness'])
-
-    ecological_data1['habitat'] = ecological_data1['habitat'].astype('category')
-
-    print(f"Dataset created: {ecological_data1.shape}")
-    print(ecological_data1.head())
-    return (ecological_data1,)
+    print("Time series data (first 10 rows):")
+    print(time_data.head(10))
+    return time_data,
 
 
 @app.cell
-def _(mo):
-    mo.md(r"""## Basic Scatter Plots""")
-    return
-
-
-@app.cell
-def _(ecological_data1, p9):
-    (
-        p9.ggplot(ecological_data1, p9.aes(x='temperature', y='species_richness'))
-        + p9.geom_point()
-        + p9.labs(
-            title='Species Richness vs Temperature by Habitat',
-            x='Temperature (°C)',
-            y='Species Richness'
-        )
-    ).show()
-    return
-
-
-@app.cell
-def _(ecological_data1, p9):
-    (
-        p9.ggplot(ecological_data1, p9.aes(x='temperature', y='species_richness'))
-        + p9.geom_point(p9.aes(color='habitat'), size=3, alpha=0.7)
-        + p9.theme_bw() # a theme
-        + p9.labs(
-            title='Species Richness vs Temperature by Habitat',
-            x='Temperature (°C)',
-            y='Species Richness'
-        )
-    ).show()
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""## Distributions and Histograms""")
-    return
-
-
-@app.cell
-def _(ecological_data1, p9):
-    (
-        p9.ggplot(ecological_data1, p9.aes(x='species_richness'))
-        + p9.geom_histogram(bins=20)
-    ).draw()
+def _(aes, geom_line, ggplot, time_data):
+    # Line plot
+    (ggplot(time_data, aes(x='time', y='value', color='tree'))
+     + geom_line())
     return
 
 
@@ -127,628 +296,373 @@ def _(ecological_data1, p9):
 def _(mo):
     mo.md(
         r"""
-    ## Correlation and Relationship Plots
+        ## Histograms
 
-    To plot a correlation matrix, you must compute it then make a table out of it. The table must be in long format to have the variable in a column, the variable is correlates to in another column, then the value of the correlation in the other.
-    """
+        Histograms show distribution of a continuous variable by dividing it into bins. The `bins` argument (like R's `breaks`) specifies the number of bins:
+        """
     )
     return
 
 
 @app.cell
-def _(ecological_data1):
-    numeric_cols = ['temperature', 'precipitation', 'soil_pH', 'nitrogen', 
-                   'species_richness', 'shannon_diversity', 'total_abundance']
-    corr_matrix = ecological_data1[numeric_cols].corr()
-    corr_matrix = corr_matrix.corr().round(2)
-    corr_long = (
-        corr_matrix
-        .reset_index() # the row-wise variable is stored in the index, resetting put the variable in a column named "index" and makes a new index
-        .rename(columns={'index':'var1'})
-        .melt(id_vars='var1', var_name='var2', value_name='corr')
-    
-    )
-    corr_long
-    return (corr_long,)
-
-
-@app.cell
-def _(corr_long, p9):
-    (
-        p9.ggplot(corr_long, p9.aes(x='var1', y='var2', fill='corr'))
-        + p9.geom_tile()
-        + p9.geom_text(p9.aes(label='corr'), size=8)
-        + p9.scale_fill_gradient2(low='#2166ac', mid='#f7f7f7', high='#b2182b', midpoint=0)
-        + p9.labs(x='', y='', title='Correlation matrix')
-        + p9.theme_minimal()
-        + p9.theme(
-            axis_text_x=p9.element_text(rotation=45, ha='right', size=8),
-            axis_text_y=p9.element_text(size=8),
-            plot_title=p9.element_text(size=11, weight='bold'),
-            figure_size=(6,6)
-        )
-    ).draw()
+def _(aes, geom_histogram, ggplot, iris):
+    # Basic histogram
+    (ggplot(iris, aes(x='petal length (cm)'))
+     + geom_histogram(bins=30, fill='steelblue', color='white'))
     return
 
 
 @app.cell
-def _():
-    ## Time Series and Temporal Data
+def _(mo):
+    mo.md(
+        r"""
+        ### Histograms with Facets
+
+        Facets help compare distributions across groups. Using `fill` colors the interior of bars:
+        """
+    )
     return
 
 
 @app.cell
-def _(hv, np, pd):
-    """
-
-    """
-    # Create temporal data for demonstration
-    start_date = pd.to_datetime('2020-01-01')
-    dates = pd.date_range(start_date, periods=365*3, freq='D')
-
-    # Simulate seasonal patterns in biodiversity
-    day_of_year = dates.dayofyear
-    seasonal_pattern = np.sin(2 * np.pi * day_of_year / 365) * 5 + 15
-    random_noise = np.random.normal(0, 2, len(dates))
-    temperature_ts = seasonal_pattern + random_noise
-
-    # Simulate species observations with seasonal patterns
-    species_activity = np.sin(2 * np.pi * day_of_year / 365 + np.pi/4) * 10 + 20 + np.random.normal(0, 3, len(dates))
-    species_activity = np.maximum(species_activity, 0)  # No negative observations
-
-    temporal_data = pd.DataFrame({
-        'date': dates,
-        'temperature': temperature_ts,
-        'species_observations': species_activity,
-        'year': dates.year,
-        'month': dates.month,
-        'day_of_year': day_of_year
-    })
-
-    # Time series plot
-    temp_ts = hv.Curve(temporal_data, 'date', 'temperature').opts(
-        title="Temperature Time Series",
-        xlabel="Date",
-        ylabel="Temperature (°C)",
-        color='red',
-        line_width=1
-    )
-
-    species_ts = hv.Curve(temporal_data, 'date', 'species_observations').opts(
-        title="Species Observations Over Time",
-        xlabel="Date", 
-        ylabel="Number of Observations",
-        color='green',
-        line_width=1
-    )
-
-    # Seasonal decomposition visualization
-    monthly_avg = temporal_data.groupby(['year', 'month']).agg({
-        'temperature': 'mean',
-        'species_observations': 'mean'
-    }).reset_index()
-
-    monthly_avg['date'] = pd.to_datetime(monthly_avg[['year', 'month']].assign(day=1))
-
-    monthly_temp = hv.Curve(monthly_avg, 'date', 'temperature').opts(
-        title="Monthly Average Temperature",
-        color='orange',
-        line_width=3
-    )
-
-    monthly_species = hv.Curve(monthly_avg, 'date', 'species_observations').opts(
-        title="Monthly Average Species Observations",
-        color='blue',
-        line_width=3
-    )
-
-    print("Temporal patterns:")
-    (temp_ts + species_ts + monthly_temp + monthly_species).cols(2)
+def _(aes, facet_grid, geom_histogram, ggplot, iris):
+    # Faceted histogram
+    (ggplot(iris, aes(x='petal length (cm)', fill='species'))
+     + facet_grid('species ~ .')
+     + geom_histogram(bins=20, color='white'))
     return
 
 
 @app.cell
-def _(ecological_data, hv, pn):
-    """
-    ## Interactive Visualizations
-    """
-    # Interactive scatter plot with widgets
-    def interactive_scatter(x_var='temperature', y_var='species_richness', habitat_filter='All'):
-        data = ecological_data.copy()
-        if habitat_filter != 'All':
-            data = data[data['habitat'] == habitat_filter]
+def _(mo):
+    mo.md(
+        r"""
+        **Note**: Bin width is critical! The same data with different bin widths can reveal different patterns. Experiment with the `bins` parameter during exploration.
 
-        return hv.Scatter(data, x_var, y_var).opts(
-            title=f"{y_var} vs {x_var}" + (f" ({habitat_filter})" if habitat_filter != 'All' else ""),
-            size=8,
-            alpha=0.7,
-            tools=['hover']
-        )
+        ## Boxplots
 
-    # Create interactive plot with panel widgets
-    x_select = pn.widgets.Select(
-        name='X Variable', 
-        value='temperature',
-        options=['temperature', 'precipitation', 'soil_pH', 'nitrogen', 'elevation']
+        Boxplots visualize distributions through quartiles. The box extends from Q1 (25th percentile) to Q3 (75th percentile), with a line at the median (Q2). Whiskers extend to 1.5 × IQR (interquartile range), and points beyond are outliers.
+        """
     )
-
-    y_select = pn.widgets.Select(
-        name='Y Variable',
-        value='species_richness', 
-        options=['species_richness', 'shannon_diversity', 'total_abundance', 'simpson_diversity']
-    )
-
-    habitat_select = pn.widgets.Select(
-        name='Habitat Filter',
-        value='All',
-        options=['All'] + list(ecological_data['habitat'].unique())
-    )
-
-    # Linked brushing example
-    scatter1 = hv.Scatter(ecological_data, 'temperature', 'species_richness').opts(
-        tools=['box_select', 'lasso_select'],
-        title="Temperature vs Species Richness"
-    )
-
-    scatter2 = hv.Scatter(ecological_data, 'precipitation', 'shannon_diversity').opts(
-        tools=['box_select', 'lasso_select'],
-        title="Precipitation vs Shannon Diversity"
-    )
-
-    # Selection streams for brushing
-    selection1 = hv.streams.Selection1D(source=scatter1)
-    selection2 = hv.streams.Selection1D(source=scatter2)
-
-    print("Interactive plots with selection:")
-    scatter1 + scatter2
     return
 
 
 @app.cell
-def _(ecological_data, hv, np, pd):
-    """
-    ## Ecological Specialized Plots
-    """
-    # Species accumulation curve
+def _(aes, geom_boxplot, ggplot, iris):
+    # Basic boxplot
+    (ggplot(iris, aes(x='species', y='petal length (cm)'))
+     + geom_boxplot(fill='lightblue'))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ### Boxplots with Data Points
+
+        It's often helpful to show actual measurements alongside boxplots using jittered points:
+        """
+    )
+    return
+
+
+@app.cell
+def _(aes, geom_boxplot, geom_jitter, ggplot, iris):
+    # Boxplot with jittered points
+    (ggplot(iris, aes(x='species', y='petal length (cm)'))
+     + geom_boxplot(fill='lightblue', alpha=0.5)
+     + geom_jitter(width=0.2, height=0, alpha=0.3, color='darkblue'))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Bar Charts
+
+        Bar charts compare values across categories. Let's create categorical data:
+        """
+    )
+    return
+
+
+@app.cell
+def _(np, pd):
+    # Create categorical data
     np.random.seed(42)
-    n_samples = 20
-    cumulative_species = []
-
-    for i in range(1, n_samples + 1):
-        # Simulate cumulative species discovery
-        base_species = 5 * np.log(i + 1) + np.random.normal(0, 0.5)
-        cumulative_species.append(max(1, base_species))
-
-    accumulation_data = pd.DataFrame({
-        'samples': range(1, n_samples + 1),
-        'species_count': np.cumsum([1, 2, 1, 3, 1, 1, 2, 0, 1, 2, 1, 0, 1, 1, 0, 2, 1, 0, 1, 1])
+    bar_data = pd.DataFrame({
+        'peatland': ['Beaumont', 'Mont-Blanc', 'Water Plant', 'North Bog', 'South Fen'],
+        'yield_g': [145, 178, 156, 134, 167],
+        'treatment': ['Control', 'Fertilized', 'Fertilized', 'Control', 'Control']
     })
 
-    accumulation_curve = hv.Curve(accumulation_data, 'samples', 'species_count').opts(
-        title="Species Accumulation Curve",
-        xlabel="Number of Samples",
-        ylabel="Cumulative Species Count",
-        line_width=3,
-        color='green'
-    )
+    print("Bar chart data:")
+    print(bar_data)
+    return bar_data,
 
-    # Rank-abundance plot (species abundance distribution)
-    # Simulate species abundances following a log-normal distribution
-    n_species = 25
-    abundances = np.random.lognormal(2, 1.5, n_species)
-    abundances = sorted(abundances, reverse=True)
-    ranks = range(1, len(abundances) + 1)
 
-    rank_abundance_data = pd.DataFrame({
-        'rank': ranks,
-        'abundance': abundances,
-        'log_abundance': np.log(abundances)
-    })
-
-    rank_abundance = hv.Scatter(rank_abundance_data, 'rank', 'log_abundance').opts(
-        title="Rank-Abundance Plot",
-        xlabel="Species Rank",
-        ylabel="Log(Abundance)",
-        size=8,
-        color='orange'
-    )
-
-    # Rarefaction curves for different habitats
-    habitats = ecological_data['habitat'].unique()
-    rarefaction_data = []
-
-    for habitat in habitats:
-        habitat_data = ecological_data[ecological_data['habitat'] == habitat]
-        n_sites = len(habitat_data)
-
-        for n in range(1, min(n_sites + 1, 21)):
-            # Simulate rarefied species richness
-            mean_richness = habitat_data['species_richness'].mean()
-            rarefied = mean_richness * (1 - np.exp(-n/5)) + np.random.normal(0, 1)
-            rarefaction_data.append({
-                'habitat': habitat,
-                'n_sites': n,
-                'rarefied_richness': max(1, rarefied)
-            })
-
-    rarefaction_df = pd.DataFrame(rarefaction_data)
-
-    rarefaction_curves = hv.Curve(rarefaction_df, 'n_sites', 'rarefied_richness', groupby='habitat').opts(
-        title="Rarefaction Curves by Habitat",
-        xlabel="Number of Sites",
-        ylabel="Rarefied Species Richness",
-        line_width=2
-    ).overlay()
-
-    print("Ecological diversity plots:")
-    (accumulation_curve + rank_abundance + rarefaction_curves).cols(2)
+@app.cell
+def _(aes, bar_data, geom_bar, ggplot):
+    # Bar chart using geom_bar with stat='identity'
+    (ggplot(bar_data, aes(x='peatland', y='yield_g'))
+     + geom_bar(stat='identity', fill='coral'))
     return
 
 
 @app.cell
-def _(ecological_data, hv, np, pd):
-    """
-    ## Ordination Plots
-    """
-    # Simulate ordination results for demonstration
+def _(aes, bar_data, geom_bar, ggplot, position_dodge):
+    # Grouped bar chart
+    (ggplot(bar_data, aes(x='peatland', y='yield_g', fill='treatment'))
+     + geom_bar(stat='identity', position=position_dodge()))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Customizing Plots: Themes and Labels
+
+        lets-plot offers several built-in themes:
+
+        - `theme_gray()` - default (ggplot2 style with gray background)
+        - `theme_bw()` - black and white
+        - `theme_light()` - light theme
+        - `theme_minimal()` - minimal theme
+        - `theme_classic()` - classic (no grid)
+        - `theme_void()` - completely empty
+
+        You can customize labels with `labs()`, `xlab()`, `ylab()`, and `ggtitle()`:
+        """
+    )
+    return
+
+
+@app.cell
+def _(aes, geom_point, ggplot, ggtitle, iris, theme_classic, xlab, ylab):
+    # Customized plot
+    (ggplot(iris, aes(x='sepal length (cm)',
+                      y='sepal width (cm)',
+                      color='species'))
+     + geom_point(size=3, alpha=0.6)
+     + ggtitle("Iris Dataset: Sepal Dimensions")
+     + xlab("Sepal Length (cm)")
+     + ylab("Sepal Width (cm)")
+     + theme_classic())
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ### Advanced Customization with theme()
+
+        The `theme()` function allows precise adjustments. You can customize axis titles, text sizes, legend position, and more:
+
+        ```python
+        (ggplot(data, aes(...))
+         + geom_point()
+         + theme_bw()
+         + theme(axis_title=element_text(size=14),
+                 axis_text=element_text(size=12),
+                 legend_position='bottom'))
+        ```
+
+        For mathematical expressions in labels:
+        ```python
+        labs(x="Temperature (°C)", y="Density (kg m⁻³)")
+        ```
+
+        ## Adding Smooth Trend Lines
+
+        `geom_smooth()` adds smoothed trend lines to visualize patterns:
+        """
+    )
+    return
+
+
+@app.cell
+def _(aes, geom_point, geom_smooth, ggplot, iris):
+    # Plot with smooth line
+    (ggplot(iris, aes(x='sepal length (cm)', y='petal length (cm)'))
+     + geom_point(aes(color='species'), alpha=0.4)
+     + geom_smooth(method='loess', color='black'))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Multiple Data Sources
+
+        You can specify different data sources for different geometries:
+        """
+    )
+    return
+
+
+@app.cell
+def _(aes, geom_point, ggplot, iris, pd):
+    # Create additional data
+    special_obs = pd.DataFrame({
+        'sepal length (cm)': [5.0, 6.5, 7.5],
+        'sepal width (cm)': [3.5, 3.0, 3.8]
+    })
+
+    # Plot with multiple data sources
+    (ggplot(iris, aes(x='sepal length (cm)', y='sepal width (cm)'))
+     + geom_point(aes(color='species'), alpha=0.3)
+     + geom_point(data=special_obs, size=6, color='red', shape=4))
+    return special_obs,
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Ecological Data Example: Cloudberry Study
+
+        Let's create a comprehensive example using ecological data (cloudberry cultivation):
+        """
+    )
+    return
+
+
+@app.cell
+def _(np, pd):
+    # Create cloudberry dataset
     np.random.seed(42)
-    n_sites = len(ecological_data)
 
-    # Simulate PCA scores
-    pca_axis1 = np.random.normal(0, 2, n_sites)
-    pca_axis2 = np.random.normal(0, 1.5, n_sites)
-
-    # Make scores somewhat related to environmental variables
-    temp_effect = (ecological_data['temperature'] - ecological_data['temperature'].mean()) / ecological_data['temperature'].std()
-    precip_effect = (ecological_data['precipitation'] - ecological_data['precipitation'].mean()) / ecological_data['precipitation'].std()
-
-    pca_axis1 += temp_effect * 0.5
-    pca_axis2 += precip_effect * 0.3
-
-    ordination_data = ecological_data.copy()
-    ordination_data['PCA1'] = pca_axis1
-    ordination_data['PCA2'] = pca_axis2
-
-    # PCA biplot
-    site_plot = hv.Scatter(ordination_data, 'PCA1', 'PCA2').opts(
-        color='habitat',
-        size=8,
-        alpha=0.7,
-        title="PCA Ordination of Sites",
-        xlabel="PC1",
-        ylabel="PC2",
-        cmap='Category10'
-    )
-
-    # Add environmental vectors
-    vector_data = pd.DataFrame({
-        'variable': ['Temperature', 'Precipitation', 'Soil pH', 'Nitrogen'],
-        'PCA1': [0.8, -0.3, 0.1, 0.6],
-        'PCA2': [0.2, 0.7, -0.8, 0.4],
-        'PCA1_end': [0, 0, 0, 0],
-        'PCA2_end': [0, 0, 0, 0]
+    cloudberry = pd.DataFrame({
+        'peatland': ['BEAU'] * 10 + ['MB'] * 10 + ['WTP'] * 10,
+        'longitude': np.random.normal(-71.2, 0.3, 30),
+        'latitude': np.random.normal(48.5, 0.3, 30),
+        'N_perc': np.random.uniform(0.5, 2.5, 30),
+        'P_perc': np.random.uniform(0.05, 0.3, 30),
+        'K_perc': np.random.uniform(0.1, 0.6, 30),
+        'yield_g': np.random.normal(150, 50, 30).clip(0),
+        'rings': np.random.poisson(8, 30)
     })
 
-    # Create arrows for environmental vectors
-    arrows = []
-    for _, row in vector_data.iterrows():
-        arrow = hv.Arrow(0, 0, row['PCA1'], row['PCA2']).opts(
-            color='red',
-            line_width=2,
-            arrow_size=10
-        )
+    print("Cloudberry dataset:")
+    print(cloudberry.head())
+    return cloudberry,
 
-        # Add text labels
-        text = hv.Text(row['PCA1']*1.1, row['PCA2']*1.1, row['variable']).opts(
-            color='red',
-            fontsize=10
-        )
 
-        arrows.append(arrow * text)
-
-    biplot = site_plot
-    for arrow in arrows:
-        biplot *= arrow
-
-    biplot = biplot.opts(
-        title="PCA Biplot with Environmental Vectors"
-    )
-
-    # NMDS stress plot
-    stress_values = [0.25, 0.18, 0.12, 0.08, 0.06, 0.05, 0.049, 0.048]
-    dimensions = list(range(1, len(stress_values) + 1))
-
-    stress_plot = hv.Curve((dimensions, stress_values)).opts(
-        title="NMDS Stress vs Dimensions",
-        xlabel="Number of Dimensions",
-        ylabel="Stress",
-        line_width=3,
-        color='purple'
-    ) * hv.Scatter((dimensions, stress_values)).opts(
-        size=10,
-        color='purple'
-    )
-
-    print("Ordination visualizations:")
-    biplot + stress_plot
+@app.cell
+def _(aes, cloudberry, geom_point, ggplot):
+    # Multi-aesthetic plot
+    (ggplot(cloudberry, aes(x='N_perc', y='yield_g',
+                            color='peatland', size='rings'))
+     + geom_point(alpha=0.6))
     return
 
 
 @app.cell
-def _(ecological_data, hv, np, stats):
-    """
-    ## Publication-Quality Plots
-    """
-    # Create a publication-ready figure
-    # Main plot: Species richness vs temperature by habitat
-    main_plot = hv.Scatter(
-        ecological_data, 
-        'temperature', 
-        'species_richness'
-    ).opts(
-        color='habitat',
-        size=10,
-        alpha=0.8,
-        cmap='Set1',
-        xlabel="Temperature (°C)",
-        ylabel="Species Richness",
-        title="Species Richness along Temperature Gradient",
-        fontsize={'title': 14, 'labels': 12, 'ticks': 10},
-        show_grid=True,
-        grid_opts={'grid_line_alpha': 0.3},
-        legend_position='top_left',
-        width=600,
-        height=400
+def _(aes, cloudberry, facet_grid, geom_boxplot, ggplot):
+    # Faceted boxplot
+    (ggplot(cloudberry, aes(x='peatland', y='yield_g', fill='peatland'))
+     + geom_boxplot()
+     + facet_grid('. ~ peatland', scales='free_x'))
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+        ## Saving Plots for Publication
+
+        To export plots, use `ggsave()`:
+
+        ```python
+        # Save to PNG (raster format)
+        p = ggplot(data, aes(...)) + geom_point()
+        ggsave(p, 'figure1.png', dpi=300, width=8, height=6)
+
+        # Save to PDF (vector format)
+        ggsave(p, 'figure1.pdf', width=8, height=6)
+
+        # Save to SVG (vector format, editable in Inkscape)
+        ggsave(p, 'figure1.svg', width=8, height=6)
+        ```
+
+        **Resolution for publication**: 300 dpi or higher for raster formats.
+
+        **Vector formats** (SVG, PDF): Scalable, editable in vector graphics software.
+
+        **Raster formats** (PNG): Use for graphics with sharp color changes. PNG supports transparency.
+
+        ## Summary
+
+        In this chapter, you learned:
+
+        - **Why visualize**: Statistics alone are insufficient (Datasaurus Dozen)
+        - **Five qualities**: Truthful, functional, attractive, insightful, enlightening
+        - **Grammar of graphics**: Declarative approach with data, geometries, aesthetics
+        - **lets-plot basics**: `ggplot()` + geometries + aesthetics
+        - **Plot types**: Scatter, line, histogram, boxplot, bar charts
+        - **Facets**: Split plots by categorical variables
+        - **Customization**: Themes, labels, colors, transparency
+        - **Multiple data sources**: Different data for different layers
+        - **Exporting**: Publication-quality graphics with `ggsave()`
+
+        ### Key lets-plot Syntax Summary
+
+        ```python
+        from lets_plot import *
+        LetsPlot.setup_html()
+
+        # Basic structure
+        (ggplot(data, aes(x='col1', y='col2'))
+         + geom_point()
+         + theme_bw())
+
+        # With multiple aesthetics
+        (ggplot(data, aes(x='x', y='y', color='group', size='value'))
+         + geom_point(alpha=0.6)
+         + facet_wrap('category'))
+
+        # Saving
+        ggsave(plot, "output.png", dpi=300, width=8, height=6)
+        ```
+
+        ### lets-plot to ggplot2 (R) Comparison
+
+        | Component | lets-plot (Python) | ggplot2 (R) |
+        |-----------|-------------------|-------------|
+        | Initialize | `LetsPlot.setup_html()` | `library(ggplot2)` |
+        | Basic plot | `ggplot(data, aes(...))` | `ggplot(data, aes(...))` |
+        | Add layer | `+ geom_point()` | `+ geom_point()` |
+        | Facets | `+ facet_wrap()` | `+ facet_wrap()` |
+        | Themes | `+ theme_bw()` | `+ theme_bw()` |
+        | Save | `ggsave(p, 'file.png')` | `ggsave('file.png')` |
+
+        ### Tips for Effective Visualization
+
+        1. **Start simple**: Basic plots first, add complexity as needed
+        2. **Choose appropriately**: Match plot type to data and message
+        3. **Use color purposefully**: Color is information
+        4. **Label clearly**: Self-explanatory axes, titles, legends
+        5. **Minimize clutter**: Remove unnecessary elements
+        6. **Consider your audience**: Scientists vs. general public
+        7. **Test it**: "What do you understand from this?"
+        8. **Iterate**: Rarely perfect on first try
+
+        ### Resources
+
+        - [from data to viz](https://www.data-to-viz.com/) - Decision trees for plot selection
+        - [ColorBrewer](http://colorbrewer2.org/) - Color palettes for maps and graphics
+        - [lets-plot documentation](https://lets-plot.org/) - Complete API reference
+
+        In the next chapter, we'll explore reproducible science and version control!
+        """
     )
-
-    # Add regression lines for each habitat
-    regression_lines = []
-    colors = ['red', 'blue', 'green', 'orange', 'purple']
-
-    for i, habitat in enumerate(ecological_data['habitat'].unique()):
-        habitat_data = ecological_data[ecological_data['habitat'] == habitat]
-
-        if len(habitat_data) > 2:  # Need at least 3 points for regression
-            slope, intercept, r_val, p_val, std_err = stats.linregress(
-                habitat_data['temperature'], 
-                habitat_data['species_richness']
-            )
-
-            x_range = np.linspace(
-                habitat_data['temperature'].min(), 
-                habitat_data['temperature'].max(), 
-                50
-            )
-            y_pred = slope * x_range + intercept
-
-            reg_line = hv.Curve((x_range, y_pred)).opts(
-                color=colors[i % len(colors)],
-                line_width=2,
-                line_dash='dashed',
-                alpha=0.8
-            )
-
-            regression_lines.append(reg_line)
-
-    # Combine main plot with regression lines
-    publication_plot = main_plot
-    for line in regression_lines:
-        publication_plot *= line
-
-    # Marginal distributions
-    temp_hist = hv.Histogram(np.histogram(ecological_data['temperature'], bins=20)).opts(
-        xlabel="Temperature (°C)",
-        ylabel="Frequency",
-        alpha=0.7,
-        color='lightblue'
-    )
-
-    richness_hist = hv.Histogram(np.histogram(ecological_data['species_richness'], bins=20)).opts(
-        xlabel="Species Richness", 
-        ylabel="Frequency",
-        alpha=0.7,
-        color='lightgreen'
-    )
-
-    print("Publication-quality visualization:")
-    publication_plot
     return
-
-
-@app.cell
-def _():
-    """
-    ## Design Principles for Ecological Graphics
-
-    ### Key Principles:
-
-    1. **Clarity**: Make the main message immediately apparent
-    2. **Accuracy**: Represent data truthfully without distortion
-    3. **Efficiency**: Maximize information per unit of plot space
-    4. **Aesthetics**: Create visually appealing and professional graphics
-
-    ### Ecological-Specific Guidelines:
-
-    **Color Choices**:
-    - Use colorblind-friendly palettes
-    - Green/brown for terrestrial, blue for aquatic themes
-    - Consistent colors for habitats across all plots
-    - Avoid red-green combinations
-
-    **Scale Considerations**:
-    - Log-transform highly skewed abundance data
-    - Use appropriate axis breaks for ecological ranges
-    - Consider sqrt transformation for count data
-
-    **Context**:
-    - Always include sample sizes
-    - Show variability (error bars, confidence intervals)
-    - Indicate statistical significance when relevant
-    - Provide clear legends and labels
-
-    **Common Plot Types in Ecology**:
-    - **Scatter plots**: Species-environment relationships
-    - **Box plots**: Comparing groups (habitats, treatments)
-    - **Time series**: Seasonal patterns, long-term trends
-    - **Ordination plots**: Community composition
-    - **Accumulation curves**: Sampling completeness
-    - **Rank-abundance**: Community structure
-    """
-    return
-
-
-@app.cell
-def _(ecological_data, hv):
-    """
-    ## Interactive Dashboard Example
-    """
-    # Create a simple dashboard combining multiple visualizations
-    def create_dashboard():
-        # Summary statistics table
-        summary_stats = ecological_data.groupby('habitat').agg({
-            'species_richness': ['count', 'mean', 'std'],
-            'shannon_diversity': 'mean',
-            'temperature': 'mean'
-        }).round(2)
-
-        # Main scatter plot
-        scatter = hv.Scatter(
-            ecological_data, 
-            'temperature', 
-            'species_richness'
-        ).opts(
-            color='habitat',
-            size=8,
-            alpha=0.7,
-            title="Species-Environment Relationships",
-            tools=['hover'],
-            width=500,
-            height=350
-        )
-
-        # Distribution plot
-        dist_plot = hv.Distribution(
-            ecological_data, 
-            'species_richness', 
-            groupby='habitat'
-        ).opts(
-            title="Species Richness Distributions",
-            alpha=0.6,
-            width=400,
-            height=250
-        ).overlay()
-
-        # Correlation heatmap (simplified)
-        simple_corr = ecological_data[['temperature', 'precipitation', 'species_richness', 'shannon_diversity']].corr()
-
-        return scatter, dist_plot, summary_stats, simple_corr
-
-    dashboard_plots = create_dashboard()
-
-    print("Dashboard components created")
-    print("Summary statistics by habitat:")
-    print(dashboard_plots[2])  # summary_stats
-
-    # Display main visualizations
-    dashboard_plots[0] + dashboard_plots[1]  # scatter + dist_plot
-    return
-
-
-@app.cell
-def _(ecological_data, hv):
-    """
-    ## Saving and Exporting Plots
-    """
-    # Example of how to save plots for publication
-    # Note: In Marimo/Pyodide environment, direct file saving may be limited
-
-    # Configure high-quality output
-    publication_scatter = hv.Scatter(
-        ecological_data, 
-        'temperature', 
-        'species_richness'
-    ).opts(
-        color='habitat',
-        size=10,
-        alpha=0.8,
-        xlabel="Temperature (°C)",
-        ylabel="Species Richness", 
-        title="Species Richness vs Temperature",
-        fontsize={'title': 16, 'labels': 14, 'ticks': 12},
-        fig_size=300,  # DPI equivalent
-        width=800,
-        height=600
-    )
-
-    # Tips for saving plots:
-    print("""
-    Saving Plots for Publication:
-
-    1. Use high DPI (300+ for print, 150+ for web)
-    2. Choose appropriate file formats:
-       - SVG: Vector graphics, perfect for line plots
-       - PNG: High-quality raster, good for complex plots
-       - PDF: Vector format, ideal for publications
-
-    3. Standard figure sizes:
-       - Single column: 3.5 inches width
-       - Double column: 7 inches width
-       - Full page: 8.5 x 11 inches
-
-    4. Font considerations:
-       - Use sans-serif fonts (Arial, Helvetica)
-       - Minimum 8pt font size
-       - Consistent font sizing across figures
-
-    5. Color considerations:
-       - Test in grayscale
-       - Use colorblind-friendly palettes
-       - High contrast for accessibility
-    """)
-
-    publication_scatter
-    return
-
-
-@app.cell
-def _():
-    """
-    ## Summary
-
-    In this chapter, we covered comprehensive data visualization for ecological research:
-
-    ✓ **Basic plots**: Scatter plots, histograms, box plots
-    ✓ **Correlation analysis**: Heatmaps, pair plots
-    ✓ **Geographic visualization**: Spatial scatter plots
-    ✓ **Time series**: Temporal patterns and trends
-    ✓ **Interactive plots**: Widgets and linked brushing
-    ✓ **Ecological specialties**: Accumulation curves, rank-abundance, ordination
-    ✓ **Publication quality**: Professional formatting and design
-    ✓ **Dashboard creation**: Combining multiple visualizations
-
-    **Next chapter**: Reproducible science with version control
-
-    **Key visualization packages**:
-    - **holoviews**: Declarative visualization
-    - **panel**: Interactive dashboards
-    - **bokeh**: Interactive web plots
-    - **matplotlib**: Static publication plots
-
-    **Best practices**:
-    - Choose appropriate plot types for data and message
-    - Use consistent colors and themes
-    - Include proper labels and legends
-    - Consider accessibility and colorblind-friendliness
-    - Test plots at intended publication size
-    """
-    print("✓ Chapter 4 complete! Ready for reproducible science workflows.")
-    return
-
-
-@app.cell
-def _():
-    import marimo as mo
-    return (mo,)
 
 
 if __name__ == "__main__":
