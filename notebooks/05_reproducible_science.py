@@ -5,1207 +5,758 @@ app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def __(mo):
     mo.md(
         r"""
-    # Chapter 5: Reproducible Science and Open Research
+        # Open Science and Reproducibility {#chapter-git}
 
-    This chapter covers best practices for reproducible ecological research using 
-    modern tools and workflows that ensure transparency, collaboration, and 
-    scientific integrity.
+        ***
 
-    ## Learning Objectives
-    - Understand principles of reproducible research
-    - Master version control with Git for ecological projects
-    - Create reproducible computational environments
-    - Design robust data management workflows
-    - Implement open science practices
-    """
+        **Learning Objectives**:
+
+        By the end of this chapter, you will be able to:
+
+        - Explain the importance and challenges of open science
+        - Organize your data (CSV format) and code (notebook format) to make your research reproducible
+        - Create a repository on GitHub and manage its development
+
+        ***
+        """
     )
     return
 
 
 @app.cell
 def __():
-    # Essential imports for reproducible workflows
-    import pandas as pd
-    import numpy as np
-    import hashlib
-    import json
-    import os
-    from datetime import datetime
-    import warnings
-    warnings.filterwarnings('ignore')
-    
-    print("✓ Reproducible science tools loaded")
-    return datetime, hashlib, json, np, os, pd, warnings
-
-
-@app.cell
-def __():
-    """
-    ## Principles of Reproducible Research
-
-    ### Core Components:
-
-    1. **Transparency**: All methods, data, and code are openly available
-    2. **Documentation**: Clear explanations of procedures and decisions
-    3. **Version Control**: Track changes in code, data, and documents
-    4. **Computational Environment**: Specify exact software versions
-    5. **Data Management**: Organized, backed-up, and well-documented data
-    6. **Automated Workflows**: Minimize manual steps and human error
-
-    ### Benefits for Ecological Research:
-
-    - **Scientific Integrity**: Others can verify and build upon your work
-    - **Collaboration**: Easier to work with colleagues and share methods
-    - **Efficiency**: Automated workflows save time on repetitive tasks
-    - **Error Reduction**: Version control and documentation catch mistakes
-    - **Career Advancement**: Reproducible work has higher impact and visibility
-    - **Funding Requirements**: Many agencies now require data management plans
-    """
-    return
-
-
-@app.cell
-def __():
-    """
-    ## Project Organization Structure
-
-    A well-organized project is the foundation of reproducible research.
-    """
-    
-    # Demonstrate ideal project structure
-    project_structure = """
-    ecological_project/
-    ├── README.md                 # Project overview and instructions
-    ├── LICENSE                   # Usage rights and restrictions
-    ├── requirements.txt          # Python package dependencies
-    ├── environment.yml          # Conda environment specification
-    ├── .gitignore              # Files to exclude from version control
-    ├── data/
-    │   ├── raw/                # Original, unmodified data
-    │   ├── processed/          # Cleaned and transformed data
-    │   └── metadata/           # Data descriptions and documentation
-    ├── scripts/
-    │   ├── 01_data_cleaning.py
-    │   ├── 02_analysis.py
-    │   └── 03_visualization.py
-    ├── notebooks/
-    │   ├── exploratory/        # Data exploration notebooks
-    │   ├── analysis/          # Main analysis notebooks
-    │   └── reports/           # Final reports and summaries
-    ├── outputs/
-    │   ├── figures/           # Generated plots and diagrams
-    │   ├── tables/            # Summary tables and results
-    │   └── models/            # Saved model objects
-    ├── docs/
-    │   ├── methods.md         # Detailed methodology
-    │   ├── protocols.md       # Field and lab protocols
-    │   └── references.bib     # Bibliography
-    └── tests/
-        ├── test_functions.py  # Unit tests for custom functions
-        └── test_data.py       # Data validation tests
-    """
-    
-    print("Recommended Project Structure:")
-    print(project_structure)
-    
-    # Best practices for file naming
-    naming_examples = {
-        'Good': [
-            '2024-01-15_site_survey_data.csv',
-            'species_abundance_forest_sites.csv',
-            'climate_data_processed_v2.csv',
-            'figure_01_species_richness_elevation.png'
-        ],
-        'Bad': [
-            'data.csv',
-            'results final FINAL.xlsx', 
-            'untitled1.py',
-            'temp_file_delete_later.csv'
-        ]
-    }
-    
-    print("\nFile Naming Examples:")
-    for category, examples in naming_examples.items():
-        print(f"\n{category} Examples:")
-        for example in examples:
-            print(f"  - {example}")
-    
-    return naming_examples, project_structure
-
-
-@app.cell
-def __():
-    """
-    ## Version Control with Git
-
-    Git is essential for tracking changes in your ecological research projects.
-    """
-    
-    # Git workflow for ecological projects
-    git_workflow = """
-    Essential Git Commands for Ecological Research:
-    
-    # Initialize a new repository
-    git init
-    
-    # Clone an existing repository
-    git clone https://github.com/username/ecological-project.git
-    
-    # Check status of files
-    git status
-    
-    # Add files to staging area
-    git add data/processed/species_data.csv
-    git add scripts/analysis.py
-    git add .  # Add all changes
-    
-    # Commit changes with descriptive message
-    git commit -m "Add species abundance analysis for forest sites"
-    
-    # View commit history
-    git log --oneline
-    
-    # Create and switch to new branch
-    git checkout -b feature/diversity-analysis
-    
-    # Merge branch back to main
-    git checkout main
-    git merge feature/diversity-analysis
-    
-    # Sync with remote repository
-    git push origin main
-    git pull origin main
-    """
-    
-    print("Git Workflow for Ecological Research:")
-    print(git_workflow)
-    
-    # Example .gitignore for ecological projects
-    gitignore_content = """
-    # .gitignore for Ecological Research Projects
-    
-    # Large data files (use Git LFS or external storage)
-    *.csv
-    *.xlsx
-    *.nc
-    *.tif
-    *.shp
-    
-    # Processed outputs that can be regenerated
-    outputs/figures/
-    outputs/tables/
-    
-    # Temporary files
-    .DS_Store
-    Thumbs.db
-    *.tmp
-    *~
-    
-    # Python-specific
-    __pycache__/
-    *.pyc
-    *.pyo
-    *.egg-info/
-    .pytest_cache/
-    
-    # Jupyter/Marimo checkpoints
-    .ipynb_checkpoints/
-    __marimo__/
-    
-    # Environment files (use requirements.txt instead)
-    .env
-    .venv/
-    env/
-    venv/
-    
-    # IDE files
-    .vscode/
-    .idea/
-    *.swp
-    
-    # OS generated files
-    .DS_Store
-    .DS_Store?
-    ._*
-    .Spotlight-V100
-    .Trashes
-    ehthumbs.db
-    Thumbs.db
-    """
-    
-    print("\nExample .gitignore for ecological projects:")
-    print(gitignore_content[:500] + "...")
-    
-    return git_workflow, gitignore_content
-
-
-@app.cell
-def __():
-    """
-    ## Data Management and Documentation
-    """
-    
-    # Create example metadata for ecological dataset
-    def create_metadata_template():
-        metadata = {
-            "dataset_info": {
-                "title": "Forest Bird Community Survey Data",
-                "description": "Point count surveys of bird communities across elevation gradients",
-                "version": "1.0",
-                "created_date": datetime.now().isoformat(),
-                "last_modified": datetime.now().isoformat(),
-                "license": "CC-BY-4.0"
-            },
-            "spatial_coverage": {
-                "geographic_extent": "Appalachian Mountains, Virginia, USA",
-                "bounding_box": {
-                    "north": 38.5,
-                    "south": 37.0,
-                    "east": -78.0,
-                    "west": -80.0
-                },
-                "coordinate_system": "WGS84"
-            },
-            "temporal_coverage": {
-                "start_date": "2023-05-01",
-                "end_date": "2023-08-31",
-                "frequency": "Monthly surveys during breeding season"
-            },
-            "methodology": {
-                "sampling_method": "Point counts",
-                "survey_duration": "10 minutes per point",
-                "detection_radius": "50 meters",
-                "time_of_day": "Dawn chorus (0.5 hours after sunrise)",
-                "weather_conditions": "No rain, wind < 20 km/h"
-            },
-            "data_structure": {
-                "site_id": {
-                    "description": "Unique identifier for each survey site",
-                    "type": "string",
-                    "format": "SITE_XXX"
-                },
-                "species_code": {
-                    "description": "4-letter species code following AOU standards",
-                    "type": "string",
-                    "example": "AMRO (American Robin)"
-                },
-                "abundance": {
-                    "description": "Number of individuals detected",
-                    "type": "integer",
-                    "units": "count",
-                    "minimum": 0
-                },
-                "elevation": {
-                    "description": "Site elevation above sea level",
-                    "type": "float",
-                    "units": "meters",
-                    "range": [300, 1500]
-                }
-            },
-            "quality_control": {
-                "data_validation": "Range checks, species code verification",
-                "missing_data": "Coded as -999 for numeric, 'NA' for categorical",
-                "outlier_detection": "Values >3 SD from mean flagged for review"
-            },
-            "contact_info": {
-                "principal_investigator": "Dr. Jane Ecologist",
-                "institution": "University of Ecology",
-                "email": "j.ecologist@university.edu",
-                "orcid": "0000-0000-0000-0000"
-            }
-        }
-        return metadata
-    
-    metadata_example = create_metadata_template()
-    
-    print("Example Metadata Structure:")
-    print(json.dumps(metadata_example, indent=2)[:1000] + "...")
-    
-    # Data validation example
-    def validate_ecological_data(df, metadata):
-        """
-        Validate ecological data against metadata specifications
-        """
-        validation_results = {
-            "total_records": len(df),
-            "issues": []
-        }
-        
-        # Check for required columns
-        required_cols = list(metadata["data_structure"].keys())
-        missing_cols = set(required_cols) - set(df.columns)
-        if missing_cols:
-            validation_results["issues"].append(f"Missing columns: {missing_cols}")
-        
-        # Check data types and ranges
-        for col, specs in metadata["data_structure"].items():
-            if col in df.columns:
-                # Check for missing values
-                missing_count = df[col].isnull().sum()
-                if missing_count > 0:
-                    validation_results["issues"].append(
-                        f"{col}: {missing_count} missing values"
-                    )
-                
-                # Check ranges for numeric columns
-                if "range" in specs and col in df.columns:
-                    min_val, max_val = specs["range"]
-                    out_of_range = df[(df[col] < min_val) | (df[col] > max_val)]
-                    if len(out_of_range) > 0:
-                        validation_results["issues"].append(
-                            f"{col}: {len(out_of_range)} values out of range [{min_val}, {max_val}]"
-                        )
-        
-        return validation_results
-    
-    # Example usage
-    sample_data = pd.DataFrame({
-        'site_id': ['SITE_001', 'SITE_002', 'SITE_003'],
-        'species_code': ['AMRO', 'BCCH', 'WBNU'],
-        'abundance': [3, 2, 1],
-        'elevation': [450, 800, 1200]
-    })
-    
-    validation = validate_ecological_data(sample_data, metadata_example)
-    print(f"\nData validation results:")
-    print(f"Total records: {validation['total_records']}")
-    print(f"Issues found: {len(validation['issues'])}")
-    
-    return (
-        create_metadata_template,
-        metadata_example,
-        sample_data,
-        validate_ecological_data,
-        validation,
-    )
-
-
-@app.cell
-def __():
-    """
-    ## Computational Environment Management
-    """
-    
-    # Example requirements.txt for ecological project
-    requirements_example = """
-    # Core data science packages
-    pandas>=1.5.0
-    numpy>=1.21.0
-    scipy>=1.9.0
-    matplotlib>=3.5.0
-    
-    # Ecological analysis
-    nuee>=0.1.0
-    scikit-learn>=1.1.0
-    statsmodels>=0.13.0
-    
-    # Visualization
-    holoviews>=1.15.0
-    bokeh>=2.4.0
-    
-    # Geospatial (if needed)
-    # geopandas>=0.11.0
-    # rasterio>=1.3.0
-    
-    # Specific versions for reproducibility
-    jupyter==1.0.0
-    marimo>=0.10.0
-    """
-    
-    # Example environment.yml for conda
-    environment_yml = """
-    name: ecological-analysis
-    channels:
-      - conda-forge
-      - defaults
-    dependencies:
-      - python=3.10
-      - pandas=1.5.3
-      - numpy=1.24.0
-      - scipy=1.10.0
-      - matplotlib=3.6.0
-      - jupyter=1.0.0
-      - pip=23.0.0
-      - pip:
-        - nuee>=0.1.0
-        - holoviews>=1.15.0
-        - marimo>=0.10.0
-    """
-    
-    print("Example requirements.txt:")
-    print(requirements_example)
-    print("\nExample environment.yml:")
-    print(environment_yml)
-    
-    # Function to create environment snapshot
-    def create_environment_snapshot():
-        """
-        Create a snapshot of the current computational environment
-        """
-        import sys
-        import pkg_resources
-        
-        snapshot = {
-            "timestamp": datetime.now().isoformat(),
-            "python_version": sys.version,
-            "platform": sys.platform,
-            "packages": {}
-        }
-        
-        # Get installed packages
-        installed_packages = [d for d in pkg_resources.working_set]
-        for package in installed_packages:
-            snapshot["packages"][package.project_name] = package.version
-        
-        return snapshot
-    
-    # Create snapshot (would work in a full Python environment)
-    try:
-        env_snapshot = create_environment_snapshot()
-        print(f"\nEnvironment snapshot created with {len(env_snapshot['packages'])} packages")
-    except:
-        print("\nEnvironment snapshot creation (limited in Pyodide environment)")
-    
-    return create_environment_snapshot, environment_yml, requirements_example
-
-
-@app.cell
-def __():
-    """
-    ## Automated Workflows and Scripts
-    """
-    
-    # Example of a reproducible analysis script
-    analysis_script_template = '''
-    #!/usr/bin/env python3
-    """
-    Ecological Data Analysis Pipeline
-    
-    This script performs the complete analysis pipeline for forest bird community data.
-    Run this script to reproduce all results in the manuscript.
-    
-    Usage:
-        python scripts/analysis_pipeline.py
-    
-    Requirements:
-        - All dependencies in requirements.txt
-        - Raw data in data/raw/ directory
-        - Metadata files in data/metadata/
-    
-    Outputs:
-        - Processed data: data/processed/
-        - Figures: outputs/figures/
-        - Tables: outputs/tables/
-        - Models: outputs/models/
-    """
-    
-    import pandas as pd
-    import numpy as np
-    import logging
-    from pathlib import Path
-    
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler('outputs/analysis.log'),
-            logging.StreamHandler()
-        ]
-    )
-    
-    def main():
-        """Main analysis pipeline"""
-        
-        logging.info("Starting ecological data analysis pipeline")
-        
-        # Step 1: Load and validate data
-        logging.info("Step 1: Loading raw data")
-        raw_data = load_raw_data()
-        
-        # Step 2: Clean and process data  
-        logging.info("Step 2: Cleaning and processing data")
-        processed_data = clean_data(raw_data)
-        
-        # Step 3: Perform statistical analyses
-        logging.info("Step 3: Running statistical analyses")
-        results = run_analyses(processed_data)
-        
-        # Step 4: Generate visualizations
-        logging.info("Step 4: Creating visualizations")
-        create_figures(processed_data, results)
-        
-        # Step 5: Save results
-        logging.info("Step 5: Saving results")
-        save_results(results)
-        
-        logging.info("Analysis pipeline completed successfully")
-    
-    if __name__ == "__main__":
-        main()
-    '''
-    
-    print("Example Analysis Script Template:")
-    print(analysis_script_template[:800] + "...")
-    
-    # Example Makefile for automation
-    makefile_example = """
-    # Makefile for Ecological Research Project
-    
-    # Default target
-    all: data analysis figures report
-    
-    # Data processing
-    data: data/processed/species_data_clean.csv
-    
-    data/processed/species_data_clean.csv: data/raw/species_data.csv scripts/01_data_cleaning.py
-    \tpython scripts/01_data_cleaning.py
-    
-    # Statistical analysis
-    analysis: outputs/tables/results_summary.csv
-    
-    outputs/tables/results_summary.csv: data/processed/species_data_clean.csv scripts/02_analysis.py
-    \tpython scripts/02_analysis.py
-    
-    # Generate figures
-    figures: outputs/figures/species_richness_plot.png
-    
-    outputs/figures/species_richness_plot.png: outputs/tables/results_summary.csv scripts/03_visualization.py
-    \tpython scripts/03_visualization.py
-    
-    # Generate final report
-    report: outputs/final_report.html
-    
-    outputs/final_report.html: notebooks/final_analysis.py
-    \tmarimo run notebooks/final_analysis.py --output outputs/final_report.html
-    
-    # Clean generated files
-    clean:
-    \trm -rf outputs/figures/*
-    \trm -rf outputs/tables/*
-    \trm -rf data/processed/*
-    
-    # Install dependencies
-    install:
-    \tpip install -r requirements.txt
-    
-    # Run tests
-    test:
-    \tpython -m pytest tests/
-    
-    .PHONY: all data analysis figures report clean install test
-    """
-    
-    print("\nExample Makefile:")
-    print(makefile_example[:600] + "...")
-    
-    return analysis_script_template, makefile_example
-
-
-@app.cell
-def __():
-    """
-    ## Data Provenance and Lineage Tracking
-    """
-    
-    # Function to track data lineage
-    def create_data_lineage_record(input_file, output_file, operation, parameters=None):
-        """
-        Create a record of data transformation for provenance tracking
-        """
-        lineage_record = {
-            "timestamp": datetime.now().isoformat(),
-            "operation": operation,
-            "input_file": input_file,
-            "output_file": output_file,
-            "parameters": parameters or {},
-            "script_version": "v1.0",  # Could be git commit hash
-            "user": os.getenv("USER", "unknown")
-        }
-        
-        # Calculate file checksums for integrity verification
-        def calculate_checksum(filepath):
-            """Calculate MD5 checksum of file"""
-            if os.path.exists(filepath):
-                hash_md5 = hashlib.md5()
-                with open(filepath, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        hash_md5.update(chunk)
-                return hash_md5.hexdigest()
-            return None
-        
-        lineage_record["input_checksum"] = calculate_checksum(input_file)
-        lineage_record["output_checksum"] = calculate_checksum(output_file)
-        
-        return lineage_record
-    
-    # Example usage
-    lineage_example = create_data_lineage_record(
-        input_file="data/raw/bird_survey_2023.csv",
-        output_file="data/processed/bird_survey_clean.csv", 
-        operation="data_cleaning",
-        parameters={
-            "remove_outliers": True,
-            "outlier_threshold": 3.0,
-            "missing_value_strategy": "interpolate"
-        }
-    )
-    
-    print("Data Lineage Record Example:")
-    print(json.dumps(lineage_example, indent=2))
-    
-    # Data processing pipeline with lineage tracking
-    def process_with_lineage(data, operation_name, parameters=None):
-        """
-        Process data while maintaining lineage information
-        """
-        # Record input state
-        input_hash = hashlib.md5(str(data.values).encode()).hexdigest()
-        
-        # Perform operation (example: remove outliers)
-        if operation_name == "remove_outliers":
-            threshold = parameters.get("threshold", 3.0)
-            z_scores = np.abs((data - data.mean()) / data.std())
-            processed_data = data[z_scores < threshold]
-        else:
-            processed_data = data.copy()
-        
-        # Record output state
-        output_hash = hashlib.md5(str(processed_data.values).encode()).hexdigest()
-        
-        # Create lineage record
-        lineage = {
-            "operation": operation_name,
-            "timestamp": datetime.now().isoformat(),
-            "input_hash": input_hash,
-            "output_hash": output_hash,
-            "parameters": parameters,
-            "input_shape": data.shape,
-            "output_shape": processed_data.shape
-        }
-        
-        return processed_data, lineage
-    
-    # Example data processing with lineage
-    sample_data = pd.Series([1, 2, 3, 100, 5, 6, 7, 8, 9, 10])  # Contains outlier
-    processed, lineage_info = process_with_lineage(
-        sample_data, 
-        "remove_outliers", 
-        {"threshold": 2.0}
-    )
-    
-    print(f"\nData processing example:")
-    print(f"Original shape: {lineage_info['input_shape']}")
-    print(f"Processed shape: {lineage_info['output_shape']}")
-    print(f"Operation: {lineage_info['operation']}")
-    
-    return (
-        calculate_checksum,
-        create_data_lineage_record,
-        lineage_example,
-        lineage_info,
-        process_with_lineage,
-        processed,
-    )
-
-
-@app.cell
-def __():
-    """
-    ## Open Science Practices
-    """
-    
-    # Guidelines for open ecological research
-    open_science_checklist = {
-        "Data Sharing": [
-            "✓ Deposit data in appropriate repositories (Dryad, Figshare, Zenodo)",
-            "✓ Use standardized formats (CSV, NetCDF, GeoTIFF)",
-            "✓ Include comprehensive metadata",
-            "✓ Assign DOIs to datasets",
-            "✓ Follow FAIR principles (Findable, Accessible, Interoperable, Reusable)"
-        ],
-        "Code Sharing": [
-            "✓ Use public version control (GitHub, GitLab)",
-            "✓ Include clear README with installation instructions",
-            "✓ Add appropriate license (MIT, GPL, Apache)",
-            "✓ Create releases/tags for publication versions",
-            "✓ Document code with comments and docstrings"
-        ],
-        "Publication": [
-            "✓ Preprint on bioRxiv or EcoEvoRxiv",
-            "✓ Link to data and code repositories",
-            "✓ Use persistent identifiers (ORCID, DOI)",
-            "✓ Submit to open access journals when possible",
-            "✓ Share on social media and professional networks"
-        ],
-        "Collaboration": [
-            "✓ Use collaborative platforms (GitHub, OSF)",
-            "✓ Document contribution guidelines",
-            "✓ Establish clear authorship criteria",
-            "✓ Regular team meetings and progress updates",
-            "✓ Shared project management tools"
-        ]
-    }
-    
-    print("Open Science Checklist for Ecological Research:")
-    for category, items in open_science_checklist.items():
-        print(f"\n{category}:")
-        for item in items:
-            print(f"  {item}")
-    
-    # Example README template for ecological projects
-    readme_template = '''
-    # Forest Bird Community Analysis
-    
-    [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1234567.svg)](https://doi.org/10.5281/zenodo.1234567)
-    [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-    
-    ## Overview
-    
-    This repository contains code and data for analyzing forest bird community 
-    responses to elevation gradients in the Appalachian Mountains.
-    
-    ## Citation
-    
-    If you use this code or data, please cite:
-    
-    > Smith, J. et al. (2024). Elevation effects on forest bird communities. 
-    > Journal of Ecology, 112(3), 456-478. https://doi.org/10.1111/1365-2745.14234
-    
-    ## Data
-    
-    Raw data is available at: https://doi.org/10.5061/dryad.abc123
-    
-    - `bird_surveys.csv`: Point count survey data
-    - `site_characteristics.csv`: Environmental variables for each site
-    - `species_traits.csv`: Functional trait data for bird species
-    
-    ## Installation
-    
-    ```bash
-    # Clone repository
-    git clone https://github.com/username/forest-bird-analysis.git
-    cd forest-bird-analysis
-    
-    # Install dependencies
-    pip install -r requirements.txt
-    ```
-    
-    ## Usage
-    
-    ```bash
-    # Run complete analysis pipeline
-    python scripts/analysis_pipeline.py
-    
-    # Or run individual steps
-    python scripts/01_data_cleaning.py
-    python scripts/02_analysis.py
-    python scripts/03_visualization.py
-    ```
-    
-    ## Repository Structure
-    
-    ```
-    forest-bird-analysis/
-    ├── data/
-    │   ├── raw/              # Original survey data
-    │   └── processed/        # Cleaned data ready for analysis
-    ├── scripts/              # Analysis scripts
-    ├── notebooks/            # Marimo notebooks for exploration
-    ├── outputs/              # Generated figures and tables
-    └── docs/                 # Additional documentation
-    ```
-    
-    ## Contributing
-    
-    We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-    
-    ## License
-    
-    This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
-    
-    ## Contact
-    
-    - Dr. Jane Smith (jane.smith@university.edu)
-    - ORCID: 0000-0000-0000-0000
-    '''
-    
-    print(f"\nExample README.md template:")
-    print(readme_template[:800] + "...")
-    
-    return open_science_checklist, readme_template
-
-
-@app.cell
-def __():
-    """
-    ## Testing and Quality Assurance
-    """
-    
-    # Example unit tests for ecological functions
-    test_example = '''
-    # tests/test_diversity_functions.py
-    
-    import pytest
-    import numpy as np
-    import pandas as pd
-    from scripts.diversity_functions import shannon_diversity, simpson_diversity
-    
-    class TestDiversityFunctions:
-        """Test suite for biodiversity calculation functions"""
-        
-        def test_shannon_diversity_known_values(self):
-            """Test Shannon diversity with known expected values"""
-            # Equal abundances should give maximum diversity
-            equal_abundances = [10, 10, 10, 10]
-            expected = np.log(4)  # ln(4) for 4 equally abundant species
-            result = shannon_diversity(equal_abundances)
-            assert abs(result - expected) < 0.001
-        
-        def test_shannon_diversity_single_species(self):
-            """Test Shannon diversity with single species (should be 0)"""
-            single_species = [100, 0, 0, 0]
-            result = shannon_diversity(single_species)
-            assert result == 0
-        
-        def test_shannon_diversity_empty_input(self):
-            """Test Shannon diversity with empty input"""
-            with pytest.raises(ValueError):
-                shannon_diversity([])
-        
-        def test_simpson_diversity_range(self):
-            """Test that Simpson diversity is always between 0 and 1"""
-            test_cases = [
-                [10, 5, 3, 2, 1],
-                [100, 0, 0, 0],
-                [1, 1, 1, 1, 1, 1]
-            ]
-            
-            for abundances in test_cases:
-                result = simpson_diversity(abundances)
-                assert 0 <= result <= 1
-        
-        def test_diversity_with_dataframe(self):
-            """Test diversity functions with pandas DataFrame input"""
-            df = pd.DataFrame({
-                'species_a': [10, 5, 8],
-                'species_b': [5, 10, 3], 
-                'species_c': [2, 3, 5]
-            })
-            
-            # Should work with DataFrame rows
-            for _, row in df.iterrows():
-                shannon_result = shannon_diversity(row.values)
-                simpson_result = simpson_diversity(row.values)
-                
-                assert shannon_result >= 0
-                assert 0 <= simpson_result <= 1
-    
-    # Run tests with: python -m pytest tests/test_diversity_functions.py -v
-    '''
-    
-    print("Example Unit Tests for Ecological Functions:")
-    print(test_example[:1000] + "...")
-    
-    # Data validation tests
-    data_validation_test = '''
-    # tests/test_data_validation.py
-    
-    import pytest
-    import pandas as pd
-    import numpy as np
-    
-    class TestDataValidation:
-        """Test suite for ecological data validation"""
-        
-        def test_species_codes_format(self):
-            """Test that species codes follow 4-letter format"""
-            valid_codes = ['AMRO', 'BCCH', 'WBNU']
-            invalid_codes = ['AMR', 'AMERICANROBIN', 'amro']
-            
-            for code in valid_codes:
-                assert len(code) == 4
-                assert code.isupper()
-                assert code.isalpha()
-            
-            for code in invalid_codes:
-                assert not (len(code) == 4 and code.isupper() and code.isalpha())
-        
-        def test_abundance_values(self):
-            """Test that abundance values are non-negative integers"""
-            valid_abundances = [0, 1, 5, 100]
-            invalid_abundances = [-1, 3.5, np.inf, np.nan]
-            
-            for abundance in valid_abundances:
-                assert abundance >= 0
-                assert isinstance(abundance, (int, np.integer))
-            
-            for abundance in invalid_abundances:
-                if not np.isnan(abundance):
-                    assert not (abundance >= 0 and isinstance(abundance, (int, np.integer)))
-        
-        def test_coordinate_ranges(self):
-            """Test that coordinates are within valid ranges"""
-            # Example for Virginia, USA
-            valid_coords = [
-                {'lat': 37.5, 'lon': -79.0},
-                {'lat': 38.2, 'lon': -78.5}
-            ]
-            
-            invalid_coords = [
-                {'lat': 91.0, 'lon': -79.0},   # Latitude out of range
-                {'lat': 37.5, 'lon': 181.0}   # Longitude out of range
-            ]
-            
-            for coord in valid_coords:
-                assert -90 <= coord['lat'] <= 90
-                assert -180 <= coord['lon'] <= 180
-    '''
-    
-    print("\nExample Data Validation Tests:")
-    print(data_validation_test[:800] + "...")
-    
-    return data_validation_test, test_example
-
-
-@app.cell
-def __():
-    """
-    ## Continuous Integration and Automation
-    """
-    
-    # Example GitHub Actions workflow
-    github_actions_workflow = '''
-    # .github/workflows/analysis.yml
-    
-    name: Ecological Data Analysis
-    
-    on:
-      push:
-        branches: [ main, develop ]
-      pull_request:
-        branches: [ main ]
-      schedule:
-        # Run weekly to check for issues
-        - cron: '0 0 * * 0'
-    
-    jobs:
-      test:
-        runs-on: ubuntu-latest
-        strategy:
-          matrix:
-            python-version: [3.9, 3.10, 3.11]
-    
-        steps:
-        - uses: actions/checkout@v3
-        
-        - name: Set up Python ${{ matrix.python-version }}
-          uses: actions/setup-python@v3
-          with:
-            python-version: ${{ matrix.python-version }}
-        
-        - name: Install dependencies
-          run: |
-            python -m pip install --upgrade pip
-            pip install -r requirements.txt
-            pip install pytest pytest-cov
-        
-        - name: Run tests
-          run: |
-            pytest tests/ --cov=scripts/ --cov-report=xml
-        
-        - name: Upload coverage to Codecov
-          uses: codecov/codecov-action@v3
-          with:
-            file: ./coverage.xml
-        
-        - name: Run data validation
-          run: |
-            python scripts/validate_data.py
-        
-        - name: Generate analysis report
-          run: |
-            python scripts/analysis_pipeline.py
-        
-        - name: Archive results
-          uses: actions/upload-artifact@v3
-          with:
-            name: analysis-results-${{ matrix.python-version }}
-            path: outputs/
-    '''
-    
-    print("Example GitHub Actions Workflow:")
-    print(github_actions_workflow[:800] + "...")
-    
-    # Pre-commit hooks configuration
-    precommit_config = '''
-    # .pre-commit-config.yaml
-    
-    repos:
-    -   repo: https://github.com/pre-commit/pre-commit-hooks
-        rev: v4.4.0
-        hooks:
-        -   id: trailing-whitespace
-        -   id: end-of-file-fixer
-        -   id: check-yaml
-        -   id: check-added-large-files
-            args: ['--maxkb=1000']  # Prevent large data files
-        -   id: check-json
-        -   id: check-merge-conflict
-    
-    -   repo: https://github.com/psf/black
-        rev: 23.3.0
-        hooks:
-        -   id: black
-            language_version: python3
-    
-    -   repo: https://github.com/pycqa/flake8
-        rev: 6.0.0
-        hooks:
-        -   id: flake8
-            args: [--max-line-length=88]
-    
-    -   repo: local
-        hooks:
-        -   id: data-validation
-            name: Validate ecological data
-            entry: python scripts/validate_data.py
-            language: system
-            pass_filenames: false
-            files: ^data/
-    '''
-    
-    print("\nExample Pre-commit Configuration:")
-    print(precommit_config[:600] + "...")
-    
-    return github_actions_workflow, precommit_config
-
-
-@app.cell
-def __():
-    """
-    ## Reproducibility Checklist
-
-    Before publishing your ecological research, ensure you've addressed these components:
-
-    ### 📊 Data Management
-    - [ ] Data stored in open repository with DOI
-    - [ ] Comprehensive metadata provided
-    - [ ] Raw data preserved and documented
-    - [ ] Data processing steps clearly documented
-    - [ ] File formats are non-proprietary and widely supported
-
-    ### 💻 Code and Analysis
-    - [ ] All analysis code available in public repository
-    - [ ] Code is well-commented and documented
-    - [ ] Dependencies clearly specified (requirements.txt)
-    - [ ] Analysis can be run with single command
-    - [ ] Random seeds set for reproducible results
-
-    ### 📚 Documentation
-    - [ ] README file with clear instructions
-    - [ ] Methods section describes computational approach
-    - [ ] Software versions reported
-    - [ ] Hardware/platform specifications noted
-    - [ ] Contact information provided
-
-    ### 🔄 Version Control
-    - [ ] Project uses Git version control
-    - [ ] Meaningful commit messages
-    - [ ] Tagged release for publication
-    - [ ] No large data files in Git repository
-    - [ ] Appropriate .gitignore file
-
-    ### 🧪 Quality Assurance
-    - [ ] Unit tests for custom functions
-    - [ ] Data validation tests
-    - [ ] Continuous integration set up
-    - [ ] Code follows style guidelines
-    - [ ] Peer review of code and methods
-
-    ### 🌐 Open Science
-    - [ ] Preprint posted before submission
-    - [ ] Open access publication when possible
-    - [ ] ORCID IDs for all authors
-    - [ ] Appropriate Creative Commons license
-    - [ ] Results shared on social media/conferences
-    """
-    
-    checklist_summary = {
-        "Essential": [
-            "Public code repository with clear documentation",
-            "Open data with comprehensive metadata", 
-            "Reproducible computational environment",
-            "Version control throughout project lifecycle"
-        ],
-        "Recommended": [
-            "Automated testing and validation",
-            "Continuous integration workflows",
-            "Pre-commit hooks for quality control",
-            "Data and code DOIs for citation"
-        ],
-        "Advanced": [
-            "Containerized environments (Docker)",
-            "Workflow management systems",
-            "Automated report generation",
-            "Integration with lab information systems"
-        ]
-    }
-    
-    print("Reproducibility Implementation Levels:")
-    for level, items in checklist_summary.items():
-        print(f"\n{level}:")
-        for item in items:
-            print(f"  • {item}")
-    
-    return checklist_summary,
-
-
-@app.cell
-def __():
-    """
-    ## Summary
-
-    In this chapter, we covered essential practices for reproducible ecological research:
-
-    ✓ **Project organization**: Structured directories and file naming
-    ✓ **Version control**: Git workflows for ecological projects  
-    ✓ **Data management**: Metadata, validation, and provenance tracking
-    ✓ **Environment management**: Reproducible computational setups
-    ✓ **Automation**: Scripts, pipelines, and continuous integration
-    ✓ **Open science**: Data sharing, code repositories, and collaboration
-    ✓ **Quality assurance**: Testing, validation, and peer review
-    ✓ **Documentation**: README files, methods, and communication
-
-    **Next chapter**: Biostatistics for ecological data analysis
-
-    **Key principles**:
-    - **Transparency**: Make everything openly available
-    - **Documentation**: Explain every step and decision
-    - **Automation**: Reduce manual errors and increase efficiency
-    - **Validation**: Test data and code rigorously
-    - **Collaboration**: Use tools that facilitate teamwork
-    - **Persistence**: Use permanent identifiers and stable repositories
-
-    **Tools covered**:
-    - **Git**: Version control and collaboration
-    - **GitHub**: Repository hosting and project management  
-    - **Requirements.txt/environment.yml**: Dependency management
-    - **GitHub Actions**: Continuous integration
-    - **Pre-commit**: Automated quality checks
-    - **Pytest**: Testing framework
-    """
-    print("✓ Chapter 5 complete! Ready for biostatistical analysis.")
-    return
-
-
-@app.cell
-def _():
     import marimo as mo
-    return (mo,)
+    import numpy as np
+    import pandas as pd
+    return mo, np, pd
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## What is Open Science?
+
+        Open science promotes the dissemination of knowledge through several key aspects:
+
+        - **Open Methodology**: Scientific journals require detailed methodology descriptions to ensure data collection is well understood and can be replicated in future experiments. For example, the journal *Nature* created [Protocol Exchange](https://www.nature.com/protocolexchange/), "where the scientific community shares experimental expertise to accelerate research."
+
+        - **Open Data**: By making our data public, we enable future researchers to improve knowledge, discover structures we may have missed, etc. In some cases, open data may be constrained by legal issues (private data) or ethical concerns (data that could be misused). In most cases, the benefits far outweigh the risks of data publication, and personal information can be removed. Journals like PLOS [require](https://blogs.plos.org/everyone/2014/02/24/plos-new-data-policy-public-access-data-2/) that minimal data needed to reproduce experiments be provided as supplementary material.
+
+        - **Open Source Code**: Open source software, like Python, is free for most users. This allows anyone to use it, provided they have the hardware (a computer) and an internet connection. Similarly, Python code that generates results from your data can be made public under various permissive open source licenses (GPL, BSD, MIT, etc.). With data and code, your work can be reproduced.
+
+        - **Open Peer Review**: Peer review is essential work in science. Traditionally, scientific publications are reviewed anonymously to avoid conflicts. Recently, journals like [Frontiers](https://www.frontiersin.org/about/review-system) have deployed open review modes, enabling (1) more constructive exchanges between authors and reviewers and (2) openly acknowledging reviewer contributions to the final article.
+
+        - **Open Access**: Scientific publishers are [widely criticized](https://www.nature.com/articles/d41586-019-00492-4) for charging exorbitant fees to libraries and for individual article access, as well as excessive publication fees. In response, sites like [Sci-Hub](https://en.wikipedia.org/wiki/Sci-Hub) unlock millions of scientific articles for free. Additionally, reputable journals like PLOS and Frontiers publish articles directly on their websites so they can be freely downloaded.
+
+        The lack of openness in science has led many scientists to speak of a reproducibility crisis ([Baker, 2016](https://www.nature.com/news/1-500-scientists-lift-the-lid-on-reproducibility-1.19970)). In this chapter, we'll explore techniques to make Python a tool that promotes open science. By the end of this chapter, you should be able to deploy your code to an online archive.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Reproducible Code
+
+        The *British Ecological Society* offers guidelines for creating a reproducible workflow ([BES, 2017](https://www.britishecologicalsociety.org/wp-content/uploads/2017/12/guide-to-reproducible-code.pdf)). The following principles should be respected:
+
+        - **Start your analysis from a copy of the raw data**. Data should be provided in an open format (CSV, JSON, SQLite, etc.). Avoid starting an analysis with a spreadsheet or proprietary software (that is not open source). In this sense, starting with Excel (`.xls` or `.xlsx`) should be avoided, as should data encoded for SPSS or SAS.
+
+        - **All data operations should be performed with code, not manually**. Whether cleaning, merging, transforming, etc., these should be done with code. If it's a typo in a table, you can make an exception. But if you're removing outliers, for example, don't delete entries from your raw data. Similarly, don't transform your raw data outside of code. In short, your calculations should be able to run all at once, without intermediate manual operations.
+
+        - **Separate your operations into logical thematic units**. For example, you could separate your code into parts: (i) load, merge, and clean data, (ii) analyze data, (iii) create outputs like tables and figures.
+
+        - **Eliminate code duplication by creating custom functions**. Make sure to comment your functions in detail, explaining what is expected as inputs and outputs, what they do and why.
+
+        - **Document your code and data within the notebooks or in a separate documentation file**.
+
+        - **Any intermediate files should be separated from your raw data**.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Project Structure
+
+        A computational project should be contained in a single folder. If you only have a few projects, it's easy to keep track. However, especially in a business environment, you might have to manage several projects simultaneously. Some organizations create project numbers: you'll benefit from naming your folders with these numbers, including a brief description. Personally, I organize my projects chronologically by year, with a description.
+
+        ```
+        📁 2019_bee-cranberry
+        ```
+
+        Note that I don't use spaces or special characters in the folder name to avoid potential errors with finicky software.
+
+        Inside the project root folder, I include general information: source data (often Excel files), manuscript (thesis, article, etc.), specific documentation (for articles, I use Zotero, a reference manager), photos, and of course, my code folder (e.g., `python`).
+
+        ```
+        📁 2019_bee-cranberry
+        ├─📁 documentation
+        ├─📁 manuscript
+        ├─📁 photos
+        ├─📁 python
+        └─📁 source
+        ```
+
+        If you write your manuscript within your code (in LaTeX, [Lyx](https://www.lyx.org/), markdown, or Marimo notebooks as we'll see later), you can include it in your computational folder.
+
+        Inside the computational folder, you'll have your Python project and your sequenced notebooks. I use `01-`, not `1-`, to avoid having `10-` follow `1-` in alphanumeric sorting if I have more than 10 notebooks. I include a `README.md` file (`.md` extension for markdown), which contains general information about my computations. Raw data (`.csv`) are placed in a `data` folder, my graphics are exported to an `images` folder, my tables are exported to a `tables` folder, and my external functions are exported to a `lib` folder.
+
+        ```
+        📁 python
+        ├─📁 data
+        ├─📁 images
+        ├─📁 lib
+        ├─📁 tables
+        ├─📄 pyproject.toml
+        ├─📄 uv.lock
+        ├─📄 01_clean_data.py
+        ├─📄 02_data_mining.py
+        ├─📄 03_data_analysis.py
+        ├─📄 04_data_modeling.py
+        └─📄 README.md
+        ```
+
+        I describe file names in the language useful for the final project deliverable, often in English for academic publications. I avoid uninformative file names, such as `01.py` or `plot1.png`, as well as capital letters, special characters, and spaces like in `Second try.py` (the `README.md` is an exception).
+
+        To share a Python project folder, you just need to compress it (*zip*) and send it. For the code to work on another computer, links to data files to import or graphics to export must be relative to the Python file opened in your project, not the full path on your computer.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ### Relative vs. Absolute Paths
+
+        When working with files in Python, always use relative paths from your project directory:
+        """
+    )
+    return
+
+
+@app.cell
+def __(pd):
+    # Good: relative path
+    # data = pd.read_csv("data/bees.csv")
+
+    # Bad: absolute path (won't work on another computer)
+    # data = pd.read_csv("/Users/your_name/projects/2019_bee-cranberry/python/data/bees.csv")
+
+    # Python's pathlib makes this even cleaner
+    from pathlib import Path
+
+    # project_root = Path.cwd()
+    # data_path = project_root / "data" / "bees.csv"
+    # data = pd.read_csv(data_path)
+    return (Path,)
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        Just like the BES, the nonprofit organization [rOpenSci](https://ropensci.org) offers [a guide on reproducibility](http://ropensci.github.io/reproducibility-guide/).
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Marimo Notebooks
+
+        Reproducible code is well-documented code. The project structure presented above proposes segmenting code into multiple Python files. This approach is optional. If the computational file isn't too cumbersome, you can use just one, for example `stats.py`. Within Python scripts, you should comment your code to explain the steps:
+
+        ```python
+        #############
+        ## Title 1 ##
+        #############
+
+        # Title 2
+        ## Title 3
+        data = pd.read_csv("data/bees.csv")  # specific comment
+        ```
+
+        A more user-friendly approach is to use **Marimo notebooks**. Marimo is a reactive notebook environment that stores notebooks as pure Python scripts, making them easy to version control and share. These course notes are entirely written in Marimo notebooks.
+
+        ### Why Marimo?
+
+        Marimo notebooks offer several advantages over traditional Jupyter notebooks:
+
+        - **Reactive execution**: When you change a variable, all dependent cells automatically update
+        - **Pure Python files**: Notebooks are stored as `.py` files, making them easy to version control with git
+        - **No hidden state**: The execution order is always clear and reproducible
+        - **Built-in version control**: Since they're Python files, they work seamlessly with git
+        - **Easy to share**: Send a `.py` file, and others can run it directly
+
+        ### Creating a Marimo Notebook
+
+        To create a new Marimo notebook, use the command line:
+
+        ```bash
+        marimo edit my_analysis.py
+        ```
+
+        This will open a browser window with the Marimo editor. The notebook structure is simple:
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    # Example Marimo cell structure
+    # Each cell is a Python function decorated with @app.cell
+
+    # Cell 1: Import libraries
+    # import numpy as np
+    # import pandas as pd
+
+    # Cell 2: Load data
+    # data = pd.read_csv("data/cloudberry.csv")
+
+    # Cell 3: Analyze data
+    # summary = data.describe()
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ### Markdown in Marimo
+
+        Marimo uses `mo.md()` to display markdown-formatted text. You can use all standard markdown formatting:
+
+        **Italic**: Surround text with single asterisks. For example, `*emphasized text*` becomes *emphasized text*.
+
+        **Bold**: Surround text with double asterisks. For example, `**important text**` becomes **important text**.
+
+        **Fixed width**: For inline code, surround text with backticks. For example, `` `variable_name` `` becomes `variable_name`.
+
+        **Lists**: For numbered lists, use `1.`:
+
+        ```
+        1. First item
+        1. Second item
+        1. Third item
+        ```
+
+        becomes
+
+        1. First item
+        2. Second item
+        3. Third item
+
+        For bullet lists, use `-` or `*`:
+
+        - Item one
+        - Item two
+        - Item three
+
+        **Headers**: Titles are preceded by `#`. One `#` for level 1, two `##` for level 2, etc.
+
+        ```
+        # Main Title
+        ## Section
+        ### Subsection
+        ```
+
+        **Links**: Text in square brackets followed by URL in parentheses. For example, `[Python documentation](https://docs.python.org)` becomes [Python documentation](https://docs.python.org).
+
+        **Equations**: Equations follow LaTeX syntax between single `$` for inline equations and double `$$` for display equations. For example, `$c = \sqrt{a^2 + b^2}$` becomes $c = \sqrt{a^2 + b^2}$.
+
+        **Images**: To insert an image, `![image name](images/figure.png)`.
+
+        A comprehensive list of markdown tags is available as a [cheat sheet](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet).
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ### Running Marimo Notebooks
+
+        To run a Marimo notebook:
+
+        ```bash
+        # Interactive mode (opens in browser)
+        marimo edit notebook.py
+
+        # Run mode (executes and shows output)
+        marimo run notebook.py
+
+        # Convert to HTML
+        marimo export html notebook.py > output.html
+
+        # Convert to markdown
+        marimo export md notebook.py > output.md
+        ```
+
+        Marimo notebooks are reactive, meaning that when you change a cell, all cells that depend on it automatically re-execute. This ensures your notebook is always in a consistent state.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Introduction to GitHub
+
+        The version control system **git** (open source) was created by Linus Torvalds, also known for creating Linux. **git** takes a snapshot of your project directory every time you *commit* a change. You can easily return to old versions if something goes wrong, and you can publish the final result on a hosting service that uses **git**.
+
+        Several services exist to use **git** online, but GitHub is definitely the most widely used. The [GitHub](https://github.com/) platform has almost become a social network for development. GitHub, now owned by Microsoft, is not itself open source. If like me you have a preference for open source, I recommend the [GitLab](https://about.gitlab.com/) platform, which works much the same way as GitHub. In general, I use [GitHub](https://github.com/) for professional purposes and [GitLab](https://gitlab.com/) for personal projects.
+
+        To follow this part of the course, I invite you to [create a GitHub account](https://github.com/join?source=header-home) or [GitLab account](https://gitlab.com/users/sign_in), your choice. Create a new repository (*New repository*).
+
+        ### Basic Git Workflow
+
+        1. **Initialize a repository**: Create a new repository on GitHub or GitLab
+        2. **Clone the repository**: Download a local copy to your computer
+        3. **Make changes**: Modify files in your project
+        4. **Stage changes**: Select which changes to include in the next snapshot
+        5. **Commit**: Create a snapshot of your changes with a descriptive message
+        6. **Push**: Upload your commits to the online repository
+
+        ### Using Git from the Command Line
+
+        Here are the essential git commands:
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    # Essential git commands (run these in terminal, not Python)
+
+    # Initialize a new git repository
+    # git init
+
+    # Clone an existing repository
+    # git clone https://github.com/username/repository.git
+
+    # Check status of your repository
+    # git status
+
+    # Stage changes for commit
+    # git add filename.py        # Add specific file
+    # git add data/*.csv         # Add all CSV files in data folder
+    # git add .                  # Add all changes
+
+    # Commit changes
+    # git commit -m "Descriptive message about what changed"
+
+    # Push changes to remote repository
+    # git push origin main
+
+    # Pull changes from remote repository
+    # git pull origin main
+
+    # View commit history
+    # git log
+
+    # Create a new branch
+    # git checkout -b new-feature
+
+    # Switch between branches
+    # git checkout branch-name
+
+    # Merge branches
+    # git merge branch-name
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ### Using GitHub Desktop
+
+        For those who prefer a graphical interface, [GitHub Desktop](https://desktop.github.com/) provides an easy way to work with git. It allows you to:
+
+        - Clone repositories
+        - View changes visually
+        - Create commits with descriptive messages
+        - Push and pull changes
+        - Create and switch between branches
+        - View commit history
+
+        The interface is intuitive and helps you avoid common command-line mistakes.
+
+        ### What to Include in Your Repository
+
+        When sharing code on GitHub, include:
+
+        - **README.md**: Describe your project, how to install dependencies, and how to run the code
+        - **Data files**: Raw data in open formats (CSV, JSON, Parquet, SQLite)
+        - **Code files**: Python scripts or Marimo notebooks (`.py` files)
+        - **Requirements file**: `pyproject.toml` or `requirements.txt` listing dependencies
+        - **License**: Choose an open source license (MIT, GPL, BSD, etc.)
+        - **.gitignore**: List files/folders that shouldn't be tracked (see below)
+
+        ### The .gitignore File
+
+        Not everything should be tracked by git. Create a `.gitignore` file to exclude:
+
+        ```
+        # Python bytecode
+        __pycache__/
+        *.pyc
+        *.pyo
+        *.pyd
+
+        # Virtual environments
+        .venv/
+        venv/
+        env/
+
+        # Jupyter notebook checkpoints
+        .ipynb_checkpoints/
+
+        # IDE settings
+        .vscode/
+        .idea/
+
+        # OS files
+        .DS_Store
+        Thumbs.db
+
+        # Large data files (consider using Git LFS instead)
+        data/large_dataset.csv
+
+        # Sensitive information
+        .env
+        credentials.json
+        secrets.txt
+        ```
+
+        ### Sharing Your Work
+
+        When publishing research, include a link to your GitHub repository in the methodology section. You can use a shortened link with [git.io](https://git.io/). For example:
+
+        > The data and Python code used to compute the results are both available as supplementary material at https://github.com/username/project-name.
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Managing Dependencies with uv
+
+        While packages are continually updated, we need to ensure we know exactly which version was used for strict reproducibility. When reviewing articles, I ask that module names and version numbers be explicitly cited and referenced. For example, in an article on compositional analysis of lettuce inoculated with bacteria, I wrote:
+
+        > Computations were performed in Python version 3.11. The main packages used in the data analysis workflow were pandas version 2.0.0 for data manipulation, lets-plot version 4.0.0 for visualization, statsmodels version 0.14.0 for statistical modeling, and scikit-learn version 1.3.0 for machine learning. The data and computations are publicly available at https://github.com/username/project-name.
+
+        This way, anyone (colleagues, auditors, or yourself in the future) can reproduce the code by installing the cited versions. But this is tedious. That's why we use **uv**, a modern Python package manager.
+
+        ### Why uv?
+
+        **uv** is a fast, reliable Python package manager that:
+
+        - Installs packages quickly (10-100x faster than pip)
+        - Creates reproducible environments with lock files
+        - Manages Python versions
+        - Works seamlessly with virtual environments
+        - Is a single binary with no dependencies
+
+        ### Setting Up uv for Your Project
+
+        Here's how to use uv for a reproducible project:
+        """
+    )
+    return
+
+
+@app.cell
+def __():
+    # Install uv (run in terminal)
+    # curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # Initialize a new project
+    # uv init my-project
+    # cd my-project
+
+    # Install Python (if needed)
+    # uv python install 3.11
+
+    # Create a virtual environment
+    # uv venv
+
+    # Activate the virtual environment (Linux/Mac)
+    # source .venv/bin/activate
+
+    # Activate the virtual environment (Windows)
+    # .venv\Scripts\activate
+
+    # Add dependencies to your project
+    # uv add pandas numpy scipy statsmodels scikit-learn lets-plot nuee marimo pymc
+
+    # This creates/updates pyproject.toml and uv.lock
+
+    # Install dependencies from lock file (for reproducibility)
+    # uv sync
+
+    # Run a script with uv
+    # uv run python script.py
+
+    # Run a Marimo notebook with uv
+    # uv run marimo edit notebook.py
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ### The pyproject.toml File
+
+        When you use `uv add`, it updates your `pyproject.toml` file, which describes your project:
+
+        ```toml
+        [project]
+        name = "bee-cranberry-analysis"
+        version = "0.1.0"
+        description = "Analysis of bee pollination in cranberry fields"
+        requires-python = ">=3.11"
+        dependencies = [
+            "pandas>=2.0.0",
+            "numpy>=1.24.0",
+            "scipy>=1.10.0",
+            "statsmodels>=0.14.0",
+            "scikit-learn>=1.3.0",
+            "lets-plot>=4.0.0",
+            "nuee>=0.1.0",
+            "marimo>=0.1.0",
+            "pymc>=5.0.0",
+        ]
+        ```
+
+        ### The uv.lock File
+
+        The `uv.lock` file contains exact versions of all dependencies and their sub-dependencies. This ensures anyone can recreate your exact environment:
+
+        ```bash
+        # Someone else can recreate your environment with:
+        uv sync
+        ```
+
+        This is much more reliable than a simple `requirements.txt` because it locks all transitive dependencies.
+
+        ### Workflow with Git and uv
+
+        1. **Leto** (researcher 1) creates a project and adds dependencies with uv
+        2. Leto commits `pyproject.toml` and `uv.lock` to git
+        3. Leto pushes to GitHub
+        4. **Ghanima** (researcher 2) clones the repository
+        5. Ghanima runs `uv sync` to install exact same dependencies
+        6. Ghanima can now reproduce Leto's results exactly
+
+        If Leto updates dependencies later:
+
+        1. Leto runs `uv add new-package` or `uv update existing-package`
+        2. Leto commits the updated `uv.lock` file
+        3. Leto pushes to GitHub
+        4. Ghanima pulls the changes
+        5. Ghanima runs `uv sync` to update their environment
+
+        ### Including uv Files in Git
+
+        Your `.gitignore` should track dependency files but not the virtual environment:
+
+        ```
+        # Track these
+        pyproject.toml
+        uv.lock
+
+        # Don't track these
+        .venv/
+        ```
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## The Reprex: Reproducible Example
+
+        When I discovered a bug in the **weathercan** package, I opened an issue on GitHub indicating the error message, hoping the bug's origin could be easily deduced. A developer asked me for a **reprex**. I was disappointed to learn that a reprex wasn't a species of dinosaur, but rather a **re**producible **ex**ample.
+
+        > 📗 **Reprex**: A reproducible example.
+
+        I tried to isolate the problem to reproduce the error with the minimum code possible. From code of more than 7,000 lines (these course notes), I arrived at this:
+        """
+    )
+    return
+
+
+@app.cell
+def __(np, pd):
+    # Example reprex: isolating a bug
+    # Creating minimal reproducible example
+
+    # Bad reprex: too much context, hard to debug
+    # data = pd.read_csv("my_complicated_data.csv")
+    # result = complicated_pipeline(data)  # Error somewhere!
+
+    # Good reprex: minimal, self-contained
+    import sys
+
+    # Create minimal data that reproduces the issue
+    _data_reprex = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+
+    # Minimal code that reproduces the error
+    # try:
+    #     result = data['C']  # KeyError: 'C' not in columns
+    # except KeyError as e:
+    #     print(f"Error: {e}")
+
+    # Include system information
+    print(f"Python version: {sys.version}")
+    print(f"Pandas version: {pd.__version__}")
+    print(f"NumPy version: {np.__version__}")
+    return (sys,)
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        Synthesizing a question isn't easy (creating this reproducible example took me nearly 2 hours). But answering an unsynthesized question is even harder. That's why you'll systematically be asked for a *reprex* when you post a question related to a systematic error, most often in programming.
+
+        > A reproducible example allows someone to recreate the error you obtained simply by copy-pasting your code. - [Hadley Wickham](https://gist.github.com/hadley/270442)
+
+        According to [Hadley Wickham](https://gist.github.com/hadley/270442) (R guru, but the principle applies to Python), a *reprex* should include four elements:
+
+        1. **Load packages at the beginning of the code**.
+        2. **Load data**, which can be example data or data included directly in the code (like randomly generated data).
+        3. **Ensure your code is a minimal example** (remove the superfluous) and that it's easily readable.
+        4. **Include the output of system information** (Python version, package versions, OS), which indicates the hardware and software platform where you generated the error. This is particularly important for bugs.
+
+        When you think you've generated your *reprex*, restart Python (or your kernel), then run your code to ensure the error can be generated in a clean environment.
+
+        ### Creating a Good Reprex
+
+        Here's a template for creating reproducible examples:
+        """
+    )
+    return
+
+
+@app.cell
+def __(np, pd, sys):
+    # REPREX TEMPLATE
+    # =================
+
+    # 1. Import required libraries
+    # import pandas as pd
+    # import numpy as np
+
+    # 2. Create minimal data
+    # Use small, self-contained data that demonstrates the issue
+    _minimal_data = pd.DataFrame(
+        {"species": ["setosa", "virginica", "versicolor"] * 3, "measurement": np.random.randn(9)}
+    )
+
+    # 3. Minimal code that reproduces the issue
+    # Keep only the essential code that triggers the error
+    # try:
+    #     result = minimal_data.groupby('species').apply(some_function)
+    # except Exception as e:
+    #     print(f"Error occurred: {e}")
+
+    # 4. Include system information
+    _reprex_info = {
+        "Python": sys.version,
+        "pandas": pd.__version__,
+        "numpy": np.__version__,
+        "Platform": sys.platform,
+    }
+
+    # Print system info
+    print("System Information:")
+    for _key, _value in _reprex_info.items():
+        print(f"  {_key}: {_value}")
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ### Where to Post Your Reprex
+
+        Good places to ask for help with reproducible examples:
+
+        - **Stack Overflow**: Tag your question with [python], [pandas], etc.
+        - **GitHub Issues**: If you've found a bug in a specific package
+        - **Reddit r/learnpython**: Friendly community for Python learners
+        - **Mailing lists**: Many scientific Python packages have mailing lists
+
+        Remember: the easier you make it for others to help you, the faster you'll get good answers!
+        """
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def __(mo):
+    mo.md(
+        r"""
+        ## Summary
+
+        In this chapter, we covered the principles of open and reproducible science:
+
+        - **Open Science**: Five key aspects - methodology, data, code, peer review, and access
+        - **Reproducible Code**: Following BES guidelines for organizing data and code
+        - **Project Structure**: Organizing folders, files, and using relative paths
+        - **Marimo Notebooks**: Creating reactive, reproducible notebooks stored as Python files
+        - **Version Control**: Using git and GitHub to track changes and collaborate
+        - **Dependency Management**: Using uv to create reproducible environments with `pyproject.toml` and `uv.lock`
+        - **Reproducible Examples**: Creating minimal reprexes to get help and report bugs
+
+        By following these practices, you'll make your research more transparent, reproducible, and valuable to the scientific community.
+
+        ### Key Takeaways
+
+        1. Always use open formats for data (CSV, JSON, Parquet, SQLite)
+        2. Document your code thoroughly with comments and markdown
+        3. Use version control (git) for all projects
+        4. Lock your dependencies with uv for reproducibility
+        5. Share your code and data on GitHub or GitLab
+        6. Create minimal reproducible examples when asking for help
+
+        ### Next Steps
+
+        In the following chapters, we'll apply these reproducibility principles as we explore biostatistics, data analysis, and machine learning with Python. Every analysis will be contained in Marimo notebooks, version controlled with git, and have locked dependencies with uv.
+        """
+    )
+    return
 
 
 if __name__ == "__main__":
