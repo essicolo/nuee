@@ -47,7 +47,13 @@ def __():
     # Essential imports
     import pandas as pd
     import numpy as np
-    from lets_plot import *
+    import lets_plot as lp
+    from lets_plot import (
+        ggplot, aes, geom_point, geom_line, geom_histogram, geom_bar,
+        geom_boxplot, labs, theme_classic, theme_minimal, theme_bw,
+        facet_wrap, facet_grid, ggtitle, xlab, ylab, xlim, ylim,
+        scale_color_manual, scale_fill_manual, LetsPlot
+    )
 
     # Initialize lets-plot for notebook use
     LetsPlot.setup_html()
@@ -56,7 +62,7 @@ def __():
     from sklearn.datasets import load_iris
 
     print("lets-plot initialized successfully!")
-    return LetsPlot, load_iris, np, pd
+    return LetsPlot, aes, facet_grid, facet_wrap, geom_bar, geom_boxplot, geom_histogram, geom_line, geom_point, ggplot, ggtitle, labs, load_iris, lp, np, pd, scale_color_manual, scale_fill_manual, theme_bw, theme_classic, theme_minimal, xlab, xlim, ylab, ylim
 
 
 @app.cell
