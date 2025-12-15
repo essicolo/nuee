@@ -2,9 +2,11 @@
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
-
+import doctest
 import os
 import sys
+from doctest import ELLIPSIS
+
 sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
@@ -29,6 +31,17 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.doctest',
 ]
+
+doctest_show_successes = False
+doctest_default_flags = ELLIPSIS
+OC = doctest.OutputChecker
+class AEOutputChecker(OC):
+    def check_output(self, want, got, optionflags):
+        from re import sub
+        if optionflags & doctest.ELLIPSIS:
+            want = sub(r'\[\.\.\.]', '...', want)
+        return OC.check_output(self, want, got, optionflags)
+doctest.OutputChecker = AEOutputChecker
 
 # Napoleon settings for NumPy and Google style docstrings
 napoleon_google_docstring = True

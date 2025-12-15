@@ -114,28 +114,29 @@ Basic Ordination Workflow
 Diversity Analysis Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import pandas as pd
+   >>> import nuee
+   >>> import pandas as pd
 
-   # Load data
-   species = nuee.datasets.BCI()
+   >>> # Load data
+   >>> species = nuee.datasets.BCI()
 
-   # Calculate multiple diversity indices
-   diversity_df = pd.DataFrame({
-       "Shannon": nuee.shannon(species),
-       "Gini-Simpson": nuee.simpson(species),
-       "Richness": nuee.specnumber(species),
-       "Fisher": nuee.fisher_alpha(species)
-   })
+   >>> # Calculate multiple diversity indices
+   >>> diversity_df = pd.DataFrame({
+   ...     "Shannon": nuee.shannon(species).values,
+   ...     "Gini-Simpson": nuee.simpson(species).values,
+   ...     "Richness": nuee.specnumber(species).values,
+   ...     "Fisher": nuee.fisher_alpha(species).values
+   ... })
 
-   # Summary statistics
-   print(diversity_df.describe())
+   >>> # Summary statistics
+   >>> print(diversity_df.describe())
+   [...]
 
-   # Compare groups
-   # If you have grouping information
-   # diversity_by_group = diversity_df.groupby(groups).mean()
+   >>> # Compare groups
+   >>> # If you have grouping information
+   >>> # diversity_by_group = diversity_df.groupby(groups).mean()
 
 Hypothesis Testing Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -155,7 +156,7 @@ Hypothesis Testing Workflow
    >>> perm_result = nuee.adonis2(dist, env['Management'])
    >>> print(f"R^2: {perm_result.R2[0]:.3f}")
    R^2: 0.342
-   >>> print(f"p-value: {perm_result["Pr(>F)"][0]:.3f}") # doctest: +ELLIPSIS
+   >>> print(f"p-value: {perm_result["Pr(>F)"][0]:.3f}")
    p-value: ...
 
    >>> # Test for homogeneity of dispersions
