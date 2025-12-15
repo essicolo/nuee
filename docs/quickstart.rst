@@ -57,26 +57,26 @@ Diversity Analysis
 Constrained Ordination (RDA)
 -----------------------------
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import matplotlib.pyplot as plt
+   >>> import nuee
+   >>> import matplotlib.pyplot as plt
 
-   # Load data
-   species = nuee.datasets.dune()
-   env = nuee.datasets.dune_env()
+   >>> # Load data
+   >>> species = nuee.datasets.dune()
+   >>> env = nuee.datasets.dune_env()
 
-   # Perform RDA
-   rda_result = nuee.rda(species, env)
+   >>> # Perform RDA
+   >>> rda_result = nuee.rda(species, env[["A1", "Moisture", "Manure"]])
 
-   # Create biplot
-   fig = nuee.biplot(rda_result)
-   plt.title("RDA Biplot of Dune Meadow Vegetation")
-   plt.show()
+   >>> # Create biplot
+   >>> fig = nuee.biplot(rda_result) # TODO broken ! # doctest: +SKIP
+   >>> plt.title("RDA Biplot of Dune Meadow Vegetation") # doctest: +SKIP
+   >>> plt.show()
 
-   # Fit environmental vectors
-   envfit_result = nuee.envfit(rda_result, env)
-   print(envfit_result)
+   >>> # Fit environmental vectors
+   >>> envfit_result = nuee.envfit(rda_result, env[["A1", "Moisture", "Manure"]])
+   >>> print(envfit_result) # doctest: +SKIP
 
 .. note::
 
@@ -87,20 +87,20 @@ Constrained Ordination (RDA)
 PERMANOVA Test
 --------------
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
+   >>> import nuee
 
-   # Load data
-   species = nuee.datasets.mite()
-   env = nuee.datasets.mite_env()
+   >>> # Load data
+   >>> species = nuee.datasets.mite()
+   >>> env = nuee.datasets.mite_env()
 
-   # Calculate distance matrix
-   distances = nuee.vegdist(species, method="bray")
+   >>> # Calculate distance matrix
+   >>> distances = nuee.vegdist(species, method="bray")
 
-   # Run PERMANOVA
-   permanova_result = nuee.adonis2(distances, env[['SubsDens', 'WatrCont']])
-   print(permanova_result)
+   >>> # Run PERMANOVA
+   >>> permanova_result = nuee.adonis2(distances, env[['SubsDens', 'WatrCont']])
+   >>> print(permanova_result) # doctest: +SKIP
 
 Rarefaction Analysis
 --------------------
