@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuee"
-version = "0.1.4"
+version = "0.1.6"
 description = "Community Ecology Analysis in Python"
 readme = "README.md"
 authors = [
@@ -45,7 +45,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["nuee*"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "pytest>=6.0",
     "pytest-cov>=2.0",
