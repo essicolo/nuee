@@ -105,21 +105,21 @@ PERMANOVA Test
 Rarefaction Analysis
 --------------------
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import matplotlib.pyplot as plt
+   >>> import nuee
+   >>> import matplotlib.pyplot as plt
 
-   # Load data
-   species = nuee.datasets.BCI()
+   >>> # Load data
+   >>> species = nuee.datasets.BCI()
 
-   # Calculate rarefaction curves
-   rarefaction = nuee.rarecurve(species, step=10)
+   >>> # Calculate rarefaction curves
+   >>> rarefaction = nuee.rarecurve(species, step=10)
 
-   # Plot rarefaction curves
-   fig = nuee.plot_rarecurve(rarefaction)
-   plt.title("Species Accumulation Curves")
-   plt.show()
+   >>> # Plot rarefaction curves
+   >>> fig = nuee.plot_rarecurve(rarefaction)
+   >>> plt.title("Species Accumulation Curves") # doctest: +SKIP
+   >>> plt.show()
 
 Next Steps
 ----------
