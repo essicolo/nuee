@@ -28,44 +28,51 @@ Community data should be provided as a matrix where:
 
 nuee accepts data in several formats:
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import numpy as np
-   import pandas as pd
+   >>> import nuee
+   >>> import numpy as np
+   >>> import pandas as pd
 
-   # NumPy array
-   data_array = np.random.rand(10, 20)  # 10 samples, 20 species
+   >>> # NumPy array
+   >>> data_array = np.random.rand(10, 20)  # 10 samples, 20 species
 
-   # Pandas DataFrame (recommended)
-   data_df = pd.DataFrame(
-       data_array,
-       index=[f"Site{i}" for i in range(10)],
-       columns=[f"Species{i}" for i in range(20)]
-   )
+   >>> # Pandas DataFrame (recommended)
+   >>> data_df = pd.DataFrame(
+   ...     data_array,
+   ...     index=[f"Site{i}" for i in range(10)],
+   ...     columns=[f"Species{i}" for i in range(20)]
+   ... )
 
 Environmental Data
 ~~~~~~~~~~~~~~~~~~
 
 Environmental data should have the same number of rows as the community data:
 
-.. code-block:: python
+.. testsetup::
 
-   env_data = pd.DataFrame({
-       "Temperature": np.random.rand(10),
-       "pH": np.random.rand(10),
-       "Moisture": np.random.rand(10)
-   }, index=data_df.index)
+   import pandas as pd
+   import numpy as np
+   import nuee
+   data_df = pd.DataFrame(np.random.rand(10))
+
+.. doctest::
+
+   >>> env_data = pd.DataFrame({
+   ...     "Temperature": np.random.rand(10),
+   ...     "pH": np.random.rand(10),
+   ...     "Moisture": np.random.rand(10)
+   ... }, index=data_df.index)
 
 Distance Matrices
 ~~~~~~~~~~~~~~~~~
 
 Distance matrices should be square, symmetric matrices:
 
-.. code-block:: python
+.. doctest::
 
-   # Calculate distances
-   distances = nuee.vegdist(data_df, method="bray")
+   >>> # Calculate distances
+   >>> distances = nuee.vegdist(data_df, method="bray")
 
 Workflow Examples
 -----------------
@@ -79,29 +86,30 @@ Basic Ordination Workflow
 4. Visualize results
 5. Interpret
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import matplotlib.pyplot as plt
+   >>> import nuee
+   >>> import matplotlib.pyplot as plt
 
-   # 1. Load data
-   species = nuee.datasets.varespec()
-   env = nuee.datasets.varechem()
+   >>> # 1. Load data
+   >>> species = nuee.datasets.varespec()
+   >>> env = nuee.datasets.varechem()
 
-   # 2. Choose method (NMDS)
-   # 3. Fit the model
-   nmds_result = nuee.metaMDS(species, k=2)
+   >>> # 2. Choose method (NMDS)
+   >>> # 3. Fit the model
+   >>> nmds_result = nuee.metaMDS(species, k=2)
 
-   # 4. Visualize
-   fig = nuee.plot_ordination(nmds_result)
-   plt.show()
+   >>> # 4. Visualize
+   >>> fig = nuee.plot_ordination(nmds_result)
+   >>> plt.show()
 
-   # 5. Interpret stress value
-   print(f"Stress: {nmds_result.stress:.3f}")
-   # Stress < 0.05: excellent
-   # Stress < 0.10: good
-   # Stress < 0.20: acceptable
-   # Stress > 0.20: poor
+   >>> # 5. Interpret stress value
+   >>> print(f"Stress: {nmds_result.stress:.3f}")
+   Stress: 0.133
+   >>> # Stress < 0.05: excellent
+   >>> # Stress < 0.10: good
+   >>> # Stress < 0.20: acceptable
+   >>> # Stress > 0.20: poor
 
 .. note::
 
@@ -185,22 +193,22 @@ Choosing a Distance Metric
 Data Transformation
 ~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
+.. doctest::
 
-   import numpy as np
+   >>> import numpy as np
 
-   # Hellinger transformation (for RDA)
-   def hellinger(x):
-       row_sums = x.sum(axis=1, keepdims=True)
-       return np.sqrt(x / row_sums)
+   >>> # Hellinger transformation (for RDA)
+   >>> def hellinger(x):
+   ...     row_sums = x.sum(axis=1, keepdims=True)
+   ...     return np.sqrt(x / row_sums)
 
-   # Wisconsin double standardization
-   def wisconsin(x):
-       # By species maxima
-       x_std = x / x.max(axis=0)
-       # By site totals
-       x_std = x_std / x_std.sum(axis=1, keepdims=True)
-       return x_std
+   >>> # Wisconsin double standardization
+   >>> def wisconsin(x):
+   ...     # By species maxima
+   ...     x_std = x / x.max(axis=0)
+   ...     # By site totals
+   ...     x_std = x_std / x_std.sum(axis=1, keepdims=True)
+   ...     return x_std
 
 Compositional Data Workflows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,24 +217,24 @@ Compositional Data Workflows
 without requiring SciPy.  These utilities are NumPy-only ports of scikit-bio's
 composition module.
 
-.. code-block:: python
+.. doctest::
 
-   from nuee import composition
-   import numpy as np
+   >>> from nuee import composition
+   >>> import numpy as np
 
-   # Raw counts with zeros
-   counts = np.array([[0, 5, 10], [3, 0, 9]])
+   >>> # Raw counts with zeros
+   >>> counts = np.array([[0, 5, 10], [3, 0, 9]])
 
-   # Replace zeros and apply closure
-   replaced = composition.multiplicative_replacement(counts)
-   closed = composition.closure(replaced)
+   >>> # Replace zeros and apply closure
+   >>> replaced = composition.multiplicative_replacement(counts)
+   >>> closed = composition.closure(replaced)
 
-   # Transform to log-ratio space
-   clr_coords = composition.clr(closed)
-   ilr_coords = composition.ilr(closed)
+   >>> # Transform to log-ratio space
+   >>> clr_coords = composition.clr(closed)
+   >>> ilr_coords = composition.ilr(closed)
 
-   # Invert transforms if required
-   recovered = composition.ilr_inv(ilr_coords)
+   >>> # Invert transforms if required
+   >>> recovered = composition.ilr_inv(ilr_coords)
 
 Mathematical Definitions
 ------------------------
