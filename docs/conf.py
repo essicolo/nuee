@@ -27,6 +27,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.githubpages',
+    'sphinx.ext.doctest',
 ]
 
 # Napoleon settings for NumPy and Google style docstrings

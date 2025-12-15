@@ -31,6 +31,7 @@ Basic NMDS ordination:
 >>> species_data = nuee.datasets.varespec()
 >>> nmds_result = nuee.metaMDS(species_data, k=2, distance="bray")
 >>> print(f"NMDS Stress: {nmds_result.stress:.3f}")
+NMDS Stress: 0.133
 
 Calculate diversity indices:
 

@@ -154,6 +154,7 @@ def diversity(x: Union[np.ndarray, pd.DataFrame],
     >>> species = nuee.datasets.varespec()
     >>> div = nuee.diversity(species, index="shannon")
     >>> print(f"Mean diversity: {div.mean():.3f}")
+    Mean diversity: 1.754
 
     Calculate Simpson diversity:
 
@@ -169,6 +170,7 @@ def diversity(x: Union[np.ndarray, pd.DataFrame],
 
     >>> div_bits = nuee.diversity(species, index="shannon", base=2)
     >>> print("Diversity in bits:", div_bits.mean())
+    Diversity in bits: 2.5300454694165375
 
     See Also
     --------
