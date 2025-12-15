@@ -45,15 +45,17 @@ Complete analysis of lichen community data with environmental correlates.
    optimisation path of ``vegan::metaMDS``. Expect modest differences in the
    reported stress until the implementation is fully aligned.
 
-   # Plot NMDS
-   fig = nuee.plot_ordination(nmds, display="sites")
-   plt.title(f"NMDS Ordination (stress: {nmds.stress:.3f})")
-   plt.show()
+   .. code-block:: python
 
-   # 3. Relate to environment
-   # Fit environmental vectors
-   envfit_result = nuee.envfit(nmds, env)
-   print(envfit_result)
+       # Plot NMDS
+       fig = nuee.plot_ordination(nmds, display="sites")
+       plt.title(f"NMDS Ordination (stress: {nmds.stress:.3f})")
+       plt.show()
+
+       # 3. Relate to environment
+       # Fit environmental vectors
+       envfit_result = nuee.envfit(nmds, env)
+       print(envfit_result)
 
 .. note::
 
@@ -61,20 +63,22 @@ Complete analysis of lichen community data with environmental correlates.
    still under active development. Numerical results may differ from
    ``vegan::envfit`` in the current release.
 
-   # RDA with environmental constraints
-   rda = nuee.rda(species, env[['N', 'P', 'K']])
-   fig = nuee.biplot(rda)
-   plt.title("RDA: Species ~ N + P + K")
-   plt.show()
+   .. code-block:: python
 
-   # 4. Test for environmental effects
-   dist = nuee.vegdist(species, method="bray")
+       # RDA with environmental constraints
+       rda = nuee.rda(species, env[['N', 'P', 'K']])
+       fig = nuee.biplot(rda)
+       plt.title("RDA: Species ~ N + P + K")
+       plt.show()
 
-   # Correlation with individual variables
-   for var in ['N', 'P', 'K', 'pH']:
-       env_dist = nuee.vegdist(env[[var]], method="euclidean")
-       mantel = nuee.mantel(dist, env_dist)
-       print(f"Mantel test - {var}: r={mantel.r_statistic:.3f}, p={mantel.p_value:.3f}")
+       # 4. Test for environmental effects
+       dist = nuee.vegdist(species, method="bray")
+
+       # Correlation with individual variables
+       for var in ['N', 'P', 'K', 'pH']:
+           env_dist = nuee.vegdist(env[[var]], method="euclidean")
+           mantel = nuee.mantel(dist, env_dist)
+           print(f"Mantel test - {var}: r={mantel.r_statistic:.3f}, p={mantel.p_value:.3f}")
 
 Example 2: Vegetation Classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
