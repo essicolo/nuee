@@ -140,25 +140,27 @@ Diversity Analysis Workflow
 Hypothesis Testing Workflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
+   >>> import nuee
 
-   # Load data
-   species = nuee.datasets.dune()
-   env = nuee.datasets.dune_env()
+   >>> # Load data
+   >>> species = nuee.datasets.dune()
+   >>> env = nuee.datasets.dune_env()
 
-   # Calculate distances
-   dist = nuee.vegdist(species, method="bray")
+   >>> # Calculate distances
+   >>> dist = nuee.vegdist(species, method="bray")
 
-   # Test for group differences (PERMANOVA)
-   perm_result = nuee.adonis2(dist, env['Management'])
-   print(f"R^2: {perm_result.r_squared:.3f}")
-   print(f"p-value: {perm_result.p_value:.3f}")
+   >>> # Test for group differences (PERMANOVA)
+   >>> perm_result = nuee.adonis2(dist, env['Management'])
+   >>> print(f"R^2: {perm_result.R2[0]:.3f}")
+   R^2: 0.342
+   >>> print(f"p-value: {perm_result["Pr(>F)"][0]:.3f}") # doctest: +ELLIPSIS
+   p-value: ...
 
-   # Test for homogeneity of dispersions
-   betadisp = nuee.betadisper(dist, env['Management'])
-   print(betadisp)
+   >>> # Test for homogeneity of dispersions
+   >>> betadisp = nuee.betadisper(dist, env['Management'])
+   >>> print(betadisp) # doctest: +SKIP
 
 Tips and Best Practices
 -----------------------
