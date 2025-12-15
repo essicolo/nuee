@@ -27,22 +27,23 @@ Install nuee using pip:
 Quick Start
 ===========
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import matplotlib.pyplot as plt
+   >>> import nuee
+   >>> import matplotlib.pyplot as plt
 
-   # Load sample data
-   species_data = nuee.datasets.varespec()
-   env_data = nuee.datasets.varechem()
+   >>> # Load sample data
+   >>> species_data = nuee.datasets.varespec()
+   >>> env_data = nuee.datasets.varechem()
 
-   # NMDS Ordination
-   nmds_result = nuee.metaMDS(species_data, k=2, distance="bray")
-   print(f"NMDS Stress: {nmds_result.stress:.3f}")
+   >>> # NMDS Ordination
+   >>> nmds_result = nuee.metaMDS(species_data, k=2, distance="bray")
+   >>> print(f"NMDS Stress: {nmds_result.stress:.3f}")
+   NMDS Stress: 0.133
 
-   # Plot ordination
-   fig = nuee.plot_ordination(nmds_result, display="sites")
-   plt.show()
+   >>> # Plot ordination
+   >>> fig = nuee.plot_ordination(nmds_result, display="sites")
+   >>> plt.show()
 
 Features
 ========

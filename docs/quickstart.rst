@@ -6,49 +6,53 @@ This guide will get you started with nuee quickly.
 Basic NMDS Analysis
 -------------------
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   import matplotlib.pyplot as plt
+   >>> import nuee
+   >>> import matplotlib.pyplot as plt
 
-   # Load sample data
-   species_data = nuee.datasets.varespec()
-   env_data = nuee.datasets.varechem()
+   >>> # Load sample data
+   >>> species_data = nuee.datasets.varespec()
+   >>> env_data = nuee.datasets.varechem()
 
-   # Perform NMDS ordination
-   nmds_result = nuee.metaMDS(species_data, k=2, distance="bray")
-   print(f"NMDS Stress: {nmds_result.stress:.3f}")
+   >>> # Perform NMDS ordination
+   >>> nmds_result = nuee.metaMDS(species_data, k=2, distance="bray")
+   >>> print(f"NMDS Stress: {nmds_result.stress:.3f}")
+   NMDS Stress: 0.133
 
-   # Plot the ordination
-   fig = nuee.plot_ordination(nmds_result, display="sites")
-   plt.title("NMDS Ordination of Lichen Communities")
-   plt.show()
+   >>> # Plot the ordination
+   >>> fig = nuee.plot_ordination(nmds_result, display="sites")
+   >>> plt.title("NMDS Ordination of Lichen Communities") # doctest: +SKIP
+   >>> plt.show()
 
 Diversity Analysis
 ------------------
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
+   >>> import nuee
 
-   # Load data
-   species = nuee.datasets.BCI()
+   >>> # Load data
+   >>> species = nuee.datasets.BCI()
 
-   # Calculate Shannon diversity
-   shannon_div = nuee.shannon(species)
-   print(f"Mean Shannon diversity: {shannon_div.mean():.3f}")
+   >>> # Calculate Shannon diversity
+   >>> shannon_div = nuee.shannon(species)
+   >>> print(f"Mean Shannon diversity: {shannon_div.mean():.3f}")
+   Mean Shannon diversity: 3.821
 
-   # Calculate Gini-Simpson diversity (1 - sum(p^2))
-   simpson_div = nuee.simpson(species)
-   print(f"Mean Gini-Simpson diversity: {simpson_div.mean():.3f}")
+   >>> # Calculate Gini-Simpson diversity (1 - sum(p^2))
+   >>> simpson_div = nuee.simpson(species)
+   >>> print(f"Mean Gini-Simpson diversity: {simpson_div.mean():.3f}")
+   Mean Gini-Simpson diversity: 0.959
 
-   # Calculate species richness
-   richness = nuee.specnumber(species)
-   print(f"Mean species richness: {richness.mean():.1f}")
+   >>> # Calculate species richness
+   >>> richness = nuee.specnumber(species)
+   >>> print(f"Mean species richness: {richness.mean():.1f}")
+   Mean species richness: 90.8
 
-   # Plot diversity
-   fig = nuee.plot_diversity(shannon_div)
-   plt.show()
+   >>> # Plot diversity
+   >>> fig = nuee.plot_diversity(shannon_div)
+   >>> plt.show()
 
 Constrained Ordination (RDA)
 -----------------------------
