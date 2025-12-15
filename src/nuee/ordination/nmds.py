@@ -296,6 +296,7 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     -------
     OrdinationResult
         Result object containing:
+
         - points : pd.DataFrame
             Site (sample) scores in the ordination space
         - species : pd.DataFrame, optional

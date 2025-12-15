@@ -11,6 +11,11 @@ commonly used in community ecology, including:
 - Species richness
 """
 
+from .accumulation import (
+    specaccum,
+    poolaccum,
+)
+from .base import DiversityResult
 from .diversity import (
     diversity,
     shannon,
@@ -20,29 +25,24 @@ from .diversity import (
     specnumber,
     evenness,
 )
-
 from .rarefaction import (
     rarefy,
     rarecurve,
     estimateR,
 )
 
-from .accumulation import (
-    specaccum,
-    poolaccum,
-)
-
 __all__ = [
     "diversity",
-    "shannon", 
+    "shannon",
     "simpson",
     "fisher_alpha",
     "renyi",
     "specnumber",
     "evenness",
     "rarefy",
-    "rarecurve", 
+    "rarecurve",
     "estimateR",
     "specaccum",
     "poolaccum",
+    "DiversityResult"
 ]
