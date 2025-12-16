@@ -178,13 +178,13 @@ def __():
     print("=" * 30)
     print(missing_summary[missing_summary['Missing_Count'] > 0])
     
-    print(f"\\nMissing Data Patterns:")
+    print(f"\nMissing Data Patterns:")
     print("Variables Missing | Number of Cases")
     print("-" * 35)
     for n_missing, count in missing_patterns.items():
         print(f"       {n_missing:2d}         |      {count:3d}")
     
-    print(f"\\nMissing Data Correlations:")
+    print(f"\nMissing Data Correlations:")
     print(missing_corr.round(3))
     
     # Test for Missing Completely at Random (MCAR)
@@ -215,7 +215,7 @@ def __():
     
     mcar_results = little_mcar_test_simplified(quality_data)
     
-    print(f"\\nMCAR Test Results (simplified):") 
+    print(f"\nMCAR Test Results (simplified):") 
     significant_tests = [k for k, v in mcar_results.items() if v['significant']]
     
     if significant_tests:
@@ -266,7 +266,8 @@ def __():
         return outliers
     
     # Apply univariate outlier detection
-    outlier_results = {}\n    
+    outlier_results = {}
+    
     for column in ['temperature', 'precipitation', 'species_richness', 'soil_pH']:
         outlier_results[column] = {
             'iqr': detect_univariate_outliers(quality_data[column], 'iqr'),
@@ -300,7 +301,8 @@ def __():
         scaler = StandardScaler()
         data_scaled = scaler.fit_transform(data_clean)
         
-        methods = {}\n        
+        methods = {}
+        
         # Isolation Forest
         iso_forest = IsolationForest(contamination=contamination, random_state=42)
         iso_outliers = iso_forest.fit_predict(data_scaled) == -1
@@ -319,7 +321,46 @@ def __():
             inv_cov_matrix = np.linalg.inv(cov_matrix)
             mean_vector = np.mean(data_scaled, axis=0)
             
-            mahal_distances = []\n            for i in range(len(data_scaled)):\n                diff = data_scaled[i] - mean_vector\n                mahal_dist = np.sqrt(diff @ inv_cov_matrix @ diff.T)\n                mahal_distances.append(mahal_dist)\n            \n            mahal_threshold = np.percentile(mahal_distances, (1-contamination)*100)\n            mahal_outliers = np.array(mahal_distances) > mahal_threshold\n            methods['mahalanobis'] = pd.Series(False, index=df.index)\n            methods['mahalanobis'].loc[data_clean.index] = mahal_outliers\n            \n        except np.linalg.LinAlgError:\n            methods['mahalanobis'] = pd.Series(False, index=df.index)\n        \n        return methods\n    \n    multivariate_outliers = detect_multivariate_outliers(quality_data)\n    \n    print(f\"\\nMultivariate Outlier Detection:\")\n    for method, outliers in multivariate_outliers.items():\n        print(f\"{method.replace('_', ' ').title()}: {outliers.sum()} outliers\")\n    \n    # Consensus outliers (detected by multiple methods)\n    outlier_counts = pd.DataFrame(multivariate_outliers).sum(axis=1)\n    consensus_outliers = outlier_counts >= 2\n    \n    print(f\"\\nConsensus outliers (2+ methods): {consensus_outliers.sum()}\")\n    \n    return (\n        consensus_outliers,\n        detect_multivariate_outliers,\n        detect_univariate_outliers,\n        iqr_count,\n        methods,\n        mod_zscore_count,\n        multivariate_outliers,\n        outlier_counts,\n        outlier_results,\n        zscore_count,\n    )
+            mahal_distances = []
+            for i in range(len(data_scaled)):
+                diff = data_scaled[i] - mean_vector
+                mahal_dist = np.sqrt(diff @ inv_cov_matrix @ diff.T)
+                mahal_distances.append(mahal_dist)
+            
+            mahal_threshold = np.percentile(mahal_distances, (1-contamination)*100)
+            mahal_outliers = np.array(mahal_distances) > mahal_threshold
+            methods['mahalanobis'] = pd.Series(False, index=df.index)
+            methods['mahalanobis'].loc[data_clean.index] = mahal_outliers
+            
+        except np.linalg.LinAlgError:
+            methods['mahalanobis'] = pd.Series(False, index=df.index)
+        
+        return methods
+    
+    multivariate_outliers = detect_multivariate_outliers(quality_data)
+    
+    print(f"\nMultivariate Outlier Detection:")
+    for method, outliers in multivariate_outliers.items():
+        print(f"{method.replace('_', ' ').title()}: {outliers.sum()} outliers")
+    
+    # Consensus outliers (detected by multiple methods)
+    outlier_counts = pd.DataFrame(multivariate_outliers).sum(axis=1)
+    consensus_outliers = outlier_counts >= 2
+    
+    print(f"\nConsensus outliers (2+ methods): {consensus_outliers.sum()}")
+    
+    return (
+        consensus_outliers,
+        detect_multivariate_outliers,
+        detect_univariate_outliers,
+        iqr_count,
+        methods,
+        mod_zscore_count,
+        multivariate_outliers,
+        outlier_counts,
+        outlier_results,
+        zscore_count,
+    )
 
 
 @app.cell
@@ -328,14 +369,601 @@ def __():
     ## Data Validation and Logical Constraints
     """
     def validate_ecological_data(df):
-        \"\"\"Validate ecological data against known constraints\"\"\"\n        validation_issues = []\n        \n        # 1. Range checks\n        range_constraints = {\n            'temperature': (-50, 60),  # Celsius\n            'precipitation': (0, 5000),  # mm/year\n            'elevation': (0, 9000),  # meters\n            'soil_pH': (0, 14),\n            'species_richness': (0, 1000),\n            'total_abundance': (0, 100000),\n            'shannon_diversity': (0, 10)\n        }\n        \n        for column, (min_val, max_val) in range_constraints.items():\n            if column in df.columns:\n                out_of_range = (df[column] < min_val) | (df[column] > max_val)\n                if out_of_range.any():\n                    validation_issues.append({\n                        'type': 'range_violation',\n                        'column': column,\n                        'count': out_of_range.sum(),\n                        'indices': df.index[out_of_range].tolist()\n                    })\n        \n        # 2. Logical consistency checks\n        \n        # Species richness should be <= total abundance (can't have more species than individuals)\n        if 'species_richness' in df.columns and 'total_abundance' in df.columns:\n            richness_abundance_issue = df['species_richness'] > df['total_abundance']\n            if richness_abundance_issue.any():\n                validation_issues.append({\n                    'type': 'logical_inconsistency',\n                    'description': 'Species richness > total abundance',\n                    'count': richness_abundance_issue.sum(),\n                    'indices': df.index[richness_abundance_issue].tolist()\n                })\n        \n        # Shannon diversity should be <= log(species richness)\n        if 'shannon_diversity' in df.columns and 'species_richness' in df.columns:\n            max_shannon = np.log(df['species_richness'].replace(0, 1))  # Avoid log(0)\n            shannon_too_high = df['shannon_diversity'] > max_shannon * 1.1  # Small tolerance\n            if shannon_too_high.any():\n                validation_issues.append({\n                    'type': 'logical_inconsistency',\n                    'description': 'Shannon diversity too high for species richness',\n                    'count': shannon_too_high.sum(),\n                    'indices': df.index[shannon_too_high].tolist()\n                })\n        \n        # Zero species but positive abundance\n        if 'species_richness' in df.columns and 'total_abundance' in df.columns:\n            zero_species_pos_abundance = (df['species_richness'] == 0) & (df['total_abundance'] > 0)\n            if zero_species_pos_abundance.any():\n                validation_issues.append({\n                    'type': 'logical_inconsistency',\n                    'description': 'Zero species but positive abundance',\n                    'count': zero_species_pos_abundance.sum(),\n                    'indices': df.index[zero_species_pos_abundance].tolist()\n                })\n        \n        # 3. Statistical outliers in relationships\n        \n        # Check for unusual temperature-elevation relationships\n        if 'temperature' in df.columns and 'elevation' in df.columns:\n            # Expected: temperature decreases with elevation (~6.5°C per 1000m)\n            expected_temp = 20 - (df['elevation'] / 1000) * 6.5\n            temp_residuals = df['temperature'] - expected_temp\n            extreme_temp_elev = np.abs(temp_residuals) > 15  # > 15°C deviation\n            \n            if extreme_temp_elev.any():\n                validation_issues.append({\n                    'type': 'relationship_outlier',\n                    'description': 'Unusual temperature-elevation relationship',\n                    'count': extreme_temp_elev.sum(),\n                    'indices': df.index[extreme_temp_elev].tolist()\n                })\n        \n        return validation_issues\n    \n    # Validate the dataset\n    validation_results = validate_ecological_data(quality_data)\n    \n    print(\"Data Validation Results:\")\n    print(\"=\" * 30)\n    \n    if not validation_results:\n        print(\"No validation issues detected.\")\n    else:\n        for issue in validation_results:\n            print(f\"\\n{issue['type'].replace('_', ' ').title()}:\")\n            if 'column' in issue:\n                print(f\"  Column: {issue['column']}\")\n            if 'description' in issue:\n                print(f\"  Description: {issue['description']}\")\n            print(f\"  Count: {issue['count']}\")\n            print(f\"  Sample indices: {issue['indices'][:5]}...\")  # Show first 5\n    \n    # Create a data quality score\n    def calculate_quality_score(df, validation_issues):\n        \"\"\"Calculate overall data quality score (0-100)\"\"\"\n        total_cells = df.shape[0] * df.shape[1]\n        \n        # Penalties\n        missing_penalty = df.isnull().sum().sum() / total_cells * 100\n        \n        validation_penalty = 0\n        for issue in validation_issues:\n            validation_penalty += issue['count']\n        validation_penalty = (validation_penalty / df.shape[0]) * 100\n        \n        # Quality score (higher is better)\n        quality_score = 100 - missing_penalty - validation_penalty\n        quality_score = max(0, quality_score)  # Ensure non-negative\n        \n        return {\n            'overall_score': quality_score,\n            'missing_penalty': missing_penalty,\n            'validation_penalty': validation_penalty\n        }\n    \n    quality_score = calculate_quality_score(quality_data, validation_results)\n    \n    print(f\"\\nData Quality Assessment:\")\n    print(f\"Overall Quality Score: {quality_score['overall_score']:.1f}/100\")\n    print(f\"Missing Data Penalty: {quality_score['missing_penalty']:.1f}%\")\n    print(f\"Validation Issues Penalty: {quality_score['validation_penalty']:.1f}%\")\n    \n    return (\n        calculate_quality_score,\n        expected_temp,\n        extreme_temp_elev,\n        max_shannon,\n        quality_score,\n        range_constraints,\n        richness_abundance_issue,\n        shannon_too_high,\n        temp_residuals,\n        validate_ecological_data,\n        validation_results,\n        zero_species_pos_abundance,\n    )
+        """Validate ecological data against known constraints"""
+        validation_issues = []
+        
+        # 1. Range checks
+        range_constraints = {
+            'temperature': (-50, 60),  # Celsius
+            'precipitation': (0, 5000),  # mm/year
+            'elevation': (0, 9000),  # meters
+            'soil_pH': (0, 14),
+            'species_richness': (0, 1000),
+            'total_abundance': (0, 100000),
+            'shannon_diversity': (0, 10)
+        }
+        
+        for column, (min_val, max_val) in range_constraints.items():
+            if column in df.columns:
+                out_of_range = (df[column] < min_val) | (df[column] > max_val)
+                if out_of_range.any():
+                    validation_issues.append({
+                        'type': 'range_violation',
+                        'column': column,
+                        'count': out_of_range.sum(),
+                        'indices': df.index[out_of_range].tolist()
+                    })
+        
+        # 2. Logical consistency checks
+        
+        # Species richness should be <= total abundance (can't have more species than individuals)
+        if 'species_richness' in df.columns and 'total_abundance' in df.columns:
+            richness_abundance_issue = df['species_richness'] > df['total_abundance']
+            if richness_abundance_issue.any():
+                validation_issues.append({
+                    'type': 'logical_inconsistency',
+                    'description': 'Species richness > total abundance',
+                    'count': richness_abundance_issue.sum(),
+                    'indices': df.index[richness_abundance_issue].tolist()
+                })
+        
+        # Shannon diversity should be <= log(species richness)
+        if 'shannon_diversity' in df.columns and 'species_richness' in df.columns:
+            max_shannon = np.log(df['species_richness'].replace(0, 1))  # Avoid log(0)
+            shannon_too_high = df['shannon_diversity'] > max_shannon * 1.1  # Small tolerance
+            if shannon_too_high.any():
+                validation_issues.append({
+                    'type': 'logical_inconsistency',
+                    'description': 'Shannon diversity too high for species richness',
+                    'count': shannon_too_high.sum(),
+                    'indices': df.index[shannon_too_high].tolist()
+                })
+        
+        # Zero species but positive abundance
+        if 'species_richness' in df.columns and 'total_abundance' in df.columns:
+            zero_species_pos_abundance = (df['species_richness'] == 0) & (df['total_abundance'] > 0)
+            if zero_species_pos_abundance.any():
+                validation_issues.append({
+                    'type': 'logical_inconsistency',
+                    'description': 'Zero species but positive abundance',
+                    'count': zero_species_pos_abundance.sum(),
+                    'indices': df.index[zero_species_pos_abundance].tolist()
+                })
+        
+        # 3. Statistical outliers in relationships
+        
+        # Check for unusual temperature-elevation relationships
+        if 'temperature' in df.columns and 'elevation' in df.columns:
+            # Expected: temperature decreases with elevation (~6.5°C per 1000m)
+            expected_temp = 20 - (df['elevation'] / 1000) * 6.5
+            temp_residuals = df['temperature'] - expected_temp
+            extreme_temp_elev = np.abs(temp_residuals) > 15  # > 15°C deviation
+            
+            if extreme_temp_elev.any():
+                validation_issues.append({
+                    'type': 'relationship_outlier',
+                    'description': 'Unusual temperature-elevation relationship',
+                    'count': extreme_temp_elev.sum(),
+                    'indices': df.index[extreme_temp_elev].tolist()
+                })
+        
+        return validation_issues
+    
+    # Validate the dataset
+    validation_results = validate_ecological_data(quality_data)
+    
+    print("Data Validation Results:")
+    print("=" * 30)
+    
+    if not validation_results:
+        print("No validation issues detected.")
+    else:
+        for issue in validation_results:
+            print(f"\n{issue['type'].replace('_', ' ').title()}:")
+            if 'column' in issue:
+                print(f"  Column: {issue['column']}")
+            if 'description' in issue:
+                print(f"  Description: {issue['description']}")
+            print(f"  Count: {issue['count']}")
+            print(f"  Sample indices: {issue['indices'][:5]}...")  # Show first 5
+    
+    # Create a data quality score
+    def calculate_quality_score(df, validation_issues):
+        """Calculate overall data quality score (0-100)"""
+        total_cells = df.shape[0] * df.shape[1]
+        
+        # Penalties
+        missing_penalty = df.isnull().sum().sum() / total_cells * 100
+        
+        validation_penalty = 0
+        for issue in validation_issues:
+            validation_penalty += issue['count']
+        validation_penalty = (validation_penalty / df.shape[0]) * 100
+        
+        # Quality score (higher is better)
+        quality_score = 100 - missing_penalty - validation_penalty
+        quality_score = max(0, quality_score)  # Ensure non-negative
+        
+        return {
+            'overall_score': quality_score,
+            'missing_penalty': missing_penalty,
+            'validation_penalty': validation_penalty
+        }
+    
+    quality_score = calculate_quality_score(quality_data, validation_results)
+    
+    print(f"\nData Quality Assessment:")
+    print(f"Overall Quality Score: {quality_score['overall_score']:.1f}/100")
+    print(f"Missing Data Penalty: {quality_score['missing_penalty']:.1f}%")
+    print(f"Validation Issues Penalty: {quality_score['validation_penalty']:.1f}%")
+    
+    return (
+        calculate_quality_score,
+        expected_temp,
+        extreme_temp_elev,
+        max_shannon,
+        quality_score,
+        range_constraints,
+        richness_abundance_issue,
+        shannon_too_high,
+        temp_residuals,
+        validate_ecological_data,
+        validation_results,
+        zero_species_pos_abundance,
+    )
 
 
 @app.cell
 def __():
-    \"\"\"
+    """
     ## Missing Data Imputation
-    \"\"\"\n    # Prepare data for imputation\n    def impute_missing_data(df, method='knn'):\n        \"\"\"Impute missing data using various methods\"\"\"\n        numeric_cols = df.select_dtypes(include=[np.number]).columns\n        df_numeric = df[numeric_cols].copy()\n        \n        imputation_results = {}\n        \n        # 1. Simple imputation methods\n        if method == 'mean':\n            imputer = SimpleImputer(strategy='mean')\n            imputed_data = pd.DataFrame(\n                imputer.fit_transform(df_numeric),\n                columns=df_numeric.columns,\n                index=df_numeric.index\n            )\n            \n        elif method == 'median':\n            imputer = SimpleImputer(strategy='median')\n            imputed_data = pd.DataFrame(\n                imputer.fit_transform(df_numeric),\n                columns=df_numeric.columns,\n                index=df_numeric.index\n            )\n            \n        elif method == 'knn':\n            # K-Nearest Neighbors imputation\n            imputer = KNNImputer(n_neighbors=5)\n            imputed_data = pd.DataFrame(\n                imputer.fit_transform(df_numeric),\n                columns=df_numeric.columns,\n                index=df_numeric.index\n            )\n        \n        # Track which values were imputed\n        imputed_mask = df_numeric.isnull()\n        \n        return imputed_data, imputed_mask\n    \n    # Compare different imputation methods\n    imputation_methods = ['mean', 'median', 'knn']\n    imputation_comparison = {}\n    \n    for method in imputation_methods:\n        imputed_data, imputed_mask = impute_missing_data(quality_data, method)\n        imputation_comparison[method] = {\n            'data': imputed_data,\n            'mask': imputed_mask\n        }\n    \n    # Evaluate imputation quality (where we have complete data)\n    def evaluate_imputation_quality(original_data, imputed_data, imputed_mask):\n        \"\"\"Evaluate imputation quality using various metrics\"\"\"\n        metrics = {}\n        \n        for column in imputed_data.columns:\n            if imputed_mask[column].any():\n                # Compare imputed values to original distribution\n                original_values = original_data[column].dropna()\n                imputed_values = imputed_data.loc[imputed_mask[column], column]\n                \n                if len(imputed_values) > 0 and len(original_values) > 0:\n                    # Kolmogorov-Smirnov test\n                    ks_stat, ks_p = stats.ks_2samp(original_values, imputed_values)\n                    \n                    # Mean and variance preservation\n                    mean_diff = abs(imputed_values.mean() - original_values.mean())\n                    var_ratio = imputed_values.var() / original_values.var()\n                    \n                    metrics[column] = {\n                        'ks_statistic': ks_stat,\n                        'ks_p_value': ks_p,\n                        'mean_difference': mean_diff,\n                        'variance_ratio': var_ratio,\n                        'n_imputed': len(imputed_values)\n                    }\n        \n        return metrics\n    \n    print(\"Imputation Method Comparison:\")\n    print(\"=\" * 35)\n    \n    for method, results in imputation_comparison.items():\n        print(f\"\\n{method.upper()} Imputation:\")\n        \n        # Evaluate quality\n        quality_metrics = evaluate_imputation_quality(\n            quality_data, results['data'], results['mask']\n        )\n        \n        for column, metrics in quality_metrics.items():\n            print(f\"  {column}:\")\n            print(f\"    Imputed values: {metrics['n_imputed']}\")\n            print(f\"    KS p-value: {metrics['ks_p_value']:.3f}\")\n            print(f\"    Mean difference: {metrics['mean_difference']:.3f}\")\n            print(f\"    Variance ratio: {metrics['variance_ratio']:.3f}\")\n    \n    # Select best imputation method based on overall performance\n    def select_best_imputation(comparison_results):\n        \"\"\"Select best imputation method based on multiple criteria\"\"\"\n        method_scores = {}\n        \n        for method, results in comparison_results.items():\n            quality_metrics = evaluate_imputation_quality(\n                quality_data, results['data'], results['mask']\n            )\n            \n            # Calculate composite score\n            score = 0\n            count = 0\n            \n            for column, metrics in quality_metrics.items():\n                # Higher p-value is better (distributions more similar)\n                score += metrics['ks_p_value']\n                # Variance ratio closer to 1 is better\n                score += (1 - abs(1 - metrics['variance_ratio']))\n                count += 2\n            \n            if count > 0:\n                method_scores[method] = score / count\n        \n        best_method = max(method_scores, key=method_scores.get)\n        return best_method, method_scores\n    \n    best_method, method_scores = select_best_imputation(imputation_comparison)\n    \n    print(f\"\\nImputation Method Scores:\")\n    for method, score in method_scores.items():\n        print(f\"  {method}: {score:.3f}\")\n    \n    print(f\"\\nBest imputation method: {best_method.upper()}\")\n    \n    # Apply best imputation\n    final_imputed_data = imputation_comparison[best_method]['data']\n    \n    return (\n        best_method,\n        evaluate_imputation_quality,\n        final_imputed_data,\n        imputation_comparison,\n        imputation_methods,\n        impute_missing_data,\n        method_scores,\n        quality_metrics,\n        select_best_imputation,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Robust Statistical Methods\n    \"\"\"\n    # Implement robust alternatives for noisy data\n    def robust_statistics(series):\n        \"\"\"Calculate robust statistical measures\"\"\"\n        cleaned_series = series.dropna()\n        \n        if len(cleaned_series) == 0:\n            return {}\n        \n        robust_stats = {\n            # Central tendency\n            'mean': cleaned_series.mean(),\n            'median': cleaned_series.median(),\n            'trimmed_mean_10': stats.trim_mean(cleaned_series, 0.1),\n            'trimmed_mean_20': stats.trim_mean(cleaned_series, 0.2),\n            \n            # Variability\n            'std': cleaned_series.std(),\n            'mad': np.median(np.abs(cleaned_series - cleaned_series.median())),  # Median Absolute Deviation\n            'iqr': cleaned_series.quantile(0.75) - cleaned_series.quantile(0.25),\n            \n            # Percentiles\n            'q25': cleaned_series.quantile(0.25),\n            'q75': cleaned_series.quantile(0.75),\n            \n            # Robust correlation (would need pairs of variables)\n            'n_observations': len(cleaned_series)\n        }\n        \n        return robust_stats\n    \n    # Calculate robust statistics for key variables\n    print(\"Robust Statistics Comparison:\")\n    print(\"=\" * 40)\n    \n    for column in ['temperature', 'species_richness', 'soil_pH']:\n        if column in quality_data.columns:\n            original_stats = robust_statistics(quality_data[column])\n            imputed_stats = robust_statistics(final_imputed_data[column])\n            \n            print(f\"\\n{column.upper()}:\")\n            print(f\"                    | Original | Imputed \")\n            print(\"-\" * 40)\n            \n            for stat_name in ['mean', 'median', 'trimmed_mean_10', 'std', 'mad']:\n                if stat_name in original_stats and stat_name in imputed_stats:\n                    orig_val = original_stats[stat_name]\n                    imp_val = imputed_stats[stat_name]\n                    print(f\"{stat_name:18} | {orig_val:7.2f}  | {imp_val:7.2f}\")\n    \n    # Robust correlation analysis\n    def robust_correlation(df, method='spearman'):\n        \"\"\"Calculate robust correlations\"\"\"\n        numeric_cols = df.select_dtypes(include=[np.number]).columns\n        \n        if method == 'spearman':\n            corr_matrix = df[numeric_cols].corr(method='spearman')\n        elif method == 'kendall':\n            corr_matrix = df[numeric_cols].corr(method='kendall')\n        else:\n            corr_matrix = df[numeric_cols].corr(method='pearson')\n        \n        return corr_matrix\n    \n    # Compare correlation matrices\n    pearson_corr = robust_correlation(final_imputed_data, 'pearson')\n    spearman_corr = robust_correlation(final_imputed_data, 'spearman')\n    \n    print(f\"\\nCorrelation Comparison (Species Richness vs Temperature):\")\n    if 'species_richness' in pearson_corr.columns and 'temperature' in pearson_corr.columns:\n        pearson_val = pearson_corr.loc['species_richness', 'temperature']\n        spearman_val = spearman_corr.loc['species_richness', 'temperature']\n        \n        print(f\"Pearson correlation:  {pearson_val:.3f}\")\n        print(f\"Spearman correlation: {spearman_val:.3f}\")\n        \n        if abs(pearson_val - spearman_val) > 0.1:\n            print(\"Large difference suggests non-linear relationship or outliers\")\n    \n    return (\n        imputed_stats,\n        original_stats,\n        pearson_corr,\n        pearson_val,\n        robust_correlation,\n        robust_statistics,\n        spearman_corr,\n        spearman_val,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Data Cleaning Workflow\n    \"\"\"\n    def comprehensive_data_cleaning(df, outlier_method='consensus', imputation_method='knn'):\n        \"\"\"Comprehensive data cleaning workflow\"\"\"\n        \n        cleaning_log = []\n        df_cleaned = df.copy()\n        \n        # Step 1: Initial data assessment\n        initial_shape = df_cleaned.shape\n        initial_missing = df_cleaned.isnull().sum().sum()\n        cleaning_log.append(f\"Initial data: {initial_shape[0]} rows, {initial_shape[1]} columns\")\n        cleaning_log.append(f\"Initial missing values: {initial_missing}\")\n        \n        # Step 2: Remove completely empty rows/columns\n        # Remove rows that are completely empty\n        empty_rows = df_cleaned.isnull().all(axis=1)\n        if empty_rows.any():\n            df_cleaned = df_cleaned[~empty_rows]\n            cleaning_log.append(f\"Removed {empty_rows.sum()} completely empty rows\")\n        \n        # Remove columns that are completely empty\n        empty_cols = df_cleaned.isnull().all(axis=0)\n        if empty_cols.any():\n            df_cleaned = df_cleaned.loc[:, ~empty_cols]\n            cleaning_log.append(f\"Removed {empty_cols.sum()} completely empty columns\")\n        \n        # Step 3: Handle extreme outliers (likely data entry errors)\n        outliers_removed = 0\n        \n        if outlier_method == 'consensus':\n            # Use consensus from multiple methods\n            multivariate_outliers_new = detect_multivariate_outliers(df_cleaned, contamination=0.05)\n            \n            if multivariate_outliers_new:\n                outlier_counts_new = pd.DataFrame(multivariate_outliers_new).sum(axis=1)\n                extreme_outliers = outlier_counts_new >= 2\n                \n                if extreme_outliers.any():\n                    outliers_removed = extreme_outliers.sum()\n                    df_cleaned = df_cleaned[~extreme_outliers]\n                    cleaning_log.append(f\"Removed {outliers_removed} extreme outliers\")\n        \n        # Step 4: Fix obvious data entry errors\n        # Example: Fix precipitation unit errors (values > 3000 likely in wrong units)\n        if 'precipitation' in df_cleaned.columns:\n            precip_errors = df_cleaned['precipitation'] > 3000\n            if precip_errors.any():\n                df_cleaned.loc[precip_errors, 'precipitation'] /= 10  # Convert mm to cm\n                cleaning_log.append(f\"Fixed {precip_errors.sum()} precipitation unit errors\")\n        \n        # Step 5: Handle impossible values\n        impossible_fixed = 0\n        \n        # Zero species with positive abundance\n        if 'species_richness' in df_cleaned.columns and 'total_abundance' in df_cleaned.columns:\n            impossible_cases = (df_cleaned['species_richness'] == 0) & (df_cleaned['total_abundance'] > 0)\n            if impossible_cases.any():\n                # Set species richness to 1 (minimum possible)\n                df_cleaned.loc[impossible_cases, 'species_richness'] = 1\n                impossible_fixed += impossible_cases.sum()\n        \n        if impossible_fixed > 0:\n            cleaning_log.append(f\"Fixed {impossible_fixed} impossible value combinations\")\n        \n        # Step 6: Impute missing values\n        numeric_cols = df_cleaned.select_dtypes(include=[np.number]).columns\n        missing_before = df_cleaned[numeric_cols].isnull().sum().sum()\n        \n        if missing_before > 0:\n            if imputation_method == 'knn':\n                imputer = KNNImputer(n_neighbors=5)\n            elif imputation_method == 'median':\n                imputer = SimpleImputer(strategy='median')\n            else:\n                imputer = SimpleImputer(strategy='mean')\n            \n            df_cleaned[numeric_cols] = imputer.fit_transform(df_cleaned[numeric_cols])\n            cleaning_log.append(f\"Imputed {missing_before} missing values using {imputation_method}\")\n        \n        # Step 7: Final validation\n        final_validation = validate_ecological_data(df_cleaned)\n        remaining_issues = len(final_validation)\n        cleaning_log.append(f\"Final validation: {remaining_issues} issues remaining\")\n        \n        # Step 8: Calculate final quality score\n        final_quality = calculate_quality_score(df_cleaned, final_validation)\n        cleaning_log.append(f\"Final quality score: {final_quality['overall_score']:.1f}/100\")\n        \n        return df_cleaned, cleaning_log, final_validation\n    \n    # Apply comprehensive cleaning\n    cleaned_data, cleaning_log, final_validation = comprehensive_data_cleaning(quality_data)\n    \n    print(\"Data Cleaning Workflow:\")\n    print(\"=\" * 30)\n    \n    for step in cleaning_log:\n        print(f\"• {step}\")\n    \n    # Compare before and after\n    print(f\"\\nBefore vs After Cleaning:\")\n    print(f\"Shape: {quality_data.shape} → {cleaned_data.shape}\")\n    print(f\"Missing values: {quality_data.isnull().sum().sum()} → {cleaned_data.isnull().sum().sum()}\")\n    print(f\"Validation issues: {len(validation_results)} → {len(final_validation)}\")\n    \n    # Final data quality assessment\n    original_quality = calculate_quality_score(quality_data, validation_results)\n    final_quality_score = calculate_quality_score(cleaned_data, final_validation)\n    \n    print(f\"\\nQuality Score Improvement:\")\n    print(f\"Original: {original_quality['overall_score']:.1f}/100\")\n    print(f\"Cleaned:  {final_quality_score['overall_score']:.1f}/100\")\n    print(f\"Improvement: {final_quality_score['overall_score'] - original_quality['overall_score']:+.1f} points\")\n    \n    return (\n        cleaned_data,\n        cleaning_log,\n        comprehensive_data_cleaning,\n        final_quality_score,\n        final_validation,\n        impossible_fixed,\n        outliers_removed,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Summary and Best Practices\n\n    In this chapter, we covered comprehensive data quality assessment and improvement:\n\n    ✓ **Missing data analysis**: Patterns, correlations, and MCAR testing\n    ✓ **Outlier detection**: Univariate and multivariate methods\n    ✓ **Data validation**: Range checks and logical constraints\n    ✓ **Missing data imputation**: Multiple methods and quality evaluation\n    ✓ **Robust statistics**: Methods for noisy ecological data\n    ✓ **Comprehensive cleaning**: End-to-end workflow\n\n    ### Key Python Packages for Data Quality:\n    - **pandas**: Data manipulation and missing value handling\n    - **numpy**: Numerical operations and array processing\n    - **scipy.stats**: Statistical tests and robust methods\n    - **sklearn**: Machine learning-based outlier detection and imputation\n    - **holoviews**: Data quality visualization\n\n    ### Best Practices for Ecological Data Quality:\n    1. **Document everything**: Keep detailed logs of all cleaning steps\n    2. **Validate domain knowledge**: Use ecological constraints to check data\n    3. **Multiple methods**: Use several outlier detection approaches\n    4. **Preserve originals**: Always keep raw data unchanged\n    5. **Iterative process**: Clean, validate, and repeat as needed\n    6. **Quality metrics**: Quantify and track data quality improvements\n    7. **Bias awareness**: Consider how cleaning might introduce bias\n    8. **Expert review**: Have domain experts review flagged issues\n\n    ### Common Data Quality Issues in Ecology:\n    - **Measurement errors**: Equipment malfunction, human error\n    - **Unit confusion**: Mixed units (mm vs cm, °C vs °F)\n    - **Temporal misalignment**: Wrong dates or time zones\n    - **Spatial errors**: Incorrect coordinates or projections\n    - **Species misidentification**: Taxonomic errors\n    - **Sampling bias**: Non-representative data collection\n    - **Transcription errors**: Manual data entry mistakes\n    \"\"\"\n    \n    quality_summary = {\n        'Data Quality Assessment': {\n            'Original Quality Score': f\"{original_quality['overall_score']:.1f}/100\",\n            'Final Quality Score': f\"{final_quality_score['overall_score']:.1f}/100\",\n            'Improvement': f\"{final_quality_score['overall_score'] - original_quality['overall_score']:+.1f} points\"\n        },\n        'Issues Detected': {\n            'Missing Values': f\"{quality_data.isnull().sum().sum()}\",\n            'Validation Issues': f\"{len(validation_results)}\",\n            'Consensus Outliers': f\"{consensus_outliers.sum()}\"\n        },\n        'Cleaning Actions': {\n            'Outliers Removed': f\"{outliers_removed}\",\n            'Values Imputed': f\"{quality_data.isnull().sum().sum()}\",\n            'Issues Fixed': f\"{impossible_fixed}\"\n        },\n        'Final Dataset': {\n            'Shape': f\"{cleaned_data.shape[0]} × {cleaned_data.shape[1]}\",\n            'Missing Values': f\"{cleaned_data.isnull().sum().sum()}\",\n            'Remaining Issues': f\"{len(final_validation)}\"\n        }\n    }\n    \n    print(\"Data Quality Assessment Summary:\")\n    print(\"=\" * 40)\n    \n    for category, details in quality_summary.items():\n        print(f\"\\n{category}:\")\n        for key, value in details.items():\n            print(f\"  {key}: {value}\")\n    \n    print(\"\\n✓ Chapter 9 complete! Ready for machine learning applications.\")\n    \n    return quality_summary,\n\n\nif __name__ == \"__main__\":\n    app.run()
+    """
+    # Prepare data for imputation
+    def impute_missing_data(df, method='knn'):
+        """Impute missing data using various methods"""
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        df_numeric = df[numeric_cols].copy()
+        
+        imputation_results = {}
+        
+        # 1. Simple imputation methods
+        if method == 'mean':
+            imputer = SimpleImputer(strategy='mean')
+            imputed_data = pd.DataFrame(
+                imputer.fit_transform(df_numeric),
+                columns=df_numeric.columns,
+                index=df_numeric.index
+            )
+            
+        elif method == 'median':
+            imputer = SimpleImputer(strategy='median')
+            imputed_data = pd.DataFrame(
+                imputer.fit_transform(df_numeric),
+                columns=df_numeric.columns,
+                index=df_numeric.index
+            )
+            
+        elif method == 'knn':
+            # K-Nearest Neighbors imputation
+            imputer = KNNImputer(n_neighbors=5)
+            imputed_data = pd.DataFrame(
+                imputer.fit_transform(df_numeric),
+                columns=df_numeric.columns,
+                index=df_numeric.index
+            )
+        
+        # Track which values were imputed
+        imputed_mask = df_numeric.isnull()
+        
+        return imputed_data, imputed_mask
+    
+    # Compare different imputation methods
+    imputation_methods = ['mean', 'median', 'knn']
+    imputation_comparison = {}
+    
+    for method in imputation_methods:
+        imputed_data, imputed_mask = impute_missing_data(quality_data, method)
+        imputation_comparison[method] = {
+            'data': imputed_data,
+            'mask': imputed_mask
+        }
+    
+    # Evaluate imputation quality (where we have complete data)
+    def evaluate_imputation_quality(original_data, imputed_data, imputed_mask):
+        """Evaluate imputation quality using various metrics"""
+        metrics = {}
+        
+        for column in imputed_data.columns:
+            if imputed_mask[column].any():
+                # Compare imputed values to original distribution
+                original_values = original_data[column].dropna()
+                imputed_values = imputed_data.loc[imputed_mask[column], column]
+                
+                if len(imputed_values) > 0 and len(original_values) > 0:
+                    # Kolmogorov-Smirnov test
+                    ks_stat, ks_p = stats.ks_2samp(original_values, imputed_values)
+                    
+                    # Mean and variance preservation
+                    mean_diff = abs(imputed_values.mean() - original_values.mean())
+                    var_ratio = imputed_values.var() / original_values.var()
+                    
+                    metrics[column] = {
+                        'ks_statistic': ks_stat,
+                        'ks_p_value': ks_p,
+                        'mean_difference': mean_diff,
+                        'variance_ratio': var_ratio,
+                        'n_imputed': len(imputed_values)
+                    }
+        
+        return metrics
+    
+    print("Imputation Method Comparison:")
+    print("=" * 35)
+    
+    for method, results in imputation_comparison.items():
+        print(f"\n{method.upper()} Imputation:")
+        
+        # Evaluate quality
+        quality_metrics = evaluate_imputation_quality(
+            quality_data, results['data'], results['mask']
+        )
+        
+        for column, metrics in quality_metrics.items():
+            print(f"  {column}:")
+            print(f"    Imputed values: {metrics['n_imputed']}")
+            print(f"    KS p-value: {metrics['ks_p_value']:.3f}")
+            print(f"    Mean difference: {metrics['mean_difference']:.3f}")
+            print(f"    Variance ratio: {metrics['variance_ratio']:.3f}")
+    
+    # Select best imputation method based on overall performance
+    def select_best_imputation(comparison_results):
+        """Select best imputation method based on multiple criteria"""
+        method_scores = {}
+        
+        for method, results in comparison_results.items():
+            quality_metrics = evaluate_imputation_quality(
+                quality_data, results['data'], results['mask']
+            )
+            
+            # Calculate composite score
+            score = 0
+            count = 0
+            
+            for column, metrics in quality_metrics.items():
+                # Higher p-value is better (distributions more similar)
+                score += metrics['ks_p_value']
+                # Variance ratio closer to 1 is better
+                score += (1 - abs(1 - metrics['variance_ratio']))
+                count += 2
+            
+            if count > 0:
+                method_scores[method] = score / count
+        
+        best_method = max(method_scores, key=method_scores.get)
+        return best_method, method_scores
+    
+    best_method, method_scores = select_best_imputation(imputation_comparison)
+    
+    print(f"\nImputation Method Scores:")
+    for method, score in method_scores.items():
+        print(f"  {method}: {score:.3f}")
+    
+    print(f"\nBest imputation method: {best_method.upper()}")
+    
+    # Apply best imputation
+    final_imputed_data = imputation_comparison[best_method]['data']
+    
+    return (
+        best_method,
+        evaluate_imputation_quality,
+        final_imputed_data,
+        imputation_comparison,
+        imputation_methods,
+        impute_missing_data,
+        method_scores,
+        quality_metrics,
+        select_best_imputation,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Robust Statistical Methods
+    """
+    # Implement robust alternatives for noisy data
+    def robust_statistics(series):
+        """Calculate robust statistical measures"""
+        cleaned_series = series.dropna()
+        
+        if len(cleaned_series) == 0:
+            return {}
+        
+        robust_stats = {
+            # Central tendency
+            'mean': cleaned_series.mean(),
+            'median': cleaned_series.median(),
+            'trimmed_mean_10': stats.trim_mean(cleaned_series, 0.1),
+            'trimmed_mean_20': stats.trim_mean(cleaned_series, 0.2),
+            
+            # Variability
+            'std': cleaned_series.std(),
+            'mad': np.median(np.abs(cleaned_series - cleaned_series.median())),  # Median Absolute Deviation
+            'iqr': cleaned_series.quantile(0.75) - cleaned_series.quantile(0.25),
+            
+            # Percentiles
+            'q25': cleaned_series.quantile(0.25),
+            'q75': cleaned_series.quantile(0.75),
+            
+            # Robust correlation (would need pairs of variables)
+            'n_observations': len(cleaned_series)
+        }
+        
+        return robust_stats
+    
+    # Calculate robust statistics for key variables
+    print("Robust Statistics Comparison:")
+    print("=" * 40)
+    
+    for column in ['temperature', 'species_richness', 'soil_pH']:
+        if column in quality_data.columns:
+            original_stats = robust_statistics(quality_data[column])
+            imputed_stats = robust_statistics(final_imputed_data[column])
+            
+            print(f"\n{column.upper()}:")
+            print(f"                    | Original | Imputed ")
+            print("-" * 40)
+            
+            for stat_name in ['mean', 'median', 'trimmed_mean_10', 'std', 'mad']:
+                if stat_name in original_stats and stat_name in imputed_stats:
+                    orig_val = original_stats[stat_name]
+                    imp_val = imputed_stats[stat_name]
+                    print(f"{stat_name:18} | {orig_val:7.2f}  | {imp_val:7.2f}")
+    
+    # Robust correlation analysis
+    def robust_correlation(df, method='spearman'):
+        """Calculate robust correlations"""
+        numeric_cols = df.select_dtypes(include=[np.number]).columns
+        
+        if method == 'spearman':
+            corr_matrix = df[numeric_cols].corr(method='spearman')
+        elif method == 'kendall':
+            corr_matrix = df[numeric_cols].corr(method='kendall')
+        else:
+            corr_matrix = df[numeric_cols].corr(method='pearson')
+        
+        return corr_matrix
+    
+    # Compare correlation matrices
+    pearson_corr = robust_correlation(final_imputed_data, 'pearson')
+    spearman_corr = robust_correlation(final_imputed_data, 'spearman')
+    
+    print(f"\nCorrelation Comparison (Species Richness vs Temperature):")
+    if 'species_richness' in pearson_corr.columns and 'temperature' in pearson_corr.columns:
+        pearson_val = pearson_corr.loc['species_richness', 'temperature']
+        spearman_val = spearman_corr.loc['species_richness', 'temperature']
+        
+        print(f"Pearson correlation:  {pearson_val:.3f}")
+        print(f"Spearman correlation: {spearman_val:.3f}")
+        
+        if abs(pearson_val - spearman_val) > 0.1:
+            print("Large difference suggests non-linear relationship or outliers")
+    
+    return (
+        imputed_stats,
+        original_stats,
+        pearson_corr,
+        pearson_val,
+        robust_correlation,
+        robust_statistics,
+        spearman_corr,
+        spearman_val,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Data Cleaning Workflow
+    """
+    def comprehensive_data_cleaning(df, outlier_method='consensus', imputation_method='knn'):
+        """Comprehensive data cleaning workflow"""
+        
+        cleaning_log = []
+        df_cleaned = df.copy()
+        
+        # Step 1: Initial data assessment
+        initial_shape = df_cleaned.shape
+        initial_missing = df_cleaned.isnull().sum().sum()
+        cleaning_log.append(f"Initial data: {initial_shape[0]} rows, {initial_shape[1]} columns")
+        cleaning_log.append(f"Initial missing values: {initial_missing}")
+        
+        # Step 2: Remove completely empty rows/columns
+        # Remove rows that are completely empty
+        empty_rows = df_cleaned.isnull().all(axis=1)
+        if empty_rows.any():
+            df_cleaned = df_cleaned[~empty_rows]
+            cleaning_log.append(f"Removed {empty_rows.sum()} completely empty rows")
+        
+        # Remove columns that are completely empty
+        empty_cols = df_cleaned.isnull().all(axis=0)
+        if empty_cols.any():
+            df_cleaned = df_cleaned.loc[:, ~empty_cols]
+            cleaning_log.append(f"Removed {empty_cols.sum()} completely empty columns")
+        
+        # Step 3: Handle extreme outliers (likely data entry errors)
+        outliers_removed = 0
+        
+        if outlier_method == 'consensus':
+            # Use consensus from multiple methods
+            multivariate_outliers_new = detect_multivariate_outliers(df_cleaned, contamination=0.05)
+            
+            if multivariate_outliers_new:
+                outlier_counts_new = pd.DataFrame(multivariate_outliers_new).sum(axis=1)
+                extreme_outliers = outlier_counts_new >= 2
+                
+                if extreme_outliers.any():
+                    outliers_removed = extreme_outliers.sum()
+                    df_cleaned = df_cleaned[~extreme_outliers]
+                    cleaning_log.append(f"Removed {outliers_removed} extreme outliers")
+        
+        # Step 4: Fix obvious data entry errors
+        # Example: Fix precipitation unit errors (values > 3000 likely in wrong units)
+        if 'precipitation' in df_cleaned.columns:
+            precip_errors = df_cleaned['precipitation'] > 3000
+            if precip_errors.any():
+                df_cleaned.loc[precip_errors, 'precipitation'] /= 10  # Convert mm to cm
+                cleaning_log.append(f"Fixed {precip_errors.sum()} precipitation unit errors")
+        
+        # Step 5: Handle impossible values
+        impossible_fixed = 0
+        
+        # Zero species with positive abundance
+        if 'species_richness' in df_cleaned.columns and 'total_abundance' in df_cleaned.columns:
+            impossible_cases = (df_cleaned['species_richness'] == 0) & (df_cleaned['total_abundance'] > 0)
+            if impossible_cases.any():
+                # Set species richness to 1 (minimum possible)
+                df_cleaned.loc[impossible_cases, 'species_richness'] = 1
+                impossible_fixed += impossible_cases.sum()
+        
+        if impossible_fixed > 0:
+            cleaning_log.append(f"Fixed {impossible_fixed} impossible value combinations")
+        
+        # Step 6: Impute missing values
+        numeric_cols = df_cleaned.select_dtypes(include=[np.number]).columns
+        missing_before = df_cleaned[numeric_cols].isnull().sum().sum()
+        
+        if missing_before > 0:
+            if imputation_method == 'knn':
+                imputer = KNNImputer(n_neighbors=5)
+            elif imputation_method == 'median':
+                imputer = SimpleImputer(strategy='median')
+            else:
+                imputer = SimpleImputer(strategy='mean')
+            
+            df_cleaned[numeric_cols] = imputer.fit_transform(df_cleaned[numeric_cols])
+            cleaning_log.append(f"Imputed {missing_before} missing values using {imputation_method}")
+        
+        # Step 7: Final validation
+        final_validation = validate_ecological_data(df_cleaned)
+        remaining_issues = len(final_validation)
+        cleaning_log.append(f"Final validation: {remaining_issues} issues remaining")
+        
+        # Step 8: Calculate final quality score
+        final_quality = calculate_quality_score(df_cleaned, final_validation)
+        cleaning_log.append(f"Final quality score: {final_quality['overall_score']:.1f}/100")
+        
+        return df_cleaned, cleaning_log, final_validation
+    
+    # Apply comprehensive cleaning
+    cleaned_data, cleaning_log, final_validation = comprehensive_data_cleaning(quality_data)
+    
+    print("Data Cleaning Workflow:")
+    print("=" * 30)
+    
+    for step in cleaning_log:
+        print(f"• {step}")
+    
+    # Compare before and after
+    print(f"\nBefore vs After Cleaning:")
+    print(f"Shape: {quality_data.shape} → {cleaned_data.shape}")
+    print(f"Missing values: {quality_data.isnull().sum().sum()} → {cleaned_data.isnull().sum().sum()}")
+    print(f"Validation issues: {len(validation_results)} → {len(final_validation)}")
+    
+    # Final data quality assessment
+    original_quality = calculate_quality_score(quality_data, validation_results)
+    final_quality_score = calculate_quality_score(cleaned_data, final_validation)
+    
+    print(f"\nQuality Score Improvement:")
+    print(f"Original: {original_quality['overall_score']:.1f}/100")
+    print(f"Cleaned:  {final_quality_score['overall_score']:.1f}/100")
+    print(f"Improvement: {final_quality_score['overall_score'] - original_quality['overall_score']:+.1f} points")
+    
+    return (
+        cleaned_data,
+        cleaning_log,
+        comprehensive_data_cleaning,
+        final_quality_score,
+        final_validation,
+        impossible_fixed,
+        outliers_removed,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Summary and Best Practices\n
+    In this chapter, we covered comprehensive data quality assessment and improvement:\n
+    ✓ **Missing data analysis**: Patterns, correlations, and MCAR testing
+    ✓ **Outlier detection**: Univariate and multivariate methods
+    ✓ **Data validation**: Range checks and logical constraints
+    ✓ **Missing data imputation**: Multiple methods and quality evaluation
+    ✓ **Robust statistics**: Methods for noisy ecological data
+    ✓ **Comprehensive cleaning**: End-to-end workflow\n
+    ### Key Python Packages for Data Quality:
+    - **pandas**: Data manipulation and missing value handling
+    - **numpy**: Numerical operations and array processing
+    - **scipy.stats**: Statistical tests and robust methods
+    - **sklearn**: Machine learning-based outlier detection and imputation
+    - **holoviews**: Data quality visualization\n
+    ### Best Practices for Ecological Data Quality:
+    1. **Document everything**: Keep detailed logs of all cleaning steps
+    2. **Validate domain knowledge**: Use ecological constraints to check data
+    3. **Multiple methods**: Use several outlier detection approaches
+    4. **Preserve originals**: Always keep raw data unchanged
+    5. **Iterative process**: Clean, validate, and repeat as needed
+    6. **Quality metrics**: Quantify and track data quality improvements
+    7. **Bias awareness**: Consider how cleaning might introduce bias
+    8. **Expert review**: Have domain experts review flagged issues\n
+    ### Common Data Quality Issues in Ecology:
+    - **Measurement errors**: Equipment malfunction, human error
+    - **Unit confusion**: Mixed units (mm vs cm, °C vs °F)
+    - **Temporal misalignment**: Wrong dates or time zones
+    - **Spatial errors**: Incorrect coordinates or projections
+    - **Species misidentification**: Taxonomic errors
+    - **Sampling bias**: Non-representative data collection
+    - **Transcription errors**: Manual data entry mistakes
+    """
+    
+    quality_summary = {
+        'Data Quality Assessment': {
+            'Original Quality Score': f"{original_quality['overall_score']:.1f}/100",
+            'Final Quality Score': f"{final_quality_score['overall_score']:.1f}/100",
+            'Improvement': f"{final_quality_score['overall_score'] - original_quality['overall_score']:+.1f} points"
+        },
+        'Issues Detected': {
+            'Missing Values': f"{quality_data.isnull().sum().sum()}",
+            'Validation Issues': f"{len(validation_results)}",
+            'Consensus Outliers': f"{consensus_outliers.sum()}"
+        },
+        'Cleaning Actions': {
+            'Outliers Removed': f"{outliers_removed}",
+            'Values Imputed': f"{quality_data.isnull().sum().sum()}",
+            'Issues Fixed': f"{impossible_fixed}"
+        },
+        'Final Dataset': {
+            'Shape': f"{cleaned_data.shape[0]} × {cleaned_data.shape[1]}",
+            'Missing Values': f"{cleaned_data.isnull().sum().sum()}",
+            'Remaining Issues': f"{len(final_validation)}"
+        }
+    }
+    
+    print("Data Quality Assessment Summary:")
+    print("=" * 40)
+    
+    for category, details in quality_summary.items():
+        print(f"\n{category}:")
+        for key, value in details.items():
+            print(f"  {key}: {value}")
+    
+    print("\n✓ Chapter 9 complete! Ready for machine learning applications.")
+    
+    return quality_summary,
+
+
+if __name__ == "__main__":
+    app.run()
 
 @app.cell
 def _():

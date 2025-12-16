@@ -347,12 +347,703 @@ def __():
         X_grid, Y_grid = np.meshgrid(x_grid, y_grid)
         
         # Interpolate using scipy.interpolate.griddata
-        grid_points = np.column_stack([X_grid.ravel(), Y_grid.ravel()])\n        
+        grid_points = np.column_stack([X_grid.ravel(), Y_grid.ravel()])
+        
         interpolated_values = griddata(
             points, values, grid_points, 
             method=method, fill_value=np.nan
-        )\n        
-        Z_grid = interpolated_values.reshape(X_grid.shape)\n        \n        return X_grid, Y_grid, Z_grid, x_grid, y_grid\n    \n    # Interpolate temperature across the study area\n    X_temp, Y_temp, Z_temp, x_grid, y_grid = spatial_interpolation(\n        spatial_data, 'x_coord', 'y_coord', 'temperature'\n    )\n    \n    # Interpolate species richness\n    X_rich, Y_rich, Z_rich, _, _ = spatial_interpolation(\n        spatial_data, 'x_coord', 'y_coord', 'species_richness'\n    )\n    \n    print(f\"Spatial Interpolation Results:\")\n    print(f\"Grid resolution: {len(x_grid)} × {len(y_grid)}\")\n    print(f\"Temperature range (interpolated): {np.nanmin(Z_temp):.1f} - {np.nanmax(Z_temp):.1f}°C\")\n    print(f\"Species richness range (interpolated): {np.nanmin(Z_rich):.1f} - {np.nanmax(Z_rich):.1f}\")\n    \n    # Create interpolated surface data for visualization\n    def create_surface_data(X, Y, Z, variable_name):\n        \"\"\"Convert grid data to format suitable for holoviews\"\"\"\n        # Flatten arrays and create DataFrame\n        surface_data = pd.DataFrame({\n            'x': X.ravel(),\n            'y': Y.ravel(),\n            variable_name: Z.ravel()\n        })\n        # Remove NaN values\n        surface_data = surface_data.dropna()\n        return surface_data\n    \n    temp_surface = create_surface_data(X_temp, Y_temp, Z_temp, 'temperature')\n    richness_surface = create_surface_data(X_rich, Y_rich, Z_rich, 'species_richness')\n    \n    # Create surface plots\n    temp_surface_plot = hv.QuadMesh(temp_surface, ['x', 'y'], 'temperature').opts(\n        title=\"Temperature Surface (Interpolated)\",\n        colorbar=True,\n        cmap='viridis',\n        width=500,\n        height=400\n    )\n    \n    richness_surface_plot = hv.QuadMesh(richness_surface, ['x', 'y'], 'species_richness').opts(\n        title=\"Species Richness Surface (Interpolated)\",\n        colorbar=True,\n        cmap='plasma',\n        width=500,\n        height=400\n    )\n    \n    print(\"\\nInterpolated Surface Maps:\")\n    temp_surface_plot + richness_surface_plot\n    \n    return (\n        X_rich,\n        X_temp,\n        Y_rich,\n        Y_temp,\n        Z_rich,\n        Z_temp,\n        create_surface_data,\n        richness_surface,\n        richness_surface_plot,\n        spatial_interpolation,\n        temp_surface,\n        temp_surface_plot,\n        x_grid,\n        y_grid,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Spatial Distance Analysis\n    \"\"\"\n    # Analyze patterns as a function of spatial distance\n    def spatial_distance_analysis(data, x_col, y_col, value_col, max_distance=50, n_bins=20):\n        \"\"\"Analyze spatial correlation as function of distance\"\"\"\n        coordinates = data[[x_col, y_col]].values\n        values = data[value_col].values\n        \n        # Calculate all pairwise distances\n        distances = squareform(pdist(coordinates))\n        \n        # Create distance bins\n        distance_bins = np.linspace(0, max_distance, n_bins + 1)\n        bin_centers = (distance_bins[:-1] + distance_bins[1:]) / 2\n        \n        correlations = []\n        sample_sizes = []\n        \n        for i in range(len(distance_bins) - 1):\n            d_min, d_max = distance_bins[i], distance_bins[i + 1]\n            \n            # Find pairs within this distance range\n            mask = (distances >= d_min) & (distances < d_max)\n            \n            if np.sum(mask) > 10:  # Need sufficient pairs\n                # Get value pairs\n                indices = np.where(mask)\n                value_pairs_i = values[indices[0]]\n                value_pairs_j = values[indices[1]]\n                \n                # Calculate correlation\n                if len(value_pairs_i) > 1:\n                    corr, _ = stats.pearsonr(value_pairs_i, value_pairs_j)\n                    correlations.append(corr)\n                    sample_sizes.append(len(value_pairs_i))\n                else:\n                    correlations.append(np.nan)\n                    sample_sizes.append(0)\n            else:\n                correlations.append(np.nan)\n                sample_sizes.append(0)\n        \n        return bin_centers, correlations, sample_sizes\n    \n    # Analyze spatial correlation for temperature and species richness\n    temp_distances, temp_correlations, temp_samples = spatial_distance_analysis(\n        spatial_data, 'x_coord', 'y_coord', 'temperature'\n    )\n    \n    richness_distances, richness_correlations, richness_samples = spatial_distance_analysis(\n        spatial_data, 'x_coord', 'y_coord', 'species_richness'\n    )\n    \n    print(\"Spatial Distance Analysis:\")\n    print(\"=\" * 35)\n    print(\"Distance (km) | Temperature | Species Richness\")\n    print(\"              | Correlation | Correlation\")\n    print(\"-\" * 45)\n    \n    for i, dist in enumerate(temp_distances[:10]):  # Show first 10 bins\n        temp_corr = temp_correlations[i] if not np.isnan(temp_correlations[i]) else 0\n        rich_corr = richness_correlations[i] if not np.isnan(richness_correlations[i]) else 0\n        \n        print(f\"{dist:12.1f}  | {temp_corr:11.3f} | {rich_corr:11.3f}\")\n    \n    # Find range of spatial autocorrelation\n    def find_autocorr_range(distances, correlations, threshold=0.1):\n        \"\"\"Find distance at which correlation drops below threshold\"\"\"\n        valid_indices = ~np.isnan(correlations)\n        if not any(valid_indices):\n            return np.nan\n        \n        valid_distances = np.array(distances)[valid_indices]\n        valid_correlations = np.array(correlations)[valid_indices]\n        \n        # Find first distance where correlation < threshold\n        below_threshold = valid_correlations < threshold\n        if any(below_threshold):\n            return valid_distances[below_threshold][0]\n        else:\n            return valid_distances[-1]  # Correlation never drops below threshold\n    \n    temp_range = find_autocorr_range(temp_distances, temp_correlations)\n    richness_range = find_autocorr_range(richness_distances, richness_correlations)\n    \n    print(f\"\\nSpatial Autocorrelation Range:\")\n    print(f\"Temperature: {temp_range:.1f} km\")\n    print(f\"Species richness: {richness_range:.1f} km\")\n    \n    return (\n        bin_centers,\n        correlations,\n        d_max,\n        d_min,\n        distance_bins,\n        find_autocorr_range,\n        rich_corr,\n        richness_correlations,\n        richness_distances,\n        richness_range,\n        richness_samples,\n        sample_sizes,\n        spatial_distance_analysis,\n        temp_corr,\n        temp_correlations,\n        temp_distances,\n        temp_range,\n        temp_samples,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Species Distribution Modeling with Spatial Components\n    \"\"\"\n    # Fit species distribution model accounting for spatial structure\n    def spatial_species_distribution_model(data, species_col, env_vars, coord_cols):\n        \"\"\"Fit SDM with environmental and spatial components\"\"\"\n        \n        # Environmental data\n        X_env = data[env_vars].values\n        \n        # Spatial coordinates\n        coords = data[coord_cols].values\n        \n        # Response variable\n        y = data[species_col].values\n        \n        # Standardize environmental variables\n        from sklearn.preprocessing import StandardScaler\n        scaler = StandardScaler()\n        X_env_scaled = scaler.fit_transform(X_env)\n        \n        # Create spatial basis functions (simplified trend surface)\n        # Linear trends in x and y\n        x_trend = coords[:, 0] - coords[:, 0].mean()\n        y_trend = coords[:, 1] - coords[:, 1].mean()\n        \n        # Quadratic trends\n        x2_trend = x_trend ** 2\n        y2_trend = y_trend ** 2\n        xy_trend = x_trend * y_trend\n        \n        # Combine environmental and spatial predictors\n        X_spatial = np.column_stack([x_trend, y_trend, x2_trend, y2_trend, xy_trend])\n        X_full = np.column_stack([X_env_scaled, X_spatial])\n        \n        # Fit models\n        from sklearn.linear_model import LogisticRegression\n        from sklearn.metrics import roc_auc_score, accuracy_score\n        \n        # Environmental model only\n        model_env = LogisticRegression(random_state=42)\n        model_env.fit(X_env_scaled, y)\n        y_pred_env = model_env.predict_proba(X_env_scaled)[:, 1]\n        \n        # Environmental + Spatial model\n        model_full = LogisticRegression(random_state=42)\n        model_full.fit(X_full, y)\n        y_pred_full = model_full.predict_proba(X_full)[:, 1]\n        \n        # Model comparison\n        auc_env = roc_auc_score(y, y_pred_env)\n        auc_full = roc_auc_score(y, y_pred_full)\n        \n        acc_env = accuracy_score(y, y_pred_env > 0.5)\n        acc_full = accuracy_score(y, y_pred_full > 0.5)\n        \n        return {\n            'model_env': model_env,\n            'model_full': model_full,\n            'predictions_env': y_pred_env,\n            'predictions_full': y_pred_full,\n            'auc_env': auc_env,\n            'auc_full': auc_full,\n            'accuracy_env': acc_env,\n            'accuracy_full': acc_full,\n            'X_env_scaled': X_env_scaled,\n            'X_full': X_full,\n            'scaler': scaler\n        }\n    \n    # Fit SDM for species presence\n    env_variables = ['elevation', 'temperature', 'precipitation']\n    coord_variables = ['x_coord', 'y_coord']\n    \n    sdm_results = spatial_species_distribution_model(\n        spatial_data, 'species_presence', env_variables, coord_variables\n    )\n    \n    print(\"Spatial Species Distribution Modeling:\")\n    print(\"=\" * 45)\n    print(\"Model Type              | AUC   | Accuracy\")\n    print(\"-\" * 45)\n    print(f\"Environmental Only      | {sdm_results['auc_env']:.3f} | {sdm_results['accuracy_env']:.3f}\")\n    print(f\"Environmental + Spatial | {sdm_results['auc_full']:.3f} | {sdm_results['accuracy_full']:.3f}\")\n    \n    # Calculate improvement from adding spatial components\n    auc_improvement = sdm_results['auc_full'] - sdm_results['auc_env']\n    acc_improvement = sdm_results['accuracy_full'] - sdm_results['accuracy_env']\n    \n    print(f\"\\nImprovement from spatial components:\")\n    print(f\"AUC improvement: {auc_improvement:+.3f}\")\n    print(f\"Accuracy improvement: {acc_improvement:+.3f}\")\n    \n    if auc_improvement > 0.05:\n        print(\"Substantial improvement - spatial structure is important\")\n    elif auc_improvement > 0.02:\n        print(\"Moderate improvement - some spatial structure present\")\n    else:\n        print(\"Minimal improvement - limited spatial structure\")\n    \n    return (\n        LogisticRegression,\n        StandardScaler,\n        X_env_scaled,\n        X_full,\n        X_spatial,\n        acc_improvement,\n        accuracy_score,\n        auc_improvement,\n        coord_variables,\n        env_variables,\n        model_env,\n        model_full,\n        roc_auc_score,\n        scaler,\n        sdm_results,\n        spatial_species_distribution_model,\n        x2_trend,\n        x_trend,\n        xy_trend,\n        y2_trend,\n        y_pred_env,\n        y_pred_full,\n        y_trend,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Spatial Prediction and Mapping\n    \"\"\"\n    # Predict species suitability across the landscape\n    def create_prediction_map(model, scaler, env_surfaces, spatial_coords, coord_cols):\n        \"\"\"Create prediction map from fitted model\"\"\"\n        \n        # Prepare environmental data\n        env_data = []\n        for var in env_variables:\n            if var == 'elevation':\n                # Create elevation surface (simple gradient)\n                x_vals = spatial_coords[:, 0]\n                y_vals = spatial_coords[:, 1]\n                elev_pred = 500 + 10 * x_vals + 8 * y_vals\n                env_data.append(elev_pred)\n            elif var == 'temperature':\n                # Use interpolated temperature\n                temp_pred = griddata(\n                    spatial_data[coord_cols].values,\n                    spatial_data[var].values,\n                    spatial_coords,\n                    method='linear'\n                )\n                env_data.append(temp_pred)\n            elif var == 'precipitation':\n                # Use interpolated precipitation\n                precip_pred = griddata(\n                    spatial_data[coord_cols].values,\n                    spatial_data[var].values,\n                    spatial_coords,\n                    method='linear'\n                )\n                env_data.append(precip_pred)\n        \n        X_pred_env = np.column_stack(env_data)\n        \n        # Handle missing values\n        valid_mask = ~np.isnan(X_pred_env).any(axis=1)\n        X_pred_env_clean = X_pred_env[valid_mask]\n        coords_clean = spatial_coords[valid_mask]\n        \n        # Scale environmental variables\n        X_pred_env_scaled = scaler.transform(X_pred_env_clean)\n        \n        # Add spatial components if needed\n        if hasattr(model, 'n_features_in_') and model.n_features_in_ > len(env_variables):\n            # Model includes spatial components\n            x_trend_pred = coords_clean[:, 0] - spatial_data['x_coord'].mean()\n            y_trend_pred = coords_clean[:, 1] - spatial_data['y_coord'].mean()\n            x2_trend_pred = x_trend_pred ** 2\n            y2_trend_pred = y_trend_pred ** 2\n            xy_trend_pred = x_trend_pred * y_trend_pred\n            \n            X_spatial_pred = np.column_stack([\n                x_trend_pred, y_trend_pred, x2_trend_pred, y2_trend_pred, xy_trend_pred\n            ])\n            X_pred_full = np.column_stack([X_pred_env_scaled, X_spatial_pred])\n            \n            predictions = model.predict_proba(X_pred_full)[:, 1]\n        else:\n            # Environmental model only\n            predictions = model.predict_proba(X_pred_env_scaled)[:, 1]\n        \n        # Create results DataFrame\n        pred_results = pd.DataFrame({\n            'x_coord': coords_clean[:, 0],\n            'y_coord': coords_clean[:, 1],\n            'prediction': predictions\n        })\n        \n        return pred_results\n    \n    # Create regular grid for prediction\n    x_pred = np.linspace(spatial_data['x_coord'].min(), spatial_data['x_coord'].max(), 50)\n    y_pred = np.linspace(spatial_data['y_coord'].min(), spatial_data['y_coord'].max(), 50)\n    X_pred_grid, Y_pred_grid = np.meshgrid(x_pred, y_pred)\n    pred_coords = np.column_stack([X_pred_grid.ravel(), Y_pred_grid.ravel()])\n    \n    # Generate predictions\n    env_predictions = create_prediction_map(\n        sdm_results['model_env'], sdm_results['scaler'], \n        None, pred_coords, coord_variables\n    )\n    \n    full_predictions = create_prediction_map(\n        sdm_results['model_full'], sdm_results['scaler'],\n        None, pred_coords, coord_variables\n    )\n    \n    # Create prediction maps\n    env_pred_plot = hv.Scatter(env_predictions, 'x_coord', 'y_coord', 'prediction').opts(\n        title=\"Environmental Model Predictions\",\n        color='prediction',\n        cmap='viridis',\n        size=8,\n        colorbar=True,\n        width=500,\n        height=400\n    )\n    \n    full_pred_plot = hv.Scatter(full_predictions, 'x_coord', 'y_coord', 'prediction').opts(\n        title=\"Environmental + Spatial Model Predictions\",\n        color='prediction',\n        cmap='viridis',\n        size=8,\n        colorbar=True,\n        width=500,\n        height=400\n    )\n    \n    # Overlay actual presence points\n    presence_points = spatial_data[spatial_data['species_presence'] == 1]\n    presence_overlay = hv.Scatter(presence_points, 'x_coord', 'y_coord').opts(\n        color='red',\n        size=12,\n        marker='x',\n        alpha=0.8\n    )\n    \n    print(\"Species Distribution Prediction Maps:\")\n    print(f\"Environmental model predictions: {len(env_predictions)} grid points\")\n    print(f\"Full model predictions: {len(full_predictions)} grid points\")\n    \n    (env_pred_plot * presence_overlay + full_pred_plot * presence_overlay).cols(1)\n    \n    return (\n        X_pred_grid,\n        Y_pred_grid,\n        coords_clean,\n        create_prediction_map,\n        elev_pred,\n        env_pred_plot,\n        env_predictions,\n        full_pred_plot,\n        full_predictions,\n        precip_pred,\n        pred_coords,\n        pred_results,\n        predictions,\n        presence_overlay,\n        presence_points,\n        temp_pred,\n        x_pred,\n        y_pred,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Spatial Cross-Validation\n    \"\"\"\n    # Spatial cross-validation to account for spatial autocorrelation\n    def spatial_cross_validation(data, model_func, coord_cols, response_col, n_folds=5, buffer_distance=10):\n        \"\"\"Perform spatial cross-validation with buffer zones\"\"\"\n        \n        coordinates = data[coord_cols].values\n        \n        # Create spatial folds using k-means clustering\n        from sklearn.cluster import KMeans\n        \n        kmeans = KMeans(n_clusters=n_folds, random_state=42)\n        fold_assignments = kmeans.fit_predict(coordinates)\n        \n        cv_results = []\n        \n        for fold in range(n_folds):\n            # Test set: current fold\n            test_mask = fold_assignments == fold\n            test_indices = np.where(test_mask)[0]\n            \n            # Create buffer around test points\n            test_coords = coordinates[test_mask]\n            \n            # Calculate distances from all points to test points\n            distances_to_test = cdist(coordinates, test_coords)\n            min_distances_to_test = np.min(distances_to_test, axis=1)\n            \n            # Training set: exclude test points and buffer zone\n            train_mask = (fold_assignments != fold) & (min_distances_to_test > buffer_distance)\n            train_indices = np.where(train_mask)[0]\n            \n            if len(train_indices) < 10 or len(test_indices) < 5:\n                continue  # Skip if insufficient data\n            \n            # Fit model on training data\n            train_data = data.iloc[train_indices]\n            test_data = data.iloc[test_indices]\n            \n            # Get predictions (simplified - would call actual model fitting function)\n            # For demonstration, using the already fitted model\n            train_coords_scaled = sdm_results['scaler'].transform(\n                train_data[env_variables].values\n            )\n            test_coords_scaled = sdm_results['scaler'].transform(\n                test_data[env_variables].values\n            )\n            \n            # Use environmental model for simplicity\n            test_predictions = sdm_results['model_env'].predict_proba(test_coords_scaled)[:, 1]\n            test_actual = test_data[response_col].values\n            \n            # Calculate metrics\n            try:\n                auc = roc_auc_score(test_actual, test_predictions)\n                accuracy = accuracy_score(test_actual, test_predictions > 0.5)\n                \n                cv_results.append({\n                    'fold': fold,\n                    'n_train': len(train_indices),\n                    'n_test': len(test_indices),\n                    'auc': auc,\n                    'accuracy': accuracy\n                })\n            except ValueError:\n                # Skip if all test cases are same class\n                continue\n        \n        return cv_results\n    \n    # Perform spatial cross-validation\n    spatial_cv_results = spatial_cross_validation(\n        spatial_data, None, coord_variables, 'species_presence'\n    )\n    \n    print(\"Spatial Cross-Validation Results:\")\n    print(\"=\" * 45)\n    print(\"Fold | N Train | N Test | AUC   | Accuracy\")\n    print(\"-\" * 45)\n    \n    for result in spatial_cv_results:\n        fold = result['fold']\n        n_train = result['n_train']\n        n_test = result['n_test']\n        auc = result['auc']\n        accuracy = result['accuracy']\n        \n        print(f\"{fold:4d} | {n_train:7d} | {n_test:6d} | {auc:.3f} | {accuracy:.3f}\")\n    \n    # Calculate mean performance\n    if spatial_cv_results:\n        mean_auc = np.mean([r['auc'] for r in spatial_cv_results])\n        mean_accuracy = np.mean([r['accuracy'] for r in spatial_cv_results])\n        std_auc = np.std([r['auc'] for r in spatial_cv_results])\n        std_accuracy = np.std([r['accuracy'] for r in spatial_cv_results])\n        \n        print(f\"\\nSpatial CV Performance:\")\n        print(f\"Mean AUC: {mean_auc:.3f} ± {std_auc:.3f}\")\n        print(f\"Mean Accuracy: {mean_accuracy:.3f} ± {std_accuracy:.3f}\")\n        \n        # Compare to non-spatial performance\n        print(f\"\\nComparison to non-spatial evaluation:\")\n        print(f\"Non-spatial AUC: {sdm_results['auc_env']:.3f}\")\n        print(f\"Spatial CV AUC: {mean_auc:.3f}\")\n        print(f\"Difference: {sdm_results['auc_env'] - mean_auc:+.3f}\")\n        \n        if sdm_results['auc_env'] - mean_auc > 0.05:\n            print(\"Substantial overestimation due to spatial autocorrelation\")\n        else:\n            print(\"Minimal bias from spatial autocorrelation\")\n    \n    return (\n        KMeans,\n        accuracy,\n        auc,\n        buffer_distance,\n        fold_assignments,\n        kmeans,\n        mean_accuracy,\n        mean_auc,\n        min_distances_to_test,\n        spatial_cross_validation,\n        spatial_cv_results,\n        std_accuracy,\n        std_auc,\n        test_actual,\n        test_coords,\n        test_coords_scaled,\n        test_data,\n        test_indices,\n        test_mask,\n        test_predictions,\n        train_coords_scaled,\n        train_data,\n        train_indices,\n        train_mask,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Summary and Best Practices\n\n    In this chapter, we covered spatial analysis methods for ecological data:\n\n    ✓ **Spatial data creation**: Generating realistic spatial ecological datasets\n    ✓ **Spatial visualization**: Mapping ecological patterns across landscapes\n    ✓ **Spatial autocorrelation**: Moran's I and spatial dependence analysis\n    ✓ **Spatial interpolation**: Creating continuous surfaces from point data\n    ✓ **Distance analysis**: Understanding spatial correlation structure\n    ✓ **Species distribution modeling**: Environmental and spatial predictors\n    ✓ **Spatial prediction**: Mapping species suitability across landscapes\n    ✓ **Spatial cross-validation**: Accounting for spatial autocorrelation in model evaluation\n\n    ### Key Concepts in Spatial Ecology:\n    - **Spatial autocorrelation**: \"Everything is related to everything else, but near things are more related\"\n    - **Scale dependence**: Patterns and processes vary with spatial scale\n    - **Edge effects**: Boundary conditions affect ecological patterns\n    - **Spatial heterogeneity**: Environmental variation drives species distributions\n    - **Dispersal limitation**: Species distributions reflect movement constraints\n\n    ### Python Packages for Spatial Analysis:\n    - **scipy.spatial**: Distance calculations and spatial operations\n    - **scipy.interpolate**: Spatial interpolation methods\n    - **sklearn**: Machine learning for spatial modeling\n    - **pandas**: Spatial data manipulation and analysis\n    - **holoviews**: Interactive spatial visualization\n\n    ### Best Practices for Spatial Ecological Analysis:\n    1. **Check for spatial autocorrelation**: Always test before modeling\n    2. **Use appropriate scales**: Match analysis scale to ecological processes\n    3. **Account for spatial structure**: Include spatial components in models\n    4. **Validate spatially**: Use spatial cross-validation methods\n    5. **Consider boundaries**: Be aware of edge effects and study area limits\n    6. **Document projections**: Keep track of coordinate systems and units\n    7. **Visualize patterns**: Maps reveal insights not apparent in tables\n    8. **Test assumptions**: Verify stationarity and isotropy when assumed\n\n    ### Common Applications in Spatial Ecology:\n    - **Species distribution modeling**: Predicting suitable habitat\n    - **Conservation planning**: Identifying priority areas for protection\n    - **Landscape ecology**: Understanding patch connectivity and fragmentation\n    - **Disease ecology**: Modeling pathogen spread across landscapes\n    - **Climate change impacts**: Projecting species range shifts\n    - **Biodiversity mapping**: Creating continuous diversity surfaces\n    - **Restoration planning**: Optimal placement of restoration sites\n    \"\"\"\n    \n    spatial_summary = {\n        'Dataset Characteristics': {\n            'Number of Sites': f\"{len(spatial_data)}\",\n            'Spatial Extent': f\"{x_coords.max() - x_coords.min():.0f} × {y_coords.max() - y_coords.min():.0f} km\",\n            'Variables Analyzed': len(variables)\n        },\n        'Spatial Autocorrelation': {\n            'Temperature Moran\\'s I': f\"{autocorr_results['temperature']['morans_i']:.3f}\",\n            'Species Richness Moran\\'s I': f\"{autocorr_results['species_richness']['morans_i']:.3f}\",\n            'Autocorrelation Range': f\"{temp_range:.1f} km (temp), {richness_range:.1f} km (richness)\"\n        },\n        'Species Distribution Models': {\n            'Environmental Model AUC': f\"{sdm_results['auc_env']:.3f}\",\n            'Spatial Model AUC': f\"{sdm_results['auc_full']:.3f}\",\n            'Improvement from Spatial': f\"{auc_improvement:+.3f}\"\n        },\n        'Spatial Cross-Validation': {\n            'Mean CV AUC': f\"{mean_auc:.3f} ± {std_auc:.3f}\" if spatial_cv_results else \"Not available\",\n            'Spatial Bias': f\"{sdm_results['auc_env'] - mean_auc:+.3f}\" if spatial_cv_results else \"Not available\",\n            'CV Folds': f\"{len(spatial_cv_results)}\" if spatial_cv_results else \"0\"\n        }\n    }\n    \n    print(\"Spatial Analysis Summary:\")\n    print(\"=\" * 35)\n    \n    for category, details in spatial_summary.items():\n        print(f\"\\n{category}:\")\n        for key, value in details.items():\n            print(f\"  {key}: {value}\")\n    \n    print(\"\\n✓ Chapter 12 complete! Ready for mechanistic modeling.\")\n    \n    return spatial_summary,\n\n\nif __name__ == \"__main__\":\n    app.run()
+        )
+        
+        Z_grid = interpolated_values.reshape(X_grid.shape)
+        
+        return X_grid, Y_grid, Z_grid, x_grid, y_grid
+    
+    # Interpolate temperature across the study area
+    X_temp, Y_temp, Z_temp, x_grid, y_grid = spatial_interpolation(
+        spatial_data, 'x_coord', 'y_coord', 'temperature'
+    )
+    
+    # Interpolate species richness
+    X_rich, Y_rich, Z_rich, _, _ = spatial_interpolation(
+        spatial_data, 'x_coord', 'y_coord', 'species_richness'
+    )
+    
+    print(f"Spatial Interpolation Results:")
+    print(f"Grid resolution: {len(x_grid)} × {len(y_grid)}")
+    print(f"Temperature range (interpolated): {np.nanmin(Z_temp):.1f} - {np.nanmax(Z_temp):.1f}°C")
+    print(f"Species richness range (interpolated): {np.nanmin(Z_rich):.1f} - {np.nanmax(Z_rich):.1f}")
+    
+    # Create interpolated surface data for visualization
+    def create_surface_data(X, Y, Z, variable_name):
+        """Convert grid data to format suitable for holoviews"""
+        # Flatten arrays and create DataFrame
+        surface_data = pd.DataFrame({
+            'x': X.ravel(),
+            'y': Y.ravel(),
+            variable_name: Z.ravel()
+        })
+        # Remove NaN values
+        surface_data = surface_data.dropna()
+        return surface_data
+    
+    temp_surface = create_surface_data(X_temp, Y_temp, Z_temp, 'temperature')
+    richness_surface = create_surface_data(X_rich, Y_rich, Z_rich, 'species_richness')
+    
+    # Create surface plots
+    temp_surface_plot = hv.QuadMesh(temp_surface, ['x', 'y'], 'temperature').opts(
+        title="Temperature Surface (Interpolated)",
+        colorbar=True,
+        cmap='viridis',
+        width=500,
+        height=400
+    )
+    
+    richness_surface_plot = hv.QuadMesh(richness_surface, ['x', 'y'], 'species_richness').opts(
+        title="Species Richness Surface (Interpolated)",
+        colorbar=True,
+        cmap='plasma',
+        width=500,
+        height=400
+    )
+    
+    print("\nInterpolated Surface Maps:")
+    temp_surface_plot + richness_surface_plot
+    
+    return (
+        X_rich,
+        X_temp,
+        Y_rich,
+        Y_temp,
+        Z_rich,
+        Z_temp,
+        create_surface_data,
+        richness_surface,
+        richness_surface_plot,
+        spatial_interpolation,
+        temp_surface,
+        temp_surface_plot,
+        x_grid,
+        y_grid,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Spatial Distance Analysis
+    """
+    # Analyze patterns as a function of spatial distance
+    def spatial_distance_analysis(data, x_col, y_col, value_col, max_distance=50, n_bins=20):
+        """Analyze spatial correlation as function of distance"""
+        coordinates = data[[x_col, y_col]].values
+        values = data[value_col].values
+        
+        # Calculate all pairwise distances
+        distances = squareform(pdist(coordinates))
+        
+        # Create distance bins
+        distance_bins = np.linspace(0, max_distance, n_bins + 1)
+        bin_centers = (distance_bins[:-1] + distance_bins[1:]) / 2
+        
+        correlations = []
+        sample_sizes = []
+        
+        for i in range(len(distance_bins) - 1):
+            d_min, d_max = distance_bins[i], distance_bins[i + 1]
+            
+            # Find pairs within this distance range
+            mask = (distances >= d_min) & (distances < d_max)
+            
+            if np.sum(mask) > 10:  # Need sufficient pairs
+                # Get value pairs
+                indices = np.where(mask)
+                value_pairs_i = values[indices[0]]
+                value_pairs_j = values[indices[1]]
+                
+                # Calculate correlation
+                if len(value_pairs_i) > 1:
+                    corr, _ = stats.pearsonr(value_pairs_i, value_pairs_j)
+                    correlations.append(corr)
+                    sample_sizes.append(len(value_pairs_i))
+                else:
+                    correlations.append(np.nan)
+                    sample_sizes.append(0)
+            else:
+                correlations.append(np.nan)
+                sample_sizes.append(0)
+        
+        return bin_centers, correlations, sample_sizes
+    
+    # Analyze spatial correlation for temperature and species richness
+    temp_distances, temp_correlations, temp_samples = spatial_distance_analysis(
+        spatial_data, 'x_coord', 'y_coord', 'temperature'
+    )
+    
+    richness_distances, richness_correlations, richness_samples = spatial_distance_analysis(
+        spatial_data, 'x_coord', 'y_coord', 'species_richness'
+    )
+    
+    print("Spatial Distance Analysis:")
+    print("=" * 35)
+    print("Distance (km) | Temperature | Species Richness")
+    print("              | Correlation | Correlation")
+    print("-" * 45)
+    
+    for i, dist in enumerate(temp_distances[:10]):  # Show first 10 bins
+        temp_corr = temp_correlations[i] if not np.isnan(temp_correlations[i]) else 0
+        rich_corr = richness_correlations[i] if not np.isnan(richness_correlations[i]) else 0
+        
+        print(f"{dist:12.1f}  | {temp_corr:11.3f} | {rich_corr:11.3f}")
+    
+    # Find range of spatial autocorrelation
+    def find_autocorr_range(distances, correlations, threshold=0.1):
+        """Find distance at which correlation drops below threshold"""
+        valid_indices = ~np.isnan(correlations)
+        if not any(valid_indices):
+            return np.nan
+        
+        valid_distances = np.array(distances)[valid_indices]
+        valid_correlations = np.array(correlations)[valid_indices]
+        
+        # Find first distance where correlation < threshold
+        below_threshold = valid_correlations < threshold
+        if any(below_threshold):
+            return valid_distances[below_threshold][0]
+        else:
+            return valid_distances[-1]  # Correlation never drops below threshold
+    
+    temp_range = find_autocorr_range(temp_distances, temp_correlations)
+    richness_range = find_autocorr_range(richness_distances, richness_correlations)
+    
+    print(f"\nSpatial Autocorrelation Range:")
+    print(f"Temperature: {temp_range:.1f} km")
+    print(f"Species richness: {richness_range:.1f} km")
+    
+    return (
+        bin_centers,
+        correlations,
+        d_max,
+        d_min,
+        distance_bins,
+        find_autocorr_range,
+        rich_corr,
+        richness_correlations,
+        richness_distances,
+        richness_range,
+        richness_samples,
+        sample_sizes,
+        spatial_distance_analysis,
+        temp_corr,
+        temp_correlations,
+        temp_distances,
+        temp_range,
+        temp_samples,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Species Distribution Modeling with Spatial Components
+    """
+    # Fit species distribution model accounting for spatial structure
+    def spatial_species_distribution_model(data, species_col, env_vars, coord_cols):
+        """Fit SDM with environmental and spatial components"""
+        
+        # Environmental data
+        X_env = data[env_vars].values
+        
+        # Spatial coordinates
+        coords = data[coord_cols].values
+        
+        # Response variable
+        y = data[species_col].values
+        
+        # Standardize environmental variables
+        from sklearn.preprocessing import StandardScaler
+        scaler = StandardScaler()
+        X_env_scaled = scaler.fit_transform(X_env)
+        
+        # Create spatial basis functions (simplified trend surface)
+        # Linear trends in x and y
+        x_trend = coords[:, 0] - coords[:, 0].mean()
+        y_trend = coords[:, 1] - coords[:, 1].mean()
+        
+        # Quadratic trends
+        x2_trend = x_trend ** 2
+        y2_trend = y_trend ** 2
+        xy_trend = x_trend * y_trend
+        
+        # Combine environmental and spatial predictors
+        X_spatial = np.column_stack([x_trend, y_trend, x2_trend, y2_trend, xy_trend])
+        X_full = np.column_stack([X_env_scaled, X_spatial])
+        
+        # Fit models
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.metrics import roc_auc_score, accuracy_score
+        
+        # Environmental model only
+        model_env = LogisticRegression(random_state=42)
+        model_env.fit(X_env_scaled, y)
+        y_pred_env = model_env.predict_proba(X_env_scaled)[:, 1]
+        
+        # Environmental + Spatial model
+        model_full = LogisticRegression(random_state=42)
+        model_full.fit(X_full, y)
+        y_pred_full = model_full.predict_proba(X_full)[:, 1]
+        
+        # Model comparison
+        auc_env = roc_auc_score(y, y_pred_env)
+        auc_full = roc_auc_score(y, y_pred_full)
+        
+        acc_env = accuracy_score(y, y_pred_env > 0.5)
+        acc_full = accuracy_score(y, y_pred_full > 0.5)
+        
+        return {
+            'model_env': model_env,
+            'model_full': model_full,
+            'predictions_env': y_pred_env,
+            'predictions_full': y_pred_full,
+            'auc_env': auc_env,
+            'auc_full': auc_full,
+            'accuracy_env': acc_env,
+            'accuracy_full': acc_full,
+            'X_env_scaled': X_env_scaled,
+            'X_full': X_full,
+            'scaler': scaler
+        }
+    
+    # Fit SDM for species presence
+    env_variables = ['elevation', 'temperature', 'precipitation']
+    coord_variables = ['x_coord', 'y_coord']
+    
+    sdm_results = spatial_species_distribution_model(
+        spatial_data, 'species_presence', env_variables, coord_variables
+    )
+    
+    print("Spatial Species Distribution Modeling:")
+    print("=" * 45)
+    print("Model Type              | AUC   | Accuracy")
+    print("-" * 45)
+    print(f"Environmental Only      | {sdm_results['auc_env']:.3f} | {sdm_results['accuracy_env']:.3f}")
+    print(f"Environmental + Spatial | {sdm_results['auc_full']:.3f} | {sdm_results['accuracy_full']:.3f}")
+    
+    # Calculate improvement from adding spatial components
+    auc_improvement = sdm_results['auc_full'] - sdm_results['auc_env']
+    acc_improvement = sdm_results['accuracy_full'] - sdm_results['accuracy_env']
+    
+    print(f"\nImprovement from spatial components:")
+    print(f"AUC improvement: {auc_improvement:+.3f}")
+    print(f"Accuracy improvement: {acc_improvement:+.3f}")
+    
+    if auc_improvement > 0.05:
+        print("Substantial improvement - spatial structure is important")
+    elif auc_improvement > 0.02:
+        print("Moderate improvement - some spatial structure present")
+    else:
+        print("Minimal improvement - limited spatial structure")
+    
+    return (
+        LogisticRegression,
+        StandardScaler,
+        X_env_scaled,
+        X_full,
+        X_spatial,
+        acc_improvement,
+        accuracy_score,
+        auc_improvement,
+        coord_variables,
+        env_variables,
+        model_env,
+        model_full,
+        roc_auc_score,
+        scaler,
+        sdm_results,
+        spatial_species_distribution_model,
+        x2_trend,
+        x_trend,
+        xy_trend,
+        y2_trend,
+        y_pred_env,
+        y_pred_full,
+        y_trend,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Spatial Prediction and Mapping
+    """
+    # Predict species suitability across the landscape
+    def create_prediction_map(model, scaler, env_surfaces, spatial_coords, coord_cols):
+        """Create prediction map from fitted model"""
+        
+        # Prepare environmental data
+        env_data = []
+        for var in env_variables:
+            if var == 'elevation':
+                # Create elevation surface (simple gradient)
+                x_vals = spatial_coords[:, 0]
+                y_vals = spatial_coords[:, 1]
+                elev_pred = 500 + 10 * x_vals + 8 * y_vals
+                env_data.append(elev_pred)
+            elif var == 'temperature':
+                # Use interpolated temperature
+                temp_pred = griddata(
+                    spatial_data[coord_cols].values,
+                    spatial_data[var].values,
+                    spatial_coords,
+                    method='linear'
+                )
+                env_data.append(temp_pred)
+            elif var == 'precipitation':
+                # Use interpolated precipitation
+                precip_pred = griddata(
+                    spatial_data[coord_cols].values,
+                    spatial_data[var].values,
+                    spatial_coords,
+                    method='linear'
+                )
+                env_data.append(precip_pred)
+        
+        X_pred_env = np.column_stack(env_data)
+        
+        # Handle missing values
+        valid_mask = ~np.isnan(X_pred_env).any(axis=1)
+        X_pred_env_clean = X_pred_env[valid_mask]
+        coords_clean = spatial_coords[valid_mask]
+        
+        # Scale environmental variables
+        X_pred_env_scaled = scaler.transform(X_pred_env_clean)
+        
+        # Add spatial components if needed
+        if hasattr(model, 'n_features_in_') and model.n_features_in_ > len(env_variables):
+            # Model includes spatial components
+            x_trend_pred = coords_clean[:, 0] - spatial_data['x_coord'].mean()
+            y_trend_pred = coords_clean[:, 1] - spatial_data['y_coord'].mean()
+            x2_trend_pred = x_trend_pred ** 2
+            y2_trend_pred = y_trend_pred ** 2
+            xy_trend_pred = x_trend_pred * y_trend_pred
+            
+            X_spatial_pred = np.column_stack([
+                x_trend_pred, y_trend_pred, x2_trend_pred, y2_trend_pred, xy_trend_pred
+            ])
+            X_pred_full = np.column_stack([X_pred_env_scaled, X_spatial_pred])
+            
+            predictions = model.predict_proba(X_pred_full)[:, 1]
+        else:
+            # Environmental model only
+            predictions = model.predict_proba(X_pred_env_scaled)[:, 1]
+        
+        # Create results DataFrame
+        pred_results = pd.DataFrame({
+            'x_coord': coords_clean[:, 0],
+            'y_coord': coords_clean[:, 1],
+            'prediction': predictions
+        })
+        
+        return pred_results
+    
+    # Create regular grid for prediction
+    x_pred = np.linspace(spatial_data['x_coord'].min(), spatial_data['x_coord'].max(), 50)
+    y_pred = np.linspace(spatial_data['y_coord'].min(), spatial_data['y_coord'].max(), 50)
+    X_pred_grid, Y_pred_grid = np.meshgrid(x_pred, y_pred)
+    pred_coords = np.column_stack([X_pred_grid.ravel(), Y_pred_grid.ravel()])
+    
+    # Generate predictions
+    env_predictions = create_prediction_map(
+        sdm_results['model_env'], sdm_results['scaler'], 
+        None, pred_coords, coord_variables
+    )
+    
+    full_predictions = create_prediction_map(
+        sdm_results['model_full'], sdm_results['scaler'],
+        None, pred_coords, coord_variables
+    )
+    
+    # Create prediction maps
+    env_pred_plot = hv.Scatter(env_predictions, 'x_coord', 'y_coord', 'prediction').opts(
+        title="Environmental Model Predictions",
+        color='prediction',
+        cmap='viridis',
+        size=8,
+        colorbar=True,
+        width=500,
+        height=400
+    )
+    
+    full_pred_plot = hv.Scatter(full_predictions, 'x_coord', 'y_coord', 'prediction').opts(
+        title="Environmental + Spatial Model Predictions",
+        color='prediction',
+        cmap='viridis',
+        size=8,
+        colorbar=True,
+        width=500,
+        height=400
+    )
+    
+    # Overlay actual presence points
+    presence_points = spatial_data[spatial_data['species_presence'] == 1]
+    presence_overlay = hv.Scatter(presence_points, 'x_coord', 'y_coord').opts(
+        color='red',
+        size=12,
+        marker='x',
+        alpha=0.8
+    )
+    
+    print("Species Distribution Prediction Maps:")
+    print(f"Environmental model predictions: {len(env_predictions)} grid points")
+    print(f"Full model predictions: {len(full_predictions)} grid points")
+    
+    (env_pred_plot * presence_overlay + full_pred_plot * presence_overlay).cols(1)
+    
+    return (
+        X_pred_grid,
+        Y_pred_grid,
+        coords_clean,
+        create_prediction_map,
+        elev_pred,
+        env_pred_plot,
+        env_predictions,
+        full_pred_plot,
+        full_predictions,
+        precip_pred,
+        pred_coords,
+        pred_results,
+        predictions,
+        presence_overlay,
+        presence_points,
+        temp_pred,
+        x_pred,
+        y_pred,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Spatial Cross-Validation
+    """
+    # Spatial cross-validation to account for spatial autocorrelation
+    def spatial_cross_validation(data, model_func, coord_cols, response_col, n_folds=5, buffer_distance=10):
+        """Perform spatial cross-validation with buffer zones"""
+        
+        coordinates = data[coord_cols].values
+        
+        # Create spatial folds using k-means clustering
+        from sklearn.cluster import KMeans
+        
+        kmeans = KMeans(n_clusters=n_folds, random_state=42)
+        fold_assignments = kmeans.fit_predict(coordinates)
+        
+        cv_results = []
+        
+        for fold in range(n_folds):
+            # Test set: current fold
+            test_mask = fold_assignments == fold
+            test_indices = np.where(test_mask)[0]
+            
+            # Create buffer around test points
+            test_coords = coordinates[test_mask]
+            
+            # Calculate distances from all points to test points
+            distances_to_test = cdist(coordinates, test_coords)
+            min_distances_to_test = np.min(distances_to_test, axis=1)
+            
+            # Training set: exclude test points and buffer zone
+            train_mask = (fold_assignments != fold) & (min_distances_to_test > buffer_distance)
+            train_indices = np.where(train_mask)[0]
+            
+            if len(train_indices) < 10 or len(test_indices) < 5:
+                continue  # Skip if insufficient data
+            
+            # Fit model on training data
+            train_data = data.iloc[train_indices]
+            test_data = data.iloc[test_indices]
+            
+            # Get predictions (simplified - would call actual model fitting function)
+            # For demonstration, using the already fitted model
+            train_coords_scaled = sdm_results['scaler'].transform(
+                train_data[env_variables].values
+            )
+            test_coords_scaled = sdm_results['scaler'].transform(
+                test_data[env_variables].values
+            )
+            
+            # Use environmental model for simplicity
+            test_predictions = sdm_results['model_env'].predict_proba(test_coords_scaled)[:, 1]
+            test_actual = test_data[response_col].values
+            
+            # Calculate metrics
+            try:
+                auc = roc_auc_score(test_actual, test_predictions)
+                accuracy = accuracy_score(test_actual, test_predictions > 0.5)
+                
+                cv_results.append({
+                    'fold': fold,
+                    'n_train': len(train_indices),
+                    'n_test': len(test_indices),
+                    'auc': auc,
+                    'accuracy': accuracy
+                })
+            except ValueError:
+                # Skip if all test cases are same class
+                continue
+        
+        return cv_results
+    
+    # Perform spatial cross-validation
+    spatial_cv_results = spatial_cross_validation(
+        spatial_data, None, coord_variables, 'species_presence'
+    )
+    
+    print("Spatial Cross-Validation Results:")
+    print("=" * 45)
+    print("Fold | N Train | N Test | AUC   | Accuracy")
+    print("-" * 45)
+    
+    for result in spatial_cv_results:
+        fold = result['fold']
+        n_train = result['n_train']
+        n_test = result['n_test']
+        auc = result['auc']
+        accuracy = result['accuracy']
+        
+        print(f"{fold:4d} | {n_train:7d} | {n_test:6d} | {auc:.3f} | {accuracy:.3f}")
+    
+    # Calculate mean performance
+    if spatial_cv_results:
+        mean_auc = np.mean([r['auc'] for r in spatial_cv_results])
+        mean_accuracy = np.mean([r['accuracy'] for r in spatial_cv_results])
+        std_auc = np.std([r['auc'] for r in spatial_cv_results])
+        std_accuracy = np.std([r['accuracy'] for r in spatial_cv_results])
+        
+        print(f"\nSpatial CV Performance:")
+        print(f"Mean AUC: {mean_auc:.3f} ± {std_auc:.3f}")
+        print(f"Mean Accuracy: {mean_accuracy:.3f} ± {std_accuracy:.3f}")
+        
+        # Compare to non-spatial performance
+        print(f"\nComparison to non-spatial evaluation:")
+        print(f"Non-spatial AUC: {sdm_results['auc_env']:.3f}")
+        print(f"Spatial CV AUC: {mean_auc:.3f}")
+        print(f"Difference: {sdm_results['auc_env'] - mean_auc:+.3f}")
+        
+        if sdm_results['auc_env'] - mean_auc > 0.05:
+            print("Substantial overestimation due to spatial autocorrelation")
+        else:
+            print("Minimal bias from spatial autocorrelation")
+    
+    return (
+        KMeans,
+        accuracy,
+        auc,
+        buffer_distance,
+        fold_assignments,
+        kmeans,
+        mean_accuracy,
+        mean_auc,
+        min_distances_to_test,
+        spatial_cross_validation,
+        spatial_cv_results,
+        std_accuracy,
+        std_auc,
+        test_actual,
+        test_coords,
+        test_coords_scaled,
+        test_data,
+        test_indices,
+        test_mask,
+        test_predictions,
+        train_coords_scaled,
+        train_data,
+        train_indices,
+        train_mask,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Summary and Best Practices\n
+    In this chapter, we covered spatial analysis methods for ecological data:\n
+    ✓ **Spatial data creation**: Generating realistic spatial ecological datasets
+    ✓ **Spatial visualization**: Mapping ecological patterns across landscapes
+    ✓ **Spatial autocorrelation**: Moran's I and spatial dependence analysis
+    ✓ **Spatial interpolation**: Creating continuous surfaces from point data
+    ✓ **Distance analysis**: Understanding spatial correlation structure
+    ✓ **Species distribution modeling**: Environmental and spatial predictors
+    ✓ **Spatial prediction**: Mapping species suitability across landscapes
+    ✓ **Spatial cross-validation**: Accounting for spatial autocorrelation in model evaluation\n
+    ### Key Concepts in Spatial Ecology:
+    - **Spatial autocorrelation**: "Everything is related to everything else, but near things are more related"
+    - **Scale dependence**: Patterns and processes vary with spatial scale
+    - **Edge effects**: Boundary conditions affect ecological patterns
+    - **Spatial heterogeneity**: Environmental variation drives species distributions
+    - **Dispersal limitation**: Species distributions reflect movement constraints\n
+    ### Python Packages for Spatial Analysis:
+    - **scipy.spatial**: Distance calculations and spatial operations
+    - **scipy.interpolate**: Spatial interpolation methods
+    - **sklearn**: Machine learning for spatial modeling
+    - **pandas**: Spatial data manipulation and analysis
+    - **holoviews**: Interactive spatial visualization\n
+    ### Best Practices for Spatial Ecological Analysis:
+    1. **Check for spatial autocorrelation**: Always test before modeling
+    2. **Use appropriate scales**: Match analysis scale to ecological processes
+    3. **Account for spatial structure**: Include spatial components in models
+    4. **Validate spatially**: Use spatial cross-validation methods
+    5. **Consider boundaries**: Be aware of edge effects and study area limits
+    6. **Document projections**: Keep track of coordinate systems and units
+    7. **Visualize patterns**: Maps reveal insights not apparent in tables
+    8. **Test assumptions**: Verify stationarity and isotropy when assumed\n
+    ### Common Applications in Spatial Ecology:
+    - **Species distribution modeling**: Predicting suitable habitat
+    - **Conservation planning**: Identifying priority areas for protection
+    - **Landscape ecology**: Understanding patch connectivity and fragmentation
+    - **Disease ecology**: Modeling pathogen spread across landscapes
+    - **Climate change impacts**: Projecting species range shifts
+    - **Biodiversity mapping**: Creating continuous diversity surfaces
+    - **Restoration planning**: Optimal placement of restoration sites
+    """
+    
+    spatial_summary = {
+        'Dataset Characteristics': {
+            'Number of Sites': f"{len(spatial_data)}",
+            'Spatial Extent': f"{x_coords.max() - x_coords.min():.0f} × {y_coords.max() - y_coords.min():.0f} km",
+            'Variables Analyzed': len(variables)
+        },
+        'Spatial Autocorrelation': {
+            "Temperature Moran's I": f"{autocorr_results['temperature']['morans_i']:.3f}",
+            "Species Richness Moran's I": f"{autocorr_results['species_richness']['morans_i']:.3f}",
+            'Autocorrelation Range': f"{temp_range:.1f} km (temp), {richness_range:.1f} km (richness)"
+        },
+        'Species Distribution Models': {
+            'Environmental Model AUC': f"{sdm_results['auc_env']:.3f}",
+            'Spatial Model AUC': f"{sdm_results['auc_full']:.3f}",
+            'Improvement from Spatial': f"{auc_improvement:+.3f}"
+        },
+        'Spatial Cross-Validation': {
+            'Mean CV AUC': f"{mean_auc:.3f} ± {std_auc:.3f}" if spatial_cv_results else "Not available",
+            'Spatial Bias': f"{sdm_results['auc_env'] - mean_auc:+.3f}" if spatial_cv_results else "Not available",
+            'CV Folds': f"{len(spatial_cv_results)}" if spatial_cv_results else "0"
+        }
+    }
+    
+    print("Spatial Analysis Summary:")
+    print("=" * 35)
+    
+    for category, details in spatial_summary.items():
+        print(f"\n{category}:")
+        for key, value in details.items():
+            print(f"  {key}: {value}")
+    
+    print("\n✓ Chapter 12 complete! Ready for mechanistic modeling.")
+    
+    return spatial_summary,
+
+
+if __name__ == "__main__":
+    app.run()
 
 @app.cell
 def _():

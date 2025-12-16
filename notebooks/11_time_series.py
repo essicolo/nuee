@@ -303,7 +303,8 @@ def __():
         return trend, seasonal_series, residual
     
     # Decompose temperature time series
-    temp_trend, temp_seasonal, temp_residual = seasonal_decompose(ts_data['temperature'])\n    
+    temp_trend, temp_seasonal, temp_residual = seasonal_decompose(ts_data['temperature'])
+    
     print("Seasonal Decomposition - Temperature:")
     print(f"Original variance: {ts_data['temperature'].var():.2f}")
     print(f"Trend variance: {temp_trend.var():.2f}")
@@ -410,12 +411,12 @@ def __():
     print(f"Bird count ACF at lag 7: {bird_acf[7]:.3f} (weekly pattern)")
     print(f"Bird count ACF at lag 365: {bird_acf[365] if len(bird_acf) > 365 else 'N/A'}")
     
-    print(f"\\nTemperature ACF at lag 1: {temp_acf[1]:.3f}")
+    print(f"\nTemperature ACF at lag 1: {temp_acf[1]:.3f}")
     print(f"Temperature ACF at lag 365: {temp_acf[365] if len(temp_acf) > 365 else 'N/A'}")
     
     # Find significant lags (simplified - would use confidence intervals in practice)
     significant_lags = np.where(np.abs(bird_acf) > 0.1)[0]
-    print(f"\\nSignificant ACF lags for bird count: {significant_lags[:10]}")  # First 10
+    print(f"\nSignificant ACF lags for bird count: {significant_lags[:10]}")  # First 10
     
     # Test for white noise (Ljung-Box test simulation)
     def ljung_box_test(residuals, lags=10):
@@ -430,7 +431,7 @@ def __():
     
     # Test residuals from seasonal decomposition
     lb_stat, lb_p = ljung_box_test(bird_residual.dropna(), lags=10)
-    print(f"\\nLjung-Box test on residuals: LB = {lb_stat:.2f}, p = {lb_p:.4f}")
+    print(f"\nLjung-Box test on residuals: LB = {lb_stat:.2f}, p = {lb_p:.4f}")
     
     if lb_p < 0.05:
         print("Residuals show significant autocorrelation")
@@ -488,7 +489,7 @@ def __():
     
     # Expected periods
     expected_periods = [7, 365.25]  # Weekly and annual
-    print(f"\\nExpected periods: {expected_periods}")
+    print(f"\nExpected periods: {expected_periods}")
     
     # Check if expected periods are found
     for expected in expected_periods:
@@ -521,7 +522,7 @@ def __():
     high_coherence = temp_bird_coherence > 0.7
     coherent_periods = temp_bird_periods[high_coherence]
     
-    print(f"\\nCoherence Analysis (Temperature vs Bird Count):")
+    print(f"\nCoherence Analysis (Temperature vs Bird Count):")
     print(f"Periods with high coherence (>0.7):")
     for period in coherent_periods:
         if period < 1000:
@@ -566,13 +567,15 @@ def __():
     
     def linear_trend_forecast(series, steps=30):
         """Linear trend extrapolation"""
-        x = np.arange(len(series))\n        slope, intercept = np.polyfit(x, series, 1)
+        x = np.arange(len(series))
+        slope, intercept = np.polyfit(x, series, 1)
         future_x = np.arange(len(series), len(series) + steps)
         return slope * future_x + intercept
     
     def exponential_smoothing(series, alpha=0.3, steps=30):
         """Simple exponential smoothing"""
-        smoothed = np.zeros(len(series))\n        smoothed[0] = series.iloc[0]
+        smoothed = np.zeros(len(series))
+        smoothed[0] = series.iloc[0]
         
         for i in range(1, len(series)):
             smoothed[i] = alpha * series.iloc[i] + (1 - alpha) * smoothed[i-1]
@@ -583,7 +586,8 @@ def __():
     
     # Split data for forecasting validation
     train_size = int(0.8 * len(ts_data))
-    train_data = ts_data.iloc[:train_size]\n    test_data = ts_data.iloc[train_size:]
+    train_data = ts_data.iloc[:train_size]
+    test_data = ts_data.iloc[train_size:]
     
     forecast_steps = len(test_data)
     
@@ -602,7 +606,8 @@ def __():
     
     # Calculate forecast errors
     actual = test_data['bird_count'].values
-    forecast_errors = {}\n    
+    forecast_errors = {}
+    
     for method, forecast in forecasts.items():
         mae = np.mean(np.abs(forecast - actual))
         mse = np.mean((forecast - actual)**2)
@@ -616,7 +621,467 @@ def __():
         }
     
     # Display forecast performance
-    print(f"\\nForecast Performance (Bird Count):\")\n    print(\"Method              | MAE   | RMSE  | MAPE (%)\")\n    print(\"-\" * 45)\n    \n    for method, errors in forecast_errors.items():\n        print(f\"{method:18} | {errors['MAE']:5.2f} | {errors['RMSE']:5.2f} | {errors['MAPE']:8.1f}\")\n    \n    # Find best method\n    best_method = min(forecast_errors.keys(), key=lambda x: forecast_errors[x]['RMSE'])\n    print(f\"\\nBest method by RMSE: {best_method}\")\n    \n    return (\n        actual,\n        best_method,\n        exponential_smoothing,\n        forecast_errors,\n        forecast_steps,\n        forecasts,\n        linear_trend_forecast,\n        naive_forecast,\n        seasonal_naive_forecast,\n        test_data,\n        train_data,\n        train_size,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Advanced Time Series Methods\n    \"\"\"\n    # Moving averages for smoothing\n    def calculate_moving_averages(series, windows=[7, 30, 365]):\n        \"\"\"Calculate multiple moving averages\"\"\"\n        ma_dict = {}\n        for window in windows:\n            ma_dict[f'MA_{window}'] = series.rolling(window=window, center=True).mean()\n        return ma_dict\n    \n    # Calculate moving averages for bird count\n    bird_ma = calculate_moving_averages(ts_data['bird_count'])\n    \n    print(\"Moving Averages Analysis:\")\n    for ma_name, ma_series in bird_ma.items():\n        variance_reduction = 1 - (ma_series.var() / ts_data['bird_count'].var())\n        print(f\"{ma_name}: Variance reduction = {variance_reduction:.1%}\")\n    \n    # Change point detection (simplified)\n    def detect_change_points(series, window=30):\n        \"\"\"Simple change point detection using rolling statistics\"\"\"\n        rolling_mean = series.rolling(window=window).mean()\n        rolling_std = series.rolling(window=window).std()\n        \n        # Detect points where rolling statistics change significantly\n        mean_changes = np.abs(rolling_mean.diff()) > 2 * rolling_mean.std()\n        std_changes = np.abs(rolling_std.diff()) > 2 * rolling_std.std()\n        \n        change_points = mean_changes | std_changes\n        return change_points\n    \n    # Detect change points in bird count\n    change_points = detect_change_points(ts_data['bird_count'])\n    change_dates = ts_data.index[change_points]\n    \n    print(f\"\\nChange Point Detection:\")\n    print(f\"Number of potential change points: {change_points.sum()}\")\n    \n    if len(change_dates) > 0:\n        print(\"First few change points:\")\n        for date in change_dates[:5]:\n            print(f\"  {date.date()}\")\n    \n    # Anomaly detection using z-scores\n    def detect_anomalies(series, threshold=3):\n        \"\"\"Detect anomalies using z-score method\"\"\"\n        z_scores = np.abs(stats.zscore(series.dropna()))\n        anomalies = z_scores > threshold\n        return anomalies\n    \n    # Detect anomalies in residuals\n    bird_anomalies = detect_anomalies(bird_residual.dropna())\n    anomaly_dates = bird_residual.dropna().index[bird_anomalies]\n    \n    print(f\"\\nAnomaly Detection (Residuals):\")\n    print(f\"Number of anomalies detected: {bird_anomalies.sum()}\")\n    print(f\"Anomaly rate: {bird_anomalies.mean():.1%}\")\n    \n    if len(anomaly_dates) > 0:\n        print(\"Recent anomalies:\")\n        for date in anomaly_dates[-3:]:\n            value = bird_residual.loc[date]\n            print(f\"  {date.date()}: residual = {value:.2f}\")\n    \n    return (\n        anomaly_dates,\n        bird_anomalies,\n        bird_ma,\n        calculate_moving_averages,\n        change_dates,\n        change_points,\n        detect_anomalies,\n        detect_change_points,\n        ma_dict,\n        ma_name,\n        ma_series,\n        rolling_mean,\n        rolling_std,\n        variance_reduction,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Ecological Interpretation\n    \"\"\"\n    # Phenology analysis\n    def analyze_phenology(series, threshold_percentile=50):\n        \"\"\"Analyze seasonal timing (phenology)\"\"\"\n        annual_data = {}\n        \n        for year in series.index.year.unique():\n            year_data = series[series.index.year == year]\n            \n            if len(year_data) > 300:  # Sufficient data for the year\n                # Find peak timing\n                peak_date = year_data.idxmax()\n                peak_value = year_data.max()\n                \n                # Find start and end of season (above threshold)\n                threshold = np.percentile(year_data, threshold_percentile)\n                above_threshold = year_data > threshold\n                \n                if above_threshold.any():\n                    season_start = year_data[above_threshold].index.min()\n                    season_end = year_data[above_threshold].index.max()\n                    season_length = (season_end - season_start).days\n                else:\n                    season_start = season_end = peak_date\n                    season_length = 0\n                \n                annual_data[year] = {\n                    'peak_date': peak_date,\n                    'peak_doy': peak_date.dayofyear,\n                    'peak_value': peak_value,\n                    'season_start': season_start,\n                    'season_end': season_end,\n                    'season_length': season_length\n                }\n        \n        return annual_data\n    \n    # Analyze flowering phenology\n    flowering_phenology = analyze_phenology(ts_data['flowering_intensity'])\n    \n    print(\"Flowering Phenology Analysis:\")\n    print(\"Year | Peak DOY | Peak Value | Season Length\")\n    print(\"-\" * 45)\n    \n    for year, data in flowering_phenology.items():\n        print(f\"{year} |   {data['peak_doy']:3d}    |   {data['peak_value']:6.1f}   |     {data['season_length']:3d}\")\n    \n    # Calculate phenology trends\n    if len(flowering_phenology) > 2:\n        years = list(flowering_phenology.keys())\n        peak_doys = [flowering_phenology[year]['peak_doy'] for year in years]\n        season_lengths = [flowering_phenology[year]['season_length'] for year in years]\n        \n        # Trend in peak timing\n        peak_slope, peak_intercept, peak_r, peak_p, _ = stats.linregress(years, peak_doys)\n        \n        # Trend in season length\n        length_slope, length_intercept, length_r, length_p, _ = stats.linregress(years, season_lengths)\n        \n        print(f\"\\nPhenology Trends:\")\n        print(f\"Peak timing trend: {peak_slope:.2f} days/year (p = {peak_p:.3f})\")\n        print(f\"Season length trend: {length_slope:.2f} days/year (p = {length_p:.3f})\")\n        \n        if peak_p < 0.05:\n            direction = \"earlier\" if peak_slope < 0 else \"later\"\n            print(f\"Flowering is becoming significantly {direction}\")\n    \n    # Population dynamics analysis\n    def analyze_population_dynamics(series):\n        \"\"\"Analyze population trends and volatility\"\"\"\n        # Annual means\n        annual_means = series.groupby(series.index.year).mean()\n        \n        # Population growth rates\n        growth_rates = annual_means.pct_change() * 100\n        \n        # Volatility (coefficient of variation)\n        cv = series.std() / series.mean() * 100\n        \n        # Long-term trend\n        years = annual_means.index.values\n        trend_slope, _, trend_r, trend_p, _ = stats.linregress(years, annual_means.values)\n        \n        return {\n            'annual_means': annual_means,\n            'growth_rates': growth_rates,\n            'volatility': cv,\n            'trend_slope': trend_slope,\n            'trend_r_squared': trend_r**2,\n            'trend_p_value': trend_p\n        }\n    \n    # Analyze bird population dynamics\n    bird_dynamics = analyze_population_dynamics(ts_data['bird_count'])\n    \n    print(f\"\\nBird Population Dynamics:\")\n    print(f\"Volatility (CV): {bird_dynamics['volatility']:.1f}%\")\n    print(f\"Long-term trend: {bird_dynamics['trend_slope']:.2f} birds/year\")\n    print(f\"Trend R-squared: {bird_dynamics['trend_r_squared']:.3f}\")\n    print(f\"Trend p-value: {bird_dynamics['trend_p_value']:.3f}\")\n    \n    print(f\"\\nAnnual growth rates:\")\n    for year, rate in bird_dynamics['growth_rates'].items():\n        if not np.isnan(rate):\n            print(f\"{year}: {rate:+.1f}%\")\n    \n    return (\n        analyze_phenology,\n        analyze_population_dynamics,\n        annual_means,\n        bird_dynamics,\n        cv,\n        flowering_phenology,\n        growth_rates,\n        length_intercept,\n        length_p,\n        length_r,\n        length_slope,\n        peak_doys,\n        peak_intercept,\n        peak_p,\n        peak_r,\n        peak_slope,\n        season_lengths,\n        trend_p,\n        trend_r,\n        trend_slope,\n        years,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Climate Change Impact Analysis\n    \"\"\"\n    # Temperature trend analysis\n    def analyze_climate_trends(temp_series):\n        \"\"\"Analyze climate trends and extremes\"\"\"\n        # Annual statistics\n        annual_stats = temp_series.groupby(temp_series.index.year).agg([\n            'mean', 'min', 'max', 'std'\n        ])\n        annual_stats.columns = ['mean_temp', 'min_temp', 'max_temp', 'temp_variability']\n        \n        # Calculate trends\n        years = annual_stats.index.values\n        \n        trends = {}\n        for col in annual_stats.columns:\n            slope, _, r_val, p_val, _ = stats.linregress(years, annual_stats[col])\n            trends[col] = {\n                'slope': slope,\n                'r_squared': r_val**2,\n                'p_value': p_val\n            }\n        \n        # Extreme events analysis\n        # Heat days (temperature > 95th percentile)\n        heat_threshold = np.percentile(temp_series, 95)\n        heat_days = temp_series > heat_threshold\n        annual_heat_days = heat_days.groupby(heat_days.index.year).sum()\n        \n        # Cold days (temperature < 5th percentile)\n        cold_threshold = np.percentile(temp_series, 5)\n        cold_days = temp_series < cold_threshold\n        annual_cold_days = cold_days.groupby(cold_days.index.year).sum()\n        \n        return {\n            'annual_stats': annual_stats,\n            'trends': trends,\n            'heat_threshold': heat_threshold,\n            'annual_heat_days': annual_heat_days,\n            'cold_threshold': cold_threshold,\n            'annual_cold_days': annual_cold_days\n        }\n    \n    climate_analysis = analyze_climate_trends(ts_data['temperature'])\n    \n    print(\"Climate Change Analysis:\")\n    print(\"=\" * 30)\n    \n    for metric, trend_data in climate_analysis['trends'].items():\n        annual_change = trend_data['slope']\n        p_value = trend_data['p_value']\n        \n        print(f\"\\n{metric.replace('_', ' ').title()}:\")\n        print(f\"  Annual change: {annual_change:+.3f} °C/year\")\n        print(f\"  P-value: {p_value:.3f}\")\n        \n        if p_value < 0.05:\n            direction = \"increasing\" if annual_change > 0 else \"decreasing\"\n            print(f\"  Significant {direction} trend detected\")\n    \n    # Extreme events trends\n    heat_years = climate_analysis['annual_heat_days'].index.values\n    heat_trend_slope, _, heat_trend_r, heat_trend_p, _ = stats.linregress(\n        heat_years, climate_analysis['annual_heat_days'].values\n    )\n    \n    print(f\"\\nExtreme Events:\")\n    print(f\"Heat threshold: {climate_analysis['heat_threshold']:.1f}°C\")\n    print(f\"Heat days trend: {heat_trend_slope:+.2f} days/year (p = {heat_trend_p:.3f})\")\n    \n    # Species-climate relationships\n    def analyze_species_climate_relationships(species_series, climate_series):\n        \"\"\"Analyze how species respond to climate variables\"\"\"\n        # Monthly correlations\n        monthly_corr = []\n        \n        for month in range(1, 13):\n            species_month = species_series[species_series.index.month == month]\n            climate_month = climate_series[climate_series.index.month == month]\n            \n            if len(species_month) > 10 and len(climate_month) > 10:\n                # Ensure same dates\n                common_dates = species_month.index.intersection(climate_month.index)\n                if len(common_dates) > 10:\n                    corr, p_val = stats.pearsonr(\n                        species_month.loc[common_dates],\n                        climate_month.loc[common_dates]\n                    )\n                    monthly_corr.append({\n                        'month': month,\n                        'correlation': corr,\n                        'p_value': p_val\n                    })\n        \n        return monthly_corr\n    \n    # Analyze bird-temperature relationships\n    bird_temp_corr = analyze_species_climate_relationships(\n        ts_data['bird_count'], ts_data['temperature']\n    )\n    \n    print(f\"\\nBird-Temperature Relationships:\")\n    print(\"Month | Correlation | P-value\")\n    print(\"-\" * 30)\n    \n    for corr_data in bird_temp_corr:\n        month_name = pd.to_datetime(f\"2020-{corr_data['month']:02d}-01\").strftime('%b')\n        corr = corr_data['correlation']\n        p_val = corr_data['p_value']\n        significance = \"*\" if p_val < 0.05 else \" \"\n        \n        print(f\"{month_name:5} | {corr:10.3f} | {p_val:7.3f} {significance}\")\n    \n    return (\n        analyze_climate_trends,\n        analyze_species_climate_relationships,\n        annual_change,\n        bird_temp_corr,\n        climate_analysis,\n        cold_days,\n        cold_threshold,\n        corr,\n        heat_days,\n        heat_threshold,\n        heat_trend_p,\n        heat_trend_r,\n        heat_trend_slope,\n        heat_years,\n        month_name,\n        monthly_corr,\n        p_val,\n        significance,\n    )\n\n\n@app.cell\ndef __():\n    \"\"\"\n    ## Summary and Best Practices\n\n    In this chapter, we covered comprehensive time series analysis for ecological data:\n\n    ✓ **Time series exploration**: Basic patterns and visualization\n    ✓ **Trend analysis**: Linear trends and Mann-Kendall tests\n    ✓ **Seasonal decomposition**: Separating trend, seasonal, and residual components\n    ✓ **Autocorrelation analysis**: ACF, PACF, and temporal dependencies\n    ✓ **Spectral analysis**: Frequency domain analysis and coherence\n    ✓ **Forecasting**: Multiple methods and performance evaluation\n    ✓ **Advanced methods**: Moving averages, change points, anomaly detection\n    ✓ **Ecological interpretation**: Phenology and population dynamics\n    ✓ **Climate impact analysis**: Long-term trends and extreme events\n\n    ### Key Python Packages for Time Series:\n    - **pandas**: Time series data manipulation and resampling\n    - **scipy.stats**: Statistical tests and trend analysis\n    - **scipy.signal**: Spectral analysis and filtering\n    - **numpy**: Numerical computations and array operations\n    - **holoviews**: Interactive time series visualization\n\n    ### Best Practices for Ecological Time Series:\n    1. **Data quality**: Check for missing values, outliers, and measurement errors\n    2. **Temporal resolution**: Match analysis to biological processes\n    3. **Stationarity**: Test and account for non-stationary behavior\n    4. **Seasonality**: Always consider seasonal patterns in ecology\n    5. **Autocorrelation**: Account for temporal dependencies in statistical tests\n    6. **Multiple scales**: Analyze daily, seasonal, and long-term patterns\n    7. **External drivers**: Include climate and environmental variables\n    8. **Validation**: Use out-of-sample testing for forecasting models\n\n    ### Common Ecological Time Series Applications:\n    - **Population monitoring**: Abundance trends and dynamics\n    - **Phenology studies**: Timing of biological events\n    - **Climate impact assessment**: Species responses to environmental change\n    - **Conservation planning**: Trend-based risk assessment\n    - **Ecosystem monitoring**: Multi-species community dynamics\n    - **Early warning systems**: Anomaly detection for management\n    \"\"\"\n    \n    ts_summary = {\n        'Dataset Characteristics': {\n            'Duration': f\"{(ts_data.index[-1] - ts_data.index[0]).days} days\",\n            'Variables': list(ts_data.columns[:4]),\n            'Temporal Resolution': 'Daily'\n        },\n        'Key Findings': {\n            'Temperature Trend': f\"{climate_analysis['trends']['mean_temp']['slope']:.3f} °C/year\",\n            'Bird Population Trend': f\"{bird_dynamics['trend_slope']:.2f} birds/year\",\n            'Dominant Periods': f\"{sorted(dominant_periods)[:3]} days\"\n        },\n        'Forecasting Performance': {\n            'Best Method': best_method,\n            'RMSE': f\"{forecast_errors[best_method]['RMSE']:.2f}\",\n            'MAPE': f\"{forecast_errors[best_method]['MAPE']:.1f}%\"\n        },\n        'Anomalies Detected': {\n            'Change Points': f\"{change_points.sum()}\",\n            'Residual Anomalies': f\"{bird_anomalies.sum()}\",\n            'Anomaly Rate': f\"{bird_anomalies.mean():.1%}\"\n        }\n    }\n    \n    print(\"Time Series Analysis Summary:\")\n    print(\"=\" * 40)\n    \n    for category, details in ts_summary.items():\n        print(f\"\\n{category}:\")\n        for key, value in details.items():\n            print(f\"  {key}: {value}\")\n    \n    print(\"\\n✓ Chapter 11 complete! Ready for spatial data analysis.\")\n    \n    return ts_summary,\n\n\nif __name__ == \"__main__\":\n    app.run()
+    print(f"\nForecast Performance (Bird Count):")
+    print("Method              | MAE   | RMSE  | MAPE (%)")
+    print("-" * 45)
+    
+    for method, errors in forecast_errors.items():
+        print(f"{method:18} | {errors['MAE']:5.2f} | {errors['RMSE']:5.2f} | {errors['MAPE']:8.1f}")
+    
+    # Find best method
+    best_method = min(forecast_errors.keys(), key=lambda x: forecast_errors[x]['RMSE'])
+    print(f"\nBest method by RMSE: {best_method}")
+    
+    return (
+        actual,
+        best_method,
+        exponential_smoothing,
+        forecast_errors,
+        forecast_steps,
+        forecasts,
+        linear_trend_forecast,
+        naive_forecast,
+        seasonal_naive_forecast,
+        test_data,
+        train_data,
+        train_size,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Advanced Time Series Methods
+    """
+    # Moving averages for smoothing
+    def calculate_moving_averages(series, windows=[7, 30, 365]):
+        """Calculate multiple moving averages"""
+        ma_dict = {}
+        for window in windows:
+            ma_dict[f'MA_{window}'] = series.rolling(window=window, center=True).mean()
+        return ma_dict
+    
+    # Calculate moving averages for bird count
+    bird_ma = calculate_moving_averages(ts_data['bird_count'])
+    
+    print("Moving Averages Analysis:")
+    for ma_name, ma_series in bird_ma.items():
+        variance_reduction = 1 - (ma_series.var() / ts_data['bird_count'].var())
+        print(f"{ma_name}: Variance reduction = {variance_reduction:.1%}")
+    
+    # Change point detection (simplified)
+    def detect_change_points(series, window=30):
+        """Simple change point detection using rolling statistics"""
+        rolling_mean = series.rolling(window=window).mean()
+        rolling_std = series.rolling(window=window).std()
+        
+        # Detect points where rolling statistics change significantly
+        mean_changes = np.abs(rolling_mean.diff()) > 2 * rolling_mean.std()
+        std_changes = np.abs(rolling_std.diff()) > 2 * rolling_std.std()
+        
+        change_points = mean_changes | std_changes
+        return change_points
+    
+    # Detect change points in bird count
+    change_points = detect_change_points(ts_data['bird_count'])
+    change_dates = ts_data.index[change_points]
+    
+    print(f"\nChange Point Detection:")
+    print(f"Number of potential change points: {change_points.sum()}")
+    
+    if len(change_dates) > 0:
+        print("First few change points:")
+        for date in change_dates[:5]:
+            print(f"  {date.date()}")
+    
+    # Anomaly detection using z-scores
+    def detect_anomalies(series, threshold=3):
+        """Detect anomalies using z-score method"""
+        z_scores = np.abs(stats.zscore(series.dropna()))
+        anomalies = z_scores > threshold
+        return anomalies
+    
+    # Detect anomalies in residuals
+    bird_anomalies = detect_anomalies(bird_residual.dropna())
+    anomaly_dates = bird_residual.dropna().index[bird_anomalies]
+    
+    print(f"\nAnomaly Detection (Residuals):")
+    print(f"Number of anomalies detected: {bird_anomalies.sum()}")
+    print(f"Anomaly rate: {bird_anomalies.mean():.1%}")
+    
+    if len(anomaly_dates) > 0:
+        print("Recent anomalies:")
+        for date in anomaly_dates[-3:]:
+            value = bird_residual.loc[date]
+            print(f"  {date.date()}: residual = {value:.2f}")
+    
+    return (
+        anomaly_dates,
+        bird_anomalies,
+        bird_ma,
+        calculate_moving_averages,
+        change_dates,
+        change_points,
+        detect_anomalies,
+        detect_change_points,
+        ma_dict,
+        ma_name,
+        ma_series,
+        rolling_mean,
+        rolling_std,
+        variance_reduction,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Ecological Interpretation
+    """
+    # Phenology analysis
+    def analyze_phenology(series, threshold_percentile=50):
+        """Analyze seasonal timing (phenology)"""
+        annual_data = {}
+        
+        for year in series.index.year.unique():
+            year_data = series[series.index.year == year]
+            
+            if len(year_data) > 300:  # Sufficient data for the year
+                # Find peak timing
+                peak_date = year_data.idxmax()
+                peak_value = year_data.max()
+                
+                # Find start and end of season (above threshold)
+                threshold = np.percentile(year_data, threshold_percentile)
+                above_threshold = year_data > threshold
+                
+                if above_threshold.any():
+                    season_start = year_data[above_threshold].index.min()
+                    season_end = year_data[above_threshold].index.max()
+                    season_length = (season_end - season_start).days
+                else:
+                    season_start = season_end = peak_date
+                    season_length = 0
+                
+                annual_data[year] = {
+                    'peak_date': peak_date,
+                    'peak_doy': peak_date.dayofyear,
+                    'peak_value': peak_value,
+                    'season_start': season_start,
+                    'season_end': season_end,
+                    'season_length': season_length
+                }
+        
+        return annual_data
+    
+    # Analyze flowering phenology
+    flowering_phenology = analyze_phenology(ts_data['flowering_intensity'])
+    
+    print("Flowering Phenology Analysis:")
+    print("Year | Peak DOY | Peak Value | Season Length")
+    print("-" * 45)
+    
+    for year, data in flowering_phenology.items():
+        print(f"{year} |   {data['peak_doy']:3d}    |   {data['peak_value']:6.1f}   |     {data['season_length']:3d}")
+    
+    # Calculate phenology trends
+    if len(flowering_phenology) > 2:
+        years = list(flowering_phenology.keys())
+        peak_doys = [flowering_phenology[year]['peak_doy'] for year in years]
+        season_lengths = [flowering_phenology[year]['season_length'] for year in years]
+        
+        # Trend in peak timing
+        peak_slope, peak_intercept, peak_r, peak_p, _ = stats.linregress(years, peak_doys)
+        
+        # Trend in season length
+        length_slope, length_intercept, length_r, length_p, _ = stats.linregress(years, season_lengths)
+        
+        print(f"\nPhenology Trends:")
+        print(f"Peak timing trend: {peak_slope:.2f} days/year (p = {peak_p:.3f})")
+        print(f"Season length trend: {length_slope:.2f} days/year (p = {length_p:.3f})")
+        
+        if peak_p < 0.05:
+            direction = "earlier" if peak_slope < 0 else "later"
+            print(f"Flowering is becoming significantly {direction}")
+    
+    # Population dynamics analysis
+    def analyze_population_dynamics(series):
+        """Analyze population trends and volatility"""
+        # Annual means
+        annual_means = series.groupby(series.index.year).mean()
+        
+        # Population growth rates
+        growth_rates = annual_means.pct_change() * 100
+        
+        # Volatility (coefficient of variation)
+        cv = series.std() / series.mean() * 100
+        
+        # Long-term trend
+        years = annual_means.index.values
+        trend_slope, _, trend_r, trend_p, _ = stats.linregress(years, annual_means.values)
+        
+        return {
+            'annual_means': annual_means,
+            'growth_rates': growth_rates,
+            'volatility': cv,
+            'trend_slope': trend_slope,
+            'trend_r_squared': trend_r**2,
+            'trend_p_value': trend_p
+        }
+    
+    # Analyze bird population dynamics
+    bird_dynamics = analyze_population_dynamics(ts_data['bird_count'])
+    
+    print(f"\nBird Population Dynamics:")
+    print(f"Volatility (CV): {bird_dynamics['volatility']:.1f}%")
+    print(f"Long-term trend: {bird_dynamics['trend_slope']:.2f} birds/year")
+    print(f"Trend R-squared: {bird_dynamics['trend_r_squared']:.3f}")
+    print(f"Trend p-value: {bird_dynamics['trend_p_value']:.3f}")
+    
+    print(f"\nAnnual growth rates:")
+    for year, rate in bird_dynamics['growth_rates'].items():
+        if not np.isnan(rate):
+            print(f"{year}: {rate:+.1f}%")
+    
+    return (
+        analyze_phenology,
+        analyze_population_dynamics,
+        annual_means,
+        bird_dynamics,
+        cv,
+        flowering_phenology,
+        growth_rates,
+        length_intercept,
+        length_p,
+        length_r,
+        length_slope,
+        peak_doys,
+        peak_intercept,
+        peak_p,
+        peak_r,
+        peak_slope,
+        season_lengths,
+        trend_p,
+        trend_r,
+        trend_slope,
+        years,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Climate Change Impact Analysis
+    """
+    # Temperature trend analysis
+    def analyze_climate_trends(temp_series):
+        """Analyze climate trends and extremes"""
+        # Annual statistics
+        annual_stats = temp_series.groupby(temp_series.index.year).agg([
+            'mean', 'min', 'max', 'std'
+        ])
+        annual_stats.columns = ['mean_temp', 'min_temp', 'max_temp', 'temp_variability']
+        
+        # Calculate trends
+        years = annual_stats.index.values
+        
+        trends = {}
+        for col in annual_stats.columns:
+            slope, _, r_val, p_val, _ = stats.linregress(years, annual_stats[col])
+            trends[col] = {
+                'slope': slope,
+                'r_squared': r_val**2,
+                'p_value': p_val
+            }
+        
+        # Extreme events analysis
+        # Heat days (temperature > 95th percentile)
+        heat_threshold = np.percentile(temp_series, 95)
+        heat_days = temp_series > heat_threshold
+        annual_heat_days = heat_days.groupby(heat_days.index.year).sum()
+        
+        # Cold days (temperature < 5th percentile)
+        cold_threshold = np.percentile(temp_series, 5)
+        cold_days = temp_series < cold_threshold
+        annual_cold_days = cold_days.groupby(cold_days.index.year).sum()
+        
+        return {
+            'annual_stats': annual_stats,
+            'trends': trends,
+            'heat_threshold': heat_threshold,
+            'annual_heat_days': annual_heat_days,
+            'cold_threshold': cold_threshold,
+            'annual_cold_days': annual_cold_days
+        }
+    
+    climate_analysis = analyze_climate_trends(ts_data['temperature'])
+    
+    print("Climate Change Analysis:")
+    print("=" * 30)
+    
+    for metric, trend_data in climate_analysis['trends'].items():
+        annual_change = trend_data['slope']
+        p_value = trend_data['p_value']
+        
+        print(f"\n{metric.replace('_', ' ').title()}:")
+        print(f"  Annual change: {annual_change:+.3f} °C/year")
+        print(f"  P-value: {p_value:.3f}")
+        
+        if p_value < 0.05:
+            direction = "increasing" if annual_change > 0 else "decreasing"
+            print(f"  Significant {direction} trend detected")
+    
+    # Extreme events trends
+    heat_years = climate_analysis['annual_heat_days'].index.values
+    heat_trend_slope, _, heat_trend_r, heat_trend_p, _ = stats.linregress(
+        heat_years, climate_analysis['annual_heat_days'].values
+    )
+    
+    print(f"\nExtreme Events:")
+    print(f"Heat threshold: {climate_analysis['heat_threshold']:.1f}°C")
+    print(f"Heat days trend: {heat_trend_slope:+.2f} days/year (p = {heat_trend_p:.3f})")
+    
+    # Species-climate relationships
+    def analyze_species_climate_relationships(species_series, climate_series):
+        """Analyze how species respond to climate variables"""
+        # Monthly correlations
+        monthly_corr = []
+        
+        for month in range(1, 13):
+            species_month = species_series[species_series.index.month == month]
+            climate_month = climate_series[climate_series.index.month == month]
+            
+            if len(species_month) > 10 and len(climate_month) > 10:
+                # Ensure same dates
+                common_dates = species_month.index.intersection(climate_month.index)
+                if len(common_dates) > 10:
+                    corr, p_val = stats.pearsonr(
+                        species_month.loc[common_dates],
+                        climate_month.loc[common_dates]
+                    )
+                    monthly_corr.append({
+                        'month': month,
+                        'correlation': corr,
+                        'p_value': p_val
+                    })
+        
+        return monthly_corr
+    
+    # Analyze bird-temperature relationships
+    bird_temp_corr = analyze_species_climate_relationships(
+        ts_data['bird_count'], ts_data['temperature']
+    )
+    
+    print(f"\nBird-Temperature Relationships:")
+    print("Month | Correlation | P-value")
+    print("-" * 30)
+    
+    for corr_data in bird_temp_corr:
+        month_name = pd.to_datetime(f"2020-{corr_data['month']:02d}-01").strftime('%b')
+        corr = corr_data['correlation']
+        p_val = corr_data['p_value']
+        significance = "*" if p_val < 0.05 else " "
+        
+        print(f"{month_name:5} | {corr:10.3f} | {p_val:7.3f} {significance}")
+    
+    return (
+        analyze_climate_trends,
+        analyze_species_climate_relationships,
+        annual_change,
+        bird_temp_corr,
+        climate_analysis,
+        cold_days,
+        cold_threshold,
+        corr,
+        heat_days,
+        heat_threshold,
+        heat_trend_p,
+        heat_trend_r,
+        heat_trend_slope,
+        heat_years,
+        month_name,
+        monthly_corr,
+        p_val,
+        significance,
+    )
+
+
+@app.cell
+def __():
+    """
+    ## Summary and Best Practices\n
+    In this chapter, we covered comprehensive time series analysis for ecological data:\n
+    ✓ **Time series exploration**: Basic patterns and visualization
+    ✓ **Trend analysis**: Linear trends and Mann-Kendall tests
+    ✓ **Seasonal decomposition**: Separating trend, seasonal, and residual components
+    ✓ **Autocorrelation analysis**: ACF, PACF, and temporal dependencies
+    ✓ **Spectral analysis**: Frequency domain analysis and coherence
+    ✓ **Forecasting**: Multiple methods and performance evaluation
+    ✓ **Advanced methods**: Moving averages, change points, anomaly detection
+    ✓ **Ecological interpretation**: Phenology and population dynamics
+    ✓ **Climate impact analysis**: Long-term trends and extreme events\n
+    ### Key Python Packages for Time Series:
+    - **pandas**: Time series data manipulation and resampling
+    - **scipy.stats**: Statistical tests and trend analysis
+    - **scipy.signal**: Spectral analysis and filtering
+    - **numpy**: Numerical computations and array operations
+    - **holoviews**: Interactive time series visualization\n
+    ### Best Practices for Ecological Time Series:
+    1. **Data quality**: Check for missing values, outliers, and measurement errors
+    2. **Temporal resolution**: Match analysis to biological processes
+    3. **Stationarity**: Test and account for non-stationary behavior
+    4. **Seasonality**: Always consider seasonal patterns in ecology
+    5. **Autocorrelation**: Account for temporal dependencies in statistical tests
+    6. **Multiple scales**: Analyze daily, seasonal, and long-term patterns
+    7. **External drivers**: Include climate and environmental variables
+    8. **Validation**: Use out-of-sample testing for forecasting models\n
+    ### Common Ecological Time Series Applications:
+    - **Population monitoring**: Abundance trends and dynamics
+    - **Phenology studies**: Timing of biological events
+    - **Climate impact assessment**: Species responses to environmental change
+    - **Conservation planning**: Trend-based risk assessment
+    - **Ecosystem monitoring**: Multi-species community dynamics
+    - **Early warning systems**: Anomaly detection for management
+    """
+    
+    ts_summary = {
+        'Dataset Characteristics': {
+            'Duration': f"{(ts_data.index[-1] - ts_data.index[0]).days} days",
+            'Variables': list(ts_data.columns[:4]),
+            'Temporal Resolution': 'Daily'
+        },
+        'Key Findings': {
+            'Temperature Trend': f"{climate_analysis['trends']['mean_temp']['slope']:.3f} °C/year",
+            'Bird Population Trend': f"{bird_dynamics['trend_slope']:.2f} birds/year",
+            'Dominant Periods': f"{sorted(dominant_periods)[:3]} days"
+        },
+        'Forecasting Performance': {
+            'Best Method': best_method,
+            'RMSE': f"{forecast_errors[best_method]['RMSE']:.2f}",
+            'MAPE': f"{forecast_errors[best_method]['MAPE']:.1f}%"
+        },
+        'Anomalies Detected': {
+            'Change Points': f"{change_points.sum()}",
+            'Residual Anomalies': f"{bird_anomalies.sum()}",
+            'Anomaly Rate': f"{bird_anomalies.mean():.1%}"
+        }
+    }
+    
+    print("Time Series Analysis Summary:")
+    print("=" * 40)
+    
+    for category, details in ts_summary.items():
+        print(f"\n{category}:")
+        for key, value in details.items():
+            print(f"  {key}: {value}")
+    
+    print("\n✓ Chapter 11 complete! Ready for spatial data analysis.")
+    
+    return ts_summary,
+
+
+if __name__ == "__main__":
+    app.run()
 
 @app.cell
 def _():
