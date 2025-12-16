@@ -59,11 +59,13 @@ Verifying Installation
 
 You can verify that nuee is installed correctly by running:
 
-.. code-block:: python
+.. doctest::
 
-   import nuee
-   print(nuee.__version__)
+   >>> import nuee
+   >>> print(nuee.__version__)
+   [...]
 
-   # Load a sample dataset
-   varespec = nuee.datasets.varespec()
-   print(varespec.head())
+   >>> # Load a sample dataset
+   >>> varespec = nuee.datasets.varespec()
+   >>> print(varespec.head())
+   [...]

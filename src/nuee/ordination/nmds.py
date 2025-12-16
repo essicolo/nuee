@@ -103,6 +103,7 @@ class NMDS(OrdinationMethod):
     >>> nmds = NMDS(n_components=2, n_init=20)
     >>> result = nmds.fit(species)
     >>> print(f"Stress: {result.stress:.3f}")
+    Stress: 0.073
     """
 
     def __init__(self, n_components: int = 2, max_iter: int = 200,
@@ -296,6 +297,7 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     -------
     OrdinationResult
         Result object containing:
+
         - points : pd.DataFrame
             Site (sample) scores in the ordination space
         - species : pd.DataFrame, optional
@@ -328,10 +330,15 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     >>> species = nuee.datasets.varespec()
     >>> nmds = nuee.metaMDS(species, k=2, distance="bray")
     >>> print(f"Stress: {nmds.stress:.3f}")
+    Stress: 0.133
 
     With custom parameters:
 
     >>> nmds = nuee.metaMDS(species, k=3, distance="bray", trymax=50, trace=True)
+    Applying square root transformation
+    Applying Wisconsin double standardization
+    NMDS stress: 0.0869
+    NMDS converged
 
     Visualize the ordination:
 

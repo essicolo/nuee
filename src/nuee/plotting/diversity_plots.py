@@ -7,8 +7,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Union, Optional, Dict, Any
 
+from nuee.diversity import DiversityResult
 
-def plot_diversity(diversity_data: Union[np.ndarray, pd.Series, pd.DataFrame],
+
+def plot_diversity(diversity_data: Union[np.ndarray, pd.Series, pd.DataFrame, DiversityResult],
                    figsize: tuple = (8, 6),
                    **kwargs) -> plt.Figure:
     """

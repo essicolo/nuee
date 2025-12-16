@@ -54,6 +54,7 @@ def vegdist(x: Union[np.ndarray, pd.DataFrame],
     >>> species = nuee.datasets.varespec()
     >>> dist = nuee.vegdist(species, method="bray")
     >>> print(f"Shape: {dist.shape}")
+    Shape: (24, 24)
 
     See Also
     --------

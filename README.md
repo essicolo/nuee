@@ -110,6 +110,7 @@ print(permanova_result)
 ```python
 import nuee 
 import pandas as pd
+from matplotlib import pyplot as plt
 
 # Load data
 species = nuee.datasets.dune()
@@ -168,7 +169,7 @@ mantel_result = nuee.mantel(dist_matrix, env_dist)
 
 print(f"PERMANOVA R^2: {permanova_result["r_squared"]:.3f}")
 print(f"ANOSIM R: {anosim_result["r_statistic"]:.3f}")
-print(f"Mantel r: {mantel_result["r_statistic"]:.3f}"))
+print(f"Mantel r: {mantel_result["r_statistic"]:.3f}")
 ```
 
 ## Dependencies
