@@ -79,7 +79,7 @@ Complete analysis of lichen community data with environmental correlates.
        >>> for var in ['N', 'P', 'K', 'pH']:
        ...     env_dist = nuee.vegdist(env[[var]], method="euclidean")
        ...     mantel = nuee.mantel(dist, env_dist)
-       ...     print(f"Mantel test - {var}: r={mantel["r_statistic"]:.3f}, p={mantel["p_value"]:.3f}")
+       ...     print(f"Mantel test - {var}: r={mantel['r_statistic']:.3f}, p={mantel['p_value']:.3f}")
        Mantel test - N: r=..., p=...
 
 Example 2: Vegetation Classification
