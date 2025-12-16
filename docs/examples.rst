@@ -114,7 +114,7 @@ Dune meadow vegetation with management types.
    >>> # 2. PERMANOVA test
    >>> dist = nuee.vegdist(species, method="bray")
    >>> perm = nuee.adonis2(dist, env['Management'])
-   >>> print(f"PERMANOVA R²: {perm.R2[0]:.3f}, p-value: {perm["Pr(>F)"][0]:.3f}")
+   >>> print(f"PERMANOVA R²: {perm.R2.iloc[0]:.3f}, p-value: {perm['Pr(>F)'].iloc[0]:.3f}")
    PERMANOVA R²: 0.342, p-value: ...
 
 .. note::
