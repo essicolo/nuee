@@ -76,7 +76,7 @@ def _pcoa_embedding(D: np.ndarray, tol: float = 1e-10) -> Tuple[np.ndarray, np.n
 
 def betadisper(distance_matrix: ArrayLike,
                grouping: ArrayLike,
-               permutations: int = 0,
+               permutations: int = 999,
                random_state: Optional[Union[int, np.random.Generator]] = None,
                distance_method: str = "bray",
                **kwargs) -> Dict[str, Union[float, int, np.ndarray, pd.DataFrame]]:
@@ -91,7 +91,8 @@ def betadisper(distance_matrix: ArrayLike,
     grouping:
         Group assignments for each observation.
     permutations:
-        Number of permutations for the ANOVA-like dispersion test.
+        Number of permutations for the ANOVA-like dispersion test (default: 999).
+        Set to 0 to skip the permutation test.
     random_state:
         Seed controlling permutation reproducibility.
     distance_method:
