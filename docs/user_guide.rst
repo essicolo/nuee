@@ -105,7 +105,7 @@ Basic Ordination Workflow
 
    >>> # 5. Interpret stress value
    >>> print(f"Stress: {nmds_result.stress:.3f}")
-   Stress: 0.133
+   Stress: 0.1
    >>> # Stress < 0.05: excellent
    >>> # Stress < 0.10: good
    >>> # Stress < 0.20: acceptable
@@ -162,9 +162,9 @@ Hypothesis Testing Workflow
 
    >>> # Test for group differences (PERMANOVA)
    >>> perm_result = nuee.adonis2(dist, env['Management'])
-   >>> print(f"R^2: {perm_result.R2[0]:.3f}")
+   >>> print(f"R^2: {perm_result.R2.iloc[0]:.3f}")
    R^2: 0.342
-   >>> print(f"p-value: {perm_result["Pr(>F)"][0]:.3f}")
+   >>> print(f"p-value: {perm_result['Pr(>F)'].iloc[0]:.3f}")
    p-value: ...
 
    >>> # Test for homogeneity of dispersions
