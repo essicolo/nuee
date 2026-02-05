@@ -110,7 +110,11 @@ class OrdinationResult:
     
     def biplot(self, scaling: Union[int, str, None] = None, **kwargs):
         """
-        Create a biplot if applicable.
+        Create a biplot.
+
+        For PCA the species loadings are shown as arrows from the origin.
+        For constrained ordination (RDA / CCA), environmental variables
+        are shown as arrows while species are shown as points.
 
         Parameters:
             scaling: Scaling mode for site/species scores
@@ -119,11 +123,8 @@ class OrdinationResult:
         Returns:
             matplotlib Figure object
         """
-        if hasattr(self, 'biplot_scores') and self.biplot_scores is not None:
-            from ..plotting.ordination_plots import biplot
-            return biplot(self, scaling=scaling or 2, **kwargs)
-        else:
-            return self.plot(display="both", scaling=scaling, **kwargs)
+        from ..plotting.ordination_plots import biplot
+        return biplot(self, scaling=scaling or 2, **kwargs)
 
     def get_scores(self, display: str = "sites",
                    scaling: Optional[Union[int, str]] = None) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:

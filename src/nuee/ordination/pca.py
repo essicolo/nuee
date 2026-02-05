@@ -23,6 +23,10 @@ class PCA(OrdinationMethod):
 
     def fit(self, X: Union[np.ndarray, pd.DataFrame], **kwargs) -> OrdinationResult:
         """Fit PCA to the data using an explicit SVD."""
+        species_names = None
+        if hasattr(X, 'columns'):
+            species_names = list(X.columns)
+
         matrix, column_means, column_scale = self._prepare_matrix(X)
         n_samples, n_features = matrix.shape
 
@@ -80,6 +84,8 @@ class PCA(OrdinationMethod):
             scaling_backend=scaling_backend
         )
 
+        if species_names is not None:
+            result._species_names = species_names
         result.column_means = column_means
         result.column_scale = column_scale
         result.row_masses = np.full(n_samples, 1.0 / max(n_samples, 1), dtype=float)

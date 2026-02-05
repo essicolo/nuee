@@ -129,14 +129,18 @@ def plot_ordination(result: OrdinationResult,
     return fig
 
 
-def biplot(result: ConstrainedOrdinationResult,
+def biplot(result: 'OrdinationResult',
            axes: Tuple[int, int] = (0, 1),
            scaling: Union[str, int] = "species",
            correlation: bool = False,
            figsize: Tuple[int, int] = (8, 6),
            **kwargs) -> plt.Figure:
     """
-    Create a biplot for constrained ordination results.
+    Create a biplot for ordination results.
+
+    For unconstrained ordination (PCA), species loadings are drawn as
+    arrows from the origin.  For constrained ordination (RDA / CCA),
+    species are shown as points and environmental variables as arrows.
     """
     scaling_map = {
         1: 1, "sites": 1,
@@ -147,6 +151,8 @@ def biplot(result: ConstrainedOrdinationResult,
 
     fig, ax = plt.subplots(figsize=figsize)
 
+    is_constrained = isinstance(result, ConstrainedOrdinationResult)
+
     try:
         sites, species = result.get_scores(display="both", scaling=scaling_id)
     except (AttributeError, ValueError):
@@ -154,10 +160,22 @@ def biplot(result: ConstrainedOrdinationResult,
         species = getattr(result, "species", None)
         scaling_id = None
 
+    if isinstance(sites, pd.DataFrame):
+        sites = sites.values
+    if isinstance(species, pd.DataFrame):
+        species = species.values
+
+    # Site labels
+    site_names = getattr(result, "_site_names", None)
+
+    # Species labels
+    species_names = getattr(result, "_species_names", None)
+
     if sites is not None:
         x = sites[:, axes[0]]
         y = sites[:, axes[1]]
-        labels = [f"Site{i+1}" for i in range(len(x))]
+        labels = (site_names if site_names and len(site_names) == len(x)
+                  else [f"Site{i+1}" for i in range(len(x))])
 
         ax.scatter(x, y, alpha=0.7, **kwargs)
         for i, label in enumerate(labels):
@@ -167,13 +185,29 @@ def biplot(result: ConstrainedOrdinationResult,
     if species is not None:
         x_sp = species[:, axes[0]]
         y_sp = species[:, axes[1]]
-        labels_sp = [f"Sp{i+1}" for i in range(len(x_sp))]
+        n_sp = len(x_sp)
+        labels_sp = (species_names if species_names and len(species_names) == n_sp
+                     else [f"Sp{i+1}" for i in range(n_sp)])
 
-        ax.scatter(x_sp, y_sp, c='red', marker='^', s=50, alpha=0.7, label='Species')
-        for i, label in enumerate(labels_sp):
-            ax.annotate(label, (x_sp[i], y_sp[i]), xytext=(3, 3),
-                       textcoords='offset points', fontsize=8, color='red')
+        if is_constrained:
+            # Constrained ordination: species as points
+            ax.scatter(x_sp, y_sp, c='red', marker='^', s=50,
+                       alpha=0.7, label='Species')
+            for i, label in enumerate(labels_sp):
+                ax.annotate(label, (x_sp[i], y_sp[i]), xytext=(3, 3),
+                           textcoords='offset points', fontsize=8, color='red')
+        else:
+            # Unconstrained ordination (PCA): species as arrows
+            for i in range(n_sp):
+                ax.annotate(
+                    '', xy=(x_sp[i], y_sp[i]), xytext=(0, 0),
+                    arrowprops=dict(arrowstyle='->', color='red',
+                                    lw=1.5, alpha=0.7))
+                ax.text(x_sp[i], y_sp[i], labels_sp[i],
+                        fontsize=9, color='red', fontweight='bold',
+                        ha='left', va='bottom')
 
+    # Biplot arrows for constrained ordination environmental variables
     if hasattr(result, 'biplot_scores') and result.biplot_scores is not None:
         biplot_scores = np.array(result.biplot_scores, copy=True)
         if scaling_id in (2, 3):
@@ -193,6 +227,7 @@ def biplot(result: ConstrainedOrdinationResult,
     ax.set_xlabel(f'Axis {axes[0]+1}')
     ax.set_ylabel(f'Axis {axes[1]+1}')
     plt.tight_layout()
+    plt.close(fig)
     return fig
 
 
