@@ -49,7 +49,7 @@ package-dir = {"" = "src"}
 where = ["src"]
 include = ["nuee*"]
 
-[dependency-groups]
+[project.optional-dependencies]
 dev = [
     "pytest>=6.0",
     "pytest-cov>=2.0",
