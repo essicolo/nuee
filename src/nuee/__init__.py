@@ -57,7 +57,7 @@ References
        R package version 2.5-7. https://CRAN.R-project.org/package=vegan
 """
 
-__version__ = "0.1.7"
+__version__ = "0.1.8"
 __author__ = "nuee Development Team"
 
 from .ordination import (
@@ -66,6 +66,7 @@ from .ordination import (
     cca,
     ca,
     pca,
+    lda,
     envfit,
     ordistep,
     procrustes,
@@ -145,6 +146,7 @@ __all__ = [
     "cca",
     "ca",
     "pca",
+    "lda",
     "envfit",
     "ordistep",
     "procrustes",

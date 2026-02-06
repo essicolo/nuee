@@ -13,6 +13,25 @@ from scipy.stats import chi2
 from ..ordination.base import OrdinationResult, ConstrainedOrdinationResult
 
 
+def _to_1d(v) -> np.ndarray:
+    """Coerce any vector-like input to a 1-D numpy array.
+
+    Handles: Polars DataFrame/Series, pandas DataFrame/Series,
+    numpy arrays (1-D or single-column 2-D), and plain lists.
+    """
+    # Polars DataFrame → first column
+    if hasattr(v, "to_series"):        # pl.DataFrame
+        v = v.to_series()
+    if hasattr(v, "to_numpy"):         # pl.Series or pd.Series/DataFrame
+        v = v.to_numpy()
+    arr = np.asarray(v)
+    if arr.ndim == 2 and arr.shape[1] == 1:
+        arr = arr.ravel()
+    if arr.ndim != 1:
+        arr = arr.ravel()
+    return arr
+
+
 def plot_ordination(result: OrdinationResult,
                     axes: Tuple[int, int] = (0, 1),
                     display: str = "sites",
@@ -148,12 +167,15 @@ def biplot(result: 'OrdinationResult',
            site_kw: Optional[Dict[str, Any]] = None,
            species_kw: Optional[Dict[str, Any]] = None,
            env_kw: Optional[Dict[str, Any]] = None,
+           groups: Optional[Union[np.ndarray, pd.Series, list]] = None,
+           color_by: Optional[Union[np.ndarray, pd.Series, list]] = None,
+           cmap: Optional[str] = None,
            **kwargs) -> plt.Figure:
     """
     Create a biplot for ordination results.
 
-    For unconstrained ordination (PCA, CA), species loadings are drawn as
-    arrows from the origin.  For constrained ordination (RDA / CCA),
+    For unconstrained ordination (PCA, CA, LDA), species loadings are drawn
+    as arrows from the origin.  For constrained ordination (RDA / CCA),
     species are shown as points and environmental variables as arrows.
 
     Parameters
@@ -189,6 +211,15 @@ def biplot(result: 'OrdinationResult',
         Extra keyword arguments for species scatter/arrows.
     env_kw : dict, optional
         Extra keyword arguments for environmental arrows.
+    groups : array-like, optional
+        Categorical group labels (one per site) for coloured scatter.
+        Auto-detected from LDA results.
+    color_by : array-like, optional
+        Continuous values (one per site) for colour-mapped scatter with
+        a colourbar.  Mutually exclusive with *groups*.
+    cmap : str, optional
+        Matplotlib colormap name.  Default is the colour cycle for
+        *groups* (up to 10) and ``"viridis"`` for *color_by*.
     **kwargs
         Additional keyword arguments passed to site scatter.
     """
@@ -197,6 +228,19 @@ def biplot(result: 'OrdinationResult',
         _has_adjusttext = True
     except ImportError:
         _has_adjusttext = False
+
+    # --- Resolve groups / color_by ---
+    if groups is None:
+        groups = getattr(result, "groups", None)
+    if groups is not None and color_by is not None:
+        raise ValueError(
+            "'groups' and 'color_by' are mutually exclusive; "
+            "provide one or neither."
+        )
+    if groups is not None:
+        groups = _to_1d(groups)
+    if color_by is not None:
+        color_by = _to_1d(color_by).astype(float)
 
     scaling_map = {
         1: 1, "sites": 1,
@@ -242,12 +286,61 @@ def biplot(result: 'OrdinationResult',
         labels = (site_names if site_names and len(site_names) == len(x)
                   else [f"Site{i+1}" for i in range(len(x))])
 
-        ax.scatter(x, y, **_site_kw)
-        if show_site_labels:
-            for i, label in enumerate(labels):
-                t = ax.text(x[i], y[i], label, fontsize=fontsize,
-                            alpha=0.75, zorder=4)
-                _texts.append(t)
+        if groups is not None:
+            # -- Categorical group coloring --
+            unique_groups = list(dict.fromkeys(groups))  # preserve order
+            n_groups = len(unique_groups)
+            if cmap is not None:
+                _cmap = plt.get_cmap(cmap)
+            elif n_groups > 10:
+                _cmap = plt.get_cmap("tab20")
+            else:
+                _cmap = None  # use default colour cycle
+
+            for idx, grp in enumerate(unique_groups):
+                mask = groups == grp
+                color = f"C{idx}" if _cmap is None else _cmap(
+                    idx / max(n_groups - 1, 1))
+                grp_kw = dict(_site_kw)
+                grp_kw.pop("facecolors", None)
+                grp_kw.pop("edgecolors", None)
+                grp_kw.pop("label", None)
+                grp_kw["color"] = color
+                grp_kw["label"] = str(grp)
+                ax.scatter(x[mask], y[mask], **grp_kw)
+
+                if show_site_labels:
+                    for i in np.where(mask)[0]:
+                        t = ax.text(x[i], y[i], labels[i],
+                                    fontsize=fontsize, color=color,
+                                    alpha=0.75, zorder=4)
+                        _texts.append(t)
+
+        elif color_by is not None:
+            # -- Continuous coloring --
+            cont_kw = dict(_site_kw)
+            cont_kw.pop("facecolors", None)
+            cont_kw.pop("edgecolors", None)
+            cont_kw.pop("label", None)
+            cont_kw["edgecolors"] = "face"
+            sc = ax.scatter(x, y, c=color_by, cmap=cmap or "viridis",
+                            **cont_kw)
+            plt.colorbar(sc, ax=ax, shrink=0.8, pad=0.02)
+
+            if show_site_labels:
+                for i, label in enumerate(labels):
+                    t = ax.text(x[i], y[i], label, fontsize=fontsize,
+                                alpha=0.75, zorder=4)
+                    _texts.append(t)
+
+        else:
+            # -- Default: single scatter (unchanged) --
+            ax.scatter(x, y, **_site_kw)
+            if show_site_labels:
+                for i, label in enumerate(labels):
+                    t = ax.text(x[i], y[i], label, fontsize=fontsize,
+                                alpha=0.75, zorder=4)
+                    _texts.append(t)
 
     # --- Plot species ---
     if species is not None:
@@ -344,8 +437,21 @@ def biplot(result: 'OrdinationResult',
 
     ax.set_aspect("equal", adjustable="box")
     ax.grid(True, alpha=0.15, linewidth=0.5)
-    ax.set_xlabel(f"Axis {axes[0]+1}")
-    ax.set_ylabel(f"Axis {axes[1]+1}")
+
+    # Axis labels — method-specific
+    _method = (result.call.get("method", "")
+               if isinstance(getattr(result, "call", None), dict) else "")
+    if _method == "LDA":
+        _evar = getattr(result, "explained_variance_ratio_", None)
+        if _evar is not None and len(_evar) > max(axes):
+            ax.set_xlabel(f"LD{axes[0]+1} ({_evar[axes[0]]:.1%})")
+            ax.set_ylabel(f"LD{axes[1]+1} ({_evar[axes[1]]:.1%})")
+        else:
+            ax.set_xlabel(f"LD{axes[0]+1}")
+            ax.set_ylabel(f"LD{axes[1]+1}")
+    else:
+        ax.set_xlabel(f"Axis {axes[0]+1}")
+        ax.set_ylabel(f"Axis {axes[1]+1}")
 
     if title is not None:
         ax.set_title(title)

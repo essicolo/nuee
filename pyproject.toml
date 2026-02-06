@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuee"
-version = "0.1.7"
+version = "0.1.8"
 description = "Community Ecology Analysis in Python"
 readme = "README.md"
 authors = [
@@ -34,7 +34,6 @@ dependencies = [
     "statsmodels>=0.12.0",
     "adjustText>=0.8",
     "pytest>=8.3.5",
-    "marimo>=0.8.22",
     "pyzmq>=27.1.0",
     "holoviews>=1.17.1",
 ]
