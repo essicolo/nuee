@@ -208,8 +208,10 @@ def impute_missing(
     Martín-Fernández (2008), matching the approach in R's ``zCompositions``
     package.  Observed values are preserved exactly in the output.
 
-    At least one column must be fully observed (no ``NaN`` values) to serve
-    as the ALR denominator.
+    Ideally one column should be fully observed (no ``NaN`` values) to serve
+    as the ALR denominator.  When no column is complete, the column with the
+    fewest missing values is chosen and its gaps are pre-filled using
+    row-proportional estimation from column-mean ratios before running EM.
 
     Parameters
     ----------
@@ -276,15 +278,43 @@ def impute_missing(
             "then impute_missing() for NaN values."
         )
 
-    # Find the first complete column (no NAs) as ALR denominator (matches R)
+    # Find the ALR denominator column
     col_na_count = nan_mask.sum(axis=0)
     complete_cols = np.where(col_na_count == 0)[0]
-    if complete_cols.size == 0:
-        raise ValueError(
-            "lrEM requires at least one complete column (no NaN values) "
-            "to use as the ALR denominator."
-        )
-    denom_idx = int(complete_cols[0])  # first complete column (like R)
+
+    # Save original state before any pre-filling
+    orig_nan_mask = nan_mask.copy()
+    orig_mat = mat.copy()
+    denom_prefilled = np.zeros(n, dtype=bool)
+
+    if complete_cols.size > 0:
+        denom_idx = int(complete_cols[0])  # first complete column (like R)
+    else:
+        # No complete column: pick the one with fewest NAs and pre-fill
+        # using row-proportional estimation from observed values.
+        denom_idx = int(np.argmin(col_na_count))
+        denom_prefilled = nan_mask[:, denom_idx].copy()
+
+        col_means = np.nanmean(mat, axis=0)
+        for i in range(n):
+            if denom_prefilled[i]:
+                obs_cols = np.where(~nan_mask[i])[0]
+                # Estimate denominator from each observed column via mean ratios
+                estimates = []
+                for j in obs_cols:
+                    if col_means[j] > 0:
+                        estimates.append(
+                            mat[i, j] * col_means[denom_idx] / col_means[j]
+                        )
+                if not estimates:
+                    raise ValueError(
+                        f"Row {i}: no observed values available to estimate "
+                        "the ALR denominator."
+                    )
+                mat[i, denom_idx] = float(np.median(estimates))
+
+        # Update nan_mask so the denominator column is treated as observed
+        nan_mask[:, denom_idx] = False
 
     # Non-denominator column indices (these become the ALR coordinates)
     alr_cols = [j for j in range(D) if j != denom_idx]
@@ -409,13 +439,17 @@ def impute_missing(
     comp[:, denom_idx] = 1.0 / total.ravel()
 
     # Restore original scale: for rows with missing values, scale so that
-    # observed components match their original values.  Use the denominator
-    # column (always observed) as the anchor: scale = X_orig[denom] / comp[denom].
-    result = mat.copy()  # start from original data
+    # observed components match their original values.
+    result = orig_mat.copy()  # start from original data (before any pre-fill)
     for i in range(n):
-        if has_missing[i]:
-            miss_cols = np.where(nan_mask[i])[0]
-            scale = mat[i, denom_idx] / comp[i, denom_idx]
+        if orig_nan_mask[i].any():
+            miss_cols = np.where(orig_nan_mask[i])[0]
+            if denom_prefilled[i]:
+                # Denominator was pre-filled: anchor on truly observed columns
+                obs_cols = np.where(~orig_nan_mask[i])[0]
+                scale = orig_mat[i, obs_cols].sum() / comp[i, obs_cols].sum()
+            else:
+                scale = orig_mat[i, denom_idx] / comp[i, denom_idx]
             for j in miss_cols:
                 result[i, j] = comp[i, j] * scale
 

@@ -16,6 +16,7 @@ from .nmds import metaMDS, NMDS
 from .rda import rda, RDA
 from .cca import cca, ca, CCA
 from .pca import pca, PCA
+from .lda import lda, LDA
 from .envfit import envfit
 from .ordistep import ordistep
 from .procrustes import procrustes
