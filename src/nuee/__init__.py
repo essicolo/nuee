@@ -64,6 +64,7 @@ from .ordination import (
     metaMDS,
     rda,
     cca,
+    ca,
     pca,
     envfit,
     ordistep,
@@ -130,6 +131,8 @@ from .composition import (
     sbp_basis,
     center,
     centralize,
+    replace_zeros,
+    impute_missing,
 )
 
 from . import composition
@@ -139,7 +142,8 @@ __all__ = [
     # Ordination
     "metaMDS",
     "rda",
-    "cca", 
+    "cca",
+    "ca",
     "pca",
     "envfit",
     "ordistep",
@@ -196,6 +200,8 @@ __all__ = [
     "sbp_basis",
     "center",
     "centralize",
+    "replace_zeros",
+    "impute_missing",
     "composition",
     # Datasets
     "datasets",

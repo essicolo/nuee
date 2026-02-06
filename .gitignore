@@ -106,3 +106,5 @@ ENV/
 __marimo__
 .claude
 
+# personnal tests
+essi/

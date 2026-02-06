@@ -11,10 +11,10 @@ community ecology analysis, including:
 - Environmental variable fitting
 - Procrustes analysis
 """
-from .base import OrdinationMethod, OrdinationResult
+from .base import OrdinationMethod, OrdinationResult, NMDSResult
 from .nmds import metaMDS, NMDS
 from .rda import rda, RDA
-from .cca import cca, CCA
+from .cca import cca, ca, CCA
 from .pca import pca, PCA
 from .envfit import envfit
 from .ordistep import ordistep
@@ -24,6 +24,7 @@ __all__ = [
     "metaMDS",
     "rda", 
     "cca",
+    "ca",
     "pca",
     "envfit",
     "ordistep",
