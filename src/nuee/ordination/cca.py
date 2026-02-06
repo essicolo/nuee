@@ -16,7 +16,7 @@ import pandas as pd
 from typing import Union, Optional, Dict, Any, Tuple
 import patsy
 
-from .base import ConstrainedOrdinationResult, OrdinationMethod
+from .base import OrdinationResult, ConstrainedOrdinationResult, OrdinationMethod
 
 
 class CCA(OrdinationMethod):
@@ -27,11 +27,16 @@ class CCA(OrdinationMethod):
 
     def fit(self, Y: Union[np.ndarray, pd.DataFrame],
             X: Optional[Union[np.ndarray, pd.DataFrame]] = None,
-            **kwargs) -> ConstrainedOrdinationResult:
-        """Fit CCA to the data."""
+            **kwargs) -> Union[ConstrainedOrdinationResult, OrdinationResult]:
+        """Fit CCA (or CA when X is None) to the data."""
         species = self._validate_data(Y)
+
+        species_names = list(Y.columns) if isinstance(Y, pd.DataFrame) else None
+        site_names = list(Y.index) if isinstance(Y, pd.DataFrame) else None
+
         if X is None and self.formula is None:
-            raise ValueError("Environmental matrix or formula is required for CCA.")
+            return self._fit_ca(species, site_names=site_names,
+                                species_names=species_names)
 
         env_names = None
         if self.formula is not None:
@@ -116,6 +121,73 @@ class CCA(OrdinationMethod):
         result.species_centered = centered
         result.environment_centered = env_centered
         result.barycentric_species = self._species_barycentric_scores(centered, col_masses, result)
+        return result
+
+    def _fit_ca(self, species: np.ndarray,
+                site_names=None, species_names=None) -> OrdinationResult:
+        """Unconstrained Correspondence Analysis."""
+        totals = species.sum()
+        if totals == 0:
+            raise ValueError("Species matrix must contain positive totals for CA.")
+
+        row_masses, col_masses, centered, Z_w, row_sqrt, col_sqrt = \
+            self._chi_square_components(species)
+
+        u, s, vt = self._svd_with_rank(Z_w)
+
+        if u.size:
+            u = np.divide(u, row_sqrt[:, None],
+                          out=np.zeros_like(u),
+                          where=row_sqrt[:, None] > 0)
+
+        eigenvalues = s ** 2
+        species_v = self._scale_species_vectors(vt.T, col_sqrt) if s.size else None
+
+        tot_chi = float(np.sum(
+            (centered ** 2) / (row_masses[:, None] * col_masses[None, :])
+        ))
+
+        call_info: Dict[str, Any] = {
+            "method": "CA",
+            "n_samples": int(species.shape[0]),
+            "n_species": int(species.shape[1]),
+        }
+
+        scaling_backend = _build_ca_scaling_backend(
+            site_u=u if s.size else None,
+            species_v=species_v,
+            eigenvalues=eigenvalues,
+        )
+
+        result = OrdinationResult(
+            points=None,
+            species=None,
+            eigenvalues=eigenvalues,
+            call=call_info,
+            site_u=u if s.size else None,
+            species_v=species_v,
+            singular_values=s if s.size else None,
+            row_weights=row_masses,
+            column_weights=col_masses,
+            scaling_backend=scaling_backend,
+        )
+
+        result.row_masses = row_masses
+        result.column_masses = col_masses
+        result.tot_chi = tot_chi
+        result.species_centered = centered
+
+        n_axes = u.shape[1] if u.size else 0
+        sp_axes = species_v.shape[1] if species_v is not None else 0
+
+        if site_names:
+            result._site_names = list(site_names)
+        result._site_axis_labels = [f"CA{i+1}" for i in range(n_axes)]
+
+        if species_names:
+            result._species_names = list(species_names)
+        result._species_axis_labels = [f"CA{i+1}" for i in range(sp_axes)]
+
         return result
 
     def _parse_formula(self, formula: str, data: pd.DataFrame) -> Tuple[np.ndarray, list[str]]:
@@ -237,25 +309,82 @@ class CCA(OrdinationMethod):
         return species_scores
 
 
+def _build_ca_scaling_backend(site_u, species_v, eigenvalues):
+    """Build a scaling backend for CA results (chi-square metric scaling)."""
+    if site_u is None and species_v is None:
+        return None
+
+    slam = np.sqrt(np.clip(eigenvalues, a_min=0.0, a_max=None))
+
+    def scaler(scaling: int):
+        if scaling not in (1, 2, 3):
+            raise ValueError("scaling must be 1, 2, or 3")
+
+        if scaling == 1:
+            site_mult = slam
+            sp_mult = np.ones_like(slam)
+        elif scaling == 2:
+            site_mult = np.ones_like(slam)
+            sp_mult = slam
+        else:
+            site_mult = np.sqrt(slam)
+            sp_mult = np.sqrt(slam)
+
+        sites = None
+        if site_u is not None:
+            sites = np.array(site_u, copy=True)
+            cols = min(sites.shape[1], len(site_mult))
+            sites = sites[:, :cols] * site_mult[:cols]
+
+        species = None
+        if species_v is not None:
+            species = np.array(species_v, copy=True)
+            cols = min(species.shape[1], len(sp_mult))
+            species = species[:, :cols] * sp_mult[:cols]
+
+        return sites, species
+
+    return scaler
+
+
 def cca(Y: Union[np.ndarray, pd.DataFrame],
         X: Optional[Union[np.ndarray, pd.DataFrame]] = None,
         formula: Optional[str] = None,
-        **kwargs) -> ConstrainedOrdinationResult:
+        **kwargs) -> Union[ConstrainedOrdinationResult, OrdinationResult]:
     """
-    Canonical Correspondence Analysis.
+    Canonical Correspondence Analysis (or CA when X is None).
 
     Parameters
     ----------
     Y:
         Species data matrix (sites x species).
     X:
-        Environmental data matrix (sites x variables) or DataFrame for formula evaluation.
+        Environmental data matrix (sites x variables) or DataFrame for
+        formula evaluation.  When *None* and no formula is given, an
+        unconstrained Correspondence Analysis (CA) is performed.
     formula:
         R-style formula string referencing columns in `X`.
 
     Returns
     -------
-    ConstrainedOrdinationResult with CCA results.
+    ConstrainedOrdinationResult (CCA) or OrdinationResult (CA).
     """
     cca_obj = CCA(formula=formula)
     return cca_obj.fit(Y, X, **kwargs)
+
+
+def ca(Y: Union[np.ndarray, pd.DataFrame], **kwargs) -> OrdinationResult:
+    """
+    Correspondence Analysis (unconstrained).
+
+    Parameters
+    ----------
+    Y:
+        Species data matrix (sites x species).
+
+    Returns
+    -------
+    OrdinationResult with CA results.
+    """
+    cca_obj = CCA()
+    return cca_obj.fit(Y, X=None, **kwargs)

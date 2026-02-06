@@ -8,6 +8,7 @@ ordination, diversity, and other community ecology analyses.
 from .ordination_plots import (
     plot_ordination,
     biplot,
+    plot_nmds,
     ordiplot,
     ordiellipse,
     ordispider,

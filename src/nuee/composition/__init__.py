@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .imputation import replace_zeros, impute_missing
+
 __all__ = [
     "closure",
     "multiplicative_replacement",
@@ -26,6 +28,8 @@ __all__ = [
     "sbp_basis",
     "center",
     "centralize",
+    "replace_zeros",
+    "impute_missing",
 ]
 
 

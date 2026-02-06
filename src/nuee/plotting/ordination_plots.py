@@ -22,6 +22,7 @@ def plot_ordination(result: OrdinationResult,
                     colors: Optional[List[str]] = None,
                     figsize: Tuple[int, int] = (8, 6),
                     scaling: Optional[Union[int, str]] = None,
+                    title: Optional[str] = None,
                     **kwargs) -> plt.Figure:
     """
     Plot ordination results.
@@ -125,6 +126,9 @@ def plot_ordination(result: OrdinationResult,
                 transform=ax.transAxes, verticalalignment='top',
                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
     
+    if title is not None:
+        ax.set_title(title)
+
     plt.tight_layout()
     return fig
 
@@ -133,15 +137,67 @@ def biplot(result: 'OrdinationResult',
            axes: Tuple[int, int] = (0, 1),
            scaling: Union[str, int] = "species",
            correlation: bool = False,
-           figsize: Tuple[int, int] = (8, 6),
+           figsize: Tuple[int, int] = (10, 8),
+           title: Optional[str] = None,
+           arrow_mul: Optional[float] = None,
+           n_species: Optional[int] = 15,
+           show_site_labels: bool = True,
+           show_species_labels: bool = True,
+           repel: bool = True,
+           fontsize: int = 8,
+           site_kw: Optional[Dict[str, Any]] = None,
+           species_kw: Optional[Dict[str, Any]] = None,
+           env_kw: Optional[Dict[str, Any]] = None,
            **kwargs) -> plt.Figure:
     """
     Create a biplot for ordination results.
 
-    For unconstrained ordination (PCA), species loadings are drawn as
+    For unconstrained ordination (PCA, CA), species loadings are drawn as
     arrows from the origin.  For constrained ordination (RDA / CCA),
     species are shown as points and environmental variables as arrows.
+
+    Parameters
+    ----------
+    result : OrdinationResult
+        Ordination result object.
+    axes : tuple of int
+        Which ordination axes to plot (0-indexed).
+    scaling : str or int
+        Scaling mode: 1/"sites", 2/"species", 3/"symmetric".
+    correlation : bool
+        If True, use raw correlation values without auto-scaling.
+    figsize : tuple of int
+        Figure size in inches.
+    title : str, optional
+        Plot title.
+    arrow_mul : float, optional
+        Manual multiplier for arrow length.
+    n_species : int or None
+        Show only the top *n_species* by loading magnitude.
+        ``None`` shows all species.
+    show_site_labels : bool
+        Whether to display site name labels.
+    show_species_labels : bool
+        Whether to display species name labels.
+    repel : bool
+        Use adjustText for ggrepel-style label placement.
+    fontsize : int
+        Base font size for labels.
+    site_kw : dict, optional
+        Extra keyword arguments for site scatter points.
+    species_kw : dict, optional
+        Extra keyword arguments for species scatter/arrows.
+    env_kw : dict, optional
+        Extra keyword arguments for environmental arrows.
+    **kwargs
+        Additional keyword arguments passed to site scatter.
     """
+    try:
+        from adjustText import adjust_text
+        _has_adjusttext = True
+    except ImportError:
+        _has_adjusttext = False
+
     scaling_map = {
         1: 1, "sites": 1,
         2: 2, "species": 2,
@@ -165,50 +221,87 @@ def biplot(result: 'OrdinationResult',
     if isinstance(species, pd.DataFrame):
         species = species.values
 
-    # Site labels
-    site_names = getattr(result, "_site_names", None)
+    # Collect text objects for repel
+    _texts = []
 
-    # Species labels
+    # Labels
+    site_names = getattr(result, "_site_names", None)
     species_names = getattr(result, "_species_names", None)
 
+    # Default site styling — hollow circles so labels read clearly
+    _site_kw = dict(s=45, facecolors="none", edgecolors="steelblue",
+                    linewidths=1.0, zorder=3, label="Sites")
+    _site_kw.update(kwargs)
+    if site_kw:
+        _site_kw.update(site_kw)
+
+    # --- Plot sites ---
     if sites is not None:
         x = sites[:, axes[0]]
         y = sites[:, axes[1]]
         labels = (site_names if site_names and len(site_names) == len(x)
                   else [f"Site{i+1}" for i in range(len(x))])
 
-        ax.scatter(x, y, alpha=0.7, **kwargs)
-        for i, label in enumerate(labels):
-            ax.annotate(label, (x[i], y[i]), xytext=(3, 3),
-                       textcoords='offset points', fontsize=8)
+        ax.scatter(x, y, **_site_kw)
+        if show_site_labels:
+            for i, label in enumerate(labels):
+                t = ax.text(x[i], y[i], label, fontsize=fontsize,
+                            alpha=0.75, zorder=4)
+                _texts.append(t)
 
+    # --- Plot species ---
     if species is not None:
         x_sp = species[:, axes[0]]
         y_sp = species[:, axes[1]]
         n_sp = len(x_sp)
-        labels_sp = (species_names if species_names and len(species_names) == n_sp
+        labels_sp = (species_names
+                     if species_names and len(species_names) == n_sp
                      else [f"Sp{i+1}" for i in range(n_sp)])
 
-        if is_constrained:
-            # Constrained ordination: species as points
-            ax.scatter(x_sp, y_sp, c='red', marker='^', s=50,
-                       alpha=0.7, label='Species')
-            for i, label in enumerate(labels_sp):
-                ax.annotate(label, (x_sp[i], y_sp[i]), xytext=(3, 3),
-                           textcoords='offset points', fontsize=8, color='red')
+        # Filter to top n_species by loading magnitude
+        magnitudes = np.sqrt(x_sp ** 2 + y_sp ** 2)
+        if n_species is not None and n_species < n_sp:
+            top_idx = np.argsort(magnitudes)[-n_species:]
         else:
-            # Unconstrained ordination (PCA): species as arrows
-            for i in range(n_sp):
-                ax.annotate(
-                    '', xy=(x_sp[i], y_sp[i]), xytext=(0, 0),
-                    arrowprops=dict(arrowstyle='->', color='red',
-                                    lw=1.5, alpha=0.7))
-                ax.text(x_sp[i], y_sp[i], labels_sp[i],
-                        fontsize=9, color='red', fontweight='bold',
-                        ha='left', va='bottom')
+            top_idx = np.arange(n_sp)
 
-    # Biplot arrows for constrained ordination environmental variables
-    if hasattr(result, 'biplot_scores') and result.biplot_scores is not None:
+        if is_constrained:
+            # Constrained ordination: species as points (triangles)
+            _sp_kw = dict(c="dimgray", marker="^", s=30, alpha=0.6,
+                          zorder=2, label="Species")
+            if species_kw:
+                _sp_kw.update(species_kw)
+            ax.scatter(x_sp[top_idx], y_sp[top_idx], **_sp_kw)
+            if show_species_labels:
+                for i in top_idx:
+                    t = ax.text(x_sp[i], y_sp[i], labels_sp[i],
+                                fontsize=fontsize - 1, color="dimgray",
+                                alpha=0.8, zorder=4)
+                    _texts.append(t)
+        else:
+            # Unconstrained ordination (PCA / CA): species as arrows
+            _arrow_color = "dimgray"
+            if species_kw and "color" in species_kw:
+                _arrow_color = species_kw["color"]
+            for i in top_idx:
+                ax.annotate(
+                    "", xy=(x_sp[i], y_sp[i]), xytext=(0, 0),
+                    arrowprops=dict(arrowstyle="->", color=_arrow_color,
+                                    lw=1.2, alpha=0.6),
+                    zorder=2)
+                if show_species_labels:
+                    t = ax.text(x_sp[i], y_sp[i], labels_sp[i],
+                                fontsize=fontsize - 1, color=_arrow_color,
+                                fontweight="bold", alpha=0.8, zorder=4)
+                    _texts.append(t)
+
+    # --- Biplot arrows for env variables (constrained ordination) ---
+    env_names = None
+    call = getattr(result, "call", {})
+    if isinstance(call, dict):
+        env_names = call.get("constraints", None)
+
+    if hasattr(result, "biplot_scores") and result.biplot_scores is not None:
         biplot_scores = np.array(result.biplot_scores, copy=True)
         if scaling_id in (2, 3):
             try:
@@ -218,14 +311,176 @@ def biplot(result: 'OrdinationResult',
                     biplot_scores[:, idx] *= species_mult[idx]
             except (AttributeError, ValueError):
                 pass
-        _add_biplot_arrows(ax, biplot_scores, axes,
-                           scaling=scaling_id,
-                           correlation=correlation)
 
-    ax.set_aspect('equal', adjustable='box')
-    ax.grid(True, alpha=0.3)
-    ax.set_xlabel(f'Axis {axes[0]+1}')
-    ax.set_ylabel(f'Axis {axes[1]+1}')
+        data_extent = 1.0
+        all_coords = []
+        if sites is not None:
+            all_coords.append(sites[:, axes[0]])
+            all_coords.append(sites[:, axes[1]])
+        if species is not None:
+            all_coords.append(species[:, axes[0]])
+            all_coords.append(species[:, axes[1]])
+        if all_coords:
+            data_extent = max(np.max(np.abs(np.concatenate(all_coords))),
+                              1e-12)
+
+        env_texts = _add_biplot_arrows(
+            ax, biplot_scores, axes,
+            scaling=scaling_id,
+            correlation=correlation,
+            data_extent=data_extent,
+            arrow_mul=arrow_mul,
+            var_names=env_names,
+            fontsize=fontsize,
+            env_kw=env_kw,
+        )
+        _texts.extend(env_texts)
+
+    # --- Repel labels ---
+    if repel and _has_adjusttext and _texts:
+        adjust_text(_texts, ax=ax,
+                    arrowprops=dict(arrowstyle="-", color="gray",
+                                   lw=0.4, alpha=0.6))
+
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, alpha=0.15, linewidth=0.5)
+    ax.set_xlabel(f"Axis {axes[0]+1}")
+    ax.set_ylabel(f"Axis {axes[1]+1}")
+
+    if title is not None:
+        ax.set_title(title)
+
+    # Legend
+    handles, leg_labels = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(fontsize=fontsize, loc="best", framealpha=0.7)
+
+    plt.tight_layout()
+    plt.close(fig)
+    return fig
+
+
+def plot_nmds(result, axes=(0, 1), figsize=(10, 8), title=None,
+              show_species=True, show_site_labels=True,
+              show_species_labels=True, n_species=15,
+              repel=True, fontsize=8, **kwargs):
+    """Plot NMDS ordination (sites and optionally species scores).
+
+    Parameters
+    ----------
+    result : NMDSResult
+        NMDS ordination result.
+    axes : tuple of int
+        Which axes to display.
+    figsize : tuple
+        Figure size.
+    title : str, optional
+        Plot title.
+    show_species : bool
+        Overlay species weighted-average scores.
+    show_site_labels, show_species_labels : bool
+        Toggle labels for each element type.
+    n_species : int or None
+        Limit to top N species by distance from origin.
+    repel : bool
+        Use adjustText for label repulsion.
+    fontsize : int
+        Base font size.
+    **kwargs
+        Extra keyword arguments for site scatter.
+    """
+    try:
+        from adjustText import adjust_text
+        _has_adjusttext = True
+    except ImportError:
+        _has_adjusttext = False
+
+    fig, ax = plt.subplots(figsize=figsize)
+    _texts = []
+
+    # --- Sites ---
+    sites = getattr(result, "points", None)
+    if sites is not None:
+        if isinstance(sites, pd.DataFrame):
+            site_names = list(sites.index)
+            sites = sites.values
+        else:
+            site_names = getattr(result, "_site_names", None)
+            if not site_names:
+                site_names = [f"Site{i+1}" for i in range(sites.shape[0])]
+
+        x = sites[:, axes[0]]
+        y = sites[:, axes[1]]
+
+        _site_kw = dict(s=45, facecolors="none", edgecolors="steelblue",
+                        linewidths=1.0, zorder=3, label="Sites")
+        _site_kw.update(kwargs)
+        ax.scatter(x, y, **_site_kw)
+
+        if show_site_labels:
+            for i, name in enumerate(site_names):
+                t = ax.text(x[i], y[i], str(name), fontsize=fontsize,
+                            color="steelblue", alpha=0.8, zorder=4)
+                _texts.append(t)
+
+    # --- Species (weighted averages) ---
+    species = getattr(result, "species", None)
+    if show_species and species is not None:
+        if isinstance(species, pd.DataFrame):
+            sp_names = list(species.index)
+            species = species.values
+        else:
+            sp_names = getattr(result, "_species_names", None)
+            if not sp_names:
+                sp_names = [f"Sp{i+1}" for i in range(species.shape[0])]
+
+        x_sp = species[:, axes[0]]
+        y_sp = species[:, axes[1]]
+        n_sp = len(x_sp)
+
+        magnitudes = np.sqrt(x_sp ** 2 + y_sp ** 2)
+        if n_species is not None and n_species < n_sp:
+            top_idx = np.argsort(magnitudes)[-n_species:]
+        else:
+            top_idx = np.arange(n_sp)
+
+        ax.scatter(x_sp[top_idx], y_sp[top_idx], c="dimgray", marker="+",
+                   s=40, alpha=0.6, linewidths=0.8, zorder=2,
+                   label="Species")
+
+        if show_species_labels:
+            for i in top_idx:
+                t = ax.text(x_sp[i], y_sp[i], sp_names[i],
+                            fontsize=fontsize - 1, color="dimgray",
+                            alpha=0.8, zorder=4)
+                _texts.append(t)
+
+    # --- Repel ---
+    if repel and _has_adjusttext and _texts:
+        adjust_text(_texts, ax=ax,
+                    arrowprops=dict(arrowstyle="-", color="gray",
+                                   lw=0.4, alpha=0.6))
+
+    # --- Stress annotation ---
+    stress = getattr(result, "stress", None)
+    if stress is not None:
+        ax.text(0.02, 0.98, f"Stress: {stress:.3f}",
+                transform=ax.transAxes, verticalalignment="top",
+                fontsize=fontsize,
+                bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8))
+
+    ax.set_xlabel(f"NMDS{axes[0]+1}")
+    ax.set_ylabel(f"NMDS{axes[1]+1}")
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, alpha=0.15, linewidth=0.5)
+
+    if title is not None:
+        ax.set_title(title)
+
+    handles, _ = ax.get_legend_handles_labels()
+    if handles:
+        ax.legend(fontsize=fontsize, loc="best", framealpha=0.7)
+
     plt.tight_layout()
     plt.close(fig)
     return fig
@@ -412,56 +667,89 @@ def _plot_grouped_points(ax, x, y, labels, groups, colors, type, **kwargs):
         ax.legend()
 
 
-def _add_biplot_arrows(ax, biplot, axes, scaling="species", eig_axis1=1.0, eig_axis2=1.0, correlation=False):
-    """Add biplot arrows to plot.
+def _add_biplot_arrows(ax, biplot, axes, scaling="species", eig_axis1=1.0,
+                       eig_axis2=1.0, correlation=False,
+                       data_extent=1.0, arrow_mul=None,
+                       var_names=None, fontsize=8, env_kw=None):
+    """Add biplot arrows to plot and return text objects.
 
-    Parameters:
-        ax: Matplotlib axes object
-        biplot: Biplot scores array
-        axes: Tuple of axis indices
-        scaling: Scaling type ("sites", "species", "symmetric")
-        eig_axis1: Eigenvalue for first axis
-        eig_axis2: Eigenvalue for second axis
-        correlation: Whether to show correlation biplot
+    Parameters
+    ----------
+    ax : matplotlib Axes
+    biplot : ndarray
+        Biplot scores array.
+    axes : tuple of int
+        Axis indices.
+    scaling : str or int
+    eig_axis1, eig_axis2 : float
+        Eigenvalues for the selected axes.
+    correlation : bool
+    data_extent : float
+        Maximum absolute coordinate of plotted data.
+    arrow_mul : float, optional
+    var_names : list of str, optional
+        Environmental variable names.
+    fontsize : int
+    env_kw : dict, optional
+        Extra styling for arrows.
+
+    Returns
+    -------
+    list of matplotlib Text
+        Text objects for the arrow labels (for repel).
     """
+    texts = []
     if biplot.shape[1] <= max(axes):
-        return
+        return texts
 
     if isinstance(scaling, int):
         scaling = {1: "sites", 2: "species", 3: "symmetric"}.get(scaling, "species")
 
-    # Get arrow coordinates
-    arrow_x = biplot[:, axes[0]]
-    arrow_y = biplot[:, axes[1]]
+    arrow_x = biplot[:, axes[0]].copy()
+    arrow_y = biplot[:, axes[1]].copy()
 
-    # Apply scaling to biplot arrows
-    # Biplot scores are typically scaled with species in vegan
     if scaling == "sites":
-        # When focusing on sites, scale environmental arrows down
         arrow_x = arrow_x / np.sqrt(eig_axis1)
         arrow_y = arrow_y / np.sqrt(eig_axis2)
     elif scaling == "symmetric":
-        # Symmetric scaling
         arrow_x = arrow_x / (eig_axis1 ** 0.25)
         arrow_y = arrow_y / (eig_axis2 ** 0.25)
-    # For "species" scaling, arrows are already appropriately scaled
 
-    # Scale arrows if needed for visualization
     if not correlation:
-        # Scale arrows to fit in plot
         max_coord = max(np.max(np.abs(arrow_x)), np.max(np.abs(arrow_y)))
         if max_coord > 0:
-            scale_factor = 0.8 / max_coord
-            arrow_x *= scale_factor
-            arrow_y *= scale_factor
+            scale_factor = (0.8 * data_extent) / max_coord
+            arrow_x = arrow_x * scale_factor
+            arrow_y = arrow_y * scale_factor
 
-    # Draw arrows
+    if arrow_mul is not None:
+        arrow_x = arrow_x * arrow_mul
+        arrow_y = arrow_y * arrow_mul
+
+    _color = "steelblue"
+    _lw = 1.5
+    _alpha = 0.8
+    if env_kw:
+        _color = env_kw.get("color", _color)
+        _lw = env_kw.get("lw", _lw)
+        _alpha = env_kw.get("alpha", _alpha)
+
+    if var_names is None or len(var_names) != len(arrow_x):
+        var_names = [f"Var{i+1}" for i in range(len(arrow_x))]
+
     for i in range(len(arrow_x)):
-        ax.arrow(0, 0, arrow_x[i], arrow_y[i],
-                head_width=0.02, head_length=0.03,
-                fc='blue', ec='blue', alpha=0.7, linewidth=1.5)
+        ax.annotate(
+            "", xy=(arrow_x[i], arrow_y[i]), xytext=(0, 0),
+            arrowprops=dict(arrowstyle="-|>", color=_color,
+                            lw=_lw, alpha=_alpha,
+                            mutation_scale=12),
+            zorder=5)
+        t = ax.text(arrow_x[i], arrow_y[i], var_names[i],
+                    fontsize=fontsize, color=_color, fontweight="bold",
+                    alpha=0.9, zorder=6)
+        texts.append(t)
 
-        # Add labels
-        ax.annotate(f'Var{i+1}', (arrow_x[i], arrow_y[i]), 
-                   xytext=(5, 5), textcoords='offset points',
-                   fontsize=9, color='red', weight='bold')
+    # Add a single invisible handle for legend
+    ax.plot([], [], color=_color, lw=_lw, label="Env. variables")
+
+    return texts

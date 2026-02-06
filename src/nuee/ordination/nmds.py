@@ -31,7 +31,7 @@ def _cmdscale_init(dist_matrix: np.ndarray, n_components: int) -> Optional[np.nd
     k = min(n_components, evecs.shape[1])
     return evecs[:, :k] * evals[:k]
 
-from .base import OrdinationResult, OrdinationMethod
+from .base import OrdinationResult, NMDSResult, OrdinationMethod
 from ..dissimilarity import vegdist
 
 
@@ -225,7 +225,7 @@ class NMDS(OrdinationMethod):
             'best_seed': best_seed,
         }
         
-        result = OrdinationResult(
+        result = NMDSResult(
             points=best_points,
             stress=best_stress,
             converged=best_n_iter is not None and best_n_iter < self.max_iter,
@@ -467,6 +467,7 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     result.raw_stress_per_run = [entry.get('raw_stress') for entry in getattr(result, 'stress_history', [])]
     result.best_stress = result.stress
     result.best_run_repeats = getattr(result, 'best_repeats', 1)
+    result.nruns = result.n_init
 
     if result.call is not None:
         result.call.update({

@@ -90,24 +90,24 @@ class OrdinationResult:
         
     def __repr__(self):
         return f"OrdinationResult(nobj={self.nobj}, ndim={self.ndim})"
-    
-    def plot(self, axes=(0, 1), display="sites", type="points", scaling=None, **kwargs):
-        """
-        Plot the ordination result.
-        
-        Parameters:
-            axes: Which axes to plot (tuple of axis indices)
-            display: What to display ("sites", "species", "both")
-            type: Plot type ("points", "text", "none")
-            **kwargs: Additional plotting arguments
-            
-        Returns:
-            matplotlib Figure object
-        """
-        from ..plotting.ordination_plots import plot_ordination
-        return plot_ordination(self, axes=axes, display=display, type=type,
-                               scaling=scaling, **kwargs)
-    
+
+    @property
+    def proportion_explained(self) -> np.ndarray:
+        """Proportion of variance/inertia explained by each axis."""
+        if self.eigenvalues is None or len(self.eigenvalues) == 0:
+            return np.array([])
+        total = getattr(self, 'tot_chi', None)
+        if total is None or total == 0:
+            total = np.sum(self.eigenvalues)
+        if total == 0:
+            return np.zeros_like(self.eigenvalues)
+        return self.eigenvalues / total
+
+    @property
+    def cumulative_proportion(self) -> np.ndarray:
+        """Cumulative proportion of variance/inertia explained."""
+        return np.cumsum(self.proportion_explained)
+
     def biplot(self, scaling: Union[int, str, None] = None, **kwargs):
         """
         Create a biplot.
@@ -441,6 +441,42 @@ class ConstrainedOrdinationResult(OrdinationResult):
             return self.eigenvalues / self.tot_chi
         return np.array([])
 
+    @property
+    def constrained_eigenvalues(self) -> Optional[np.ndarray]:
+        """Alias for constrained_eig."""
+        return self.constrained_eig
+
+    @property
+    def unconstrained_eigenvalues(self) -> Optional[np.ndarray]:
+        """Alias for unconstrained_eig."""
+        return self.unconstrained_eig
+
+    @property
+    def total_inertia(self) -> Optional[float]:
+        """Alias for tot_chi (total inertia)."""
+        return self.tot_chi
+
+    @property
+    def constrained_inertia(self) -> float:
+        """Sum of constrained eigenvalues."""
+        if self.constrained_eig is not None:
+            return float(np.sum(self.constrained_eig))
+        return 0.0
+
+    @property
+    def constrained_proportion(self) -> np.ndarray:
+        """Proportion of total inertia explained by each constrained axis."""
+        if self.constrained_eig is None or self.tot_chi is None or self.tot_chi == 0:
+            return np.array([])
+        return self.constrained_eig / self.tot_chi
+
+    @property
+    def total_proportion(self) -> np.ndarray:
+        """Proportion of total inertia explained by each axis (all axes)."""
+        if self.eigenvalues is None or self.tot_chi is None or self.tot_chi == 0:
+            return np.array([])
+        return self.eigenvalues / self.tot_chi
+
 
 class OrdinationMethod(ABC):
     """
@@ -496,6 +532,55 @@ class OrdinationMethod(ABC):
         return (X - np.mean(X, axis=0)) / np.std(X, axis=0, ddof=1)
 
 
+class NMDSResult(OrdinationResult):
+    """Ordination result specialised for NMDS.
 
+    NMDS has no eigenvalues or loadings, so ``biplot()`` is not
+    available.  Use ``plot()`` to display site (and optionally species)
+    scores.
+    """
 
+    def biplot(self, **kwargs):
+        raise TypeError(
+            "NMDS does not produce eigenvalues or loadings — "
+            "use .plot() instead."
+        )
+
+    def plot(self, axes=(0, 1), figsize=(10, 8), title=None,
+             show_species=True, show_site_labels=True,
+             show_species_labels=True, n_species=15,
+             repel=True, fontsize=8, **kwargs):
+        """Plot NMDS site scores (and optionally species weighted-averages).
+
+        Parameters
+        ----------
+        axes : tuple of int
+            Which NMDS axes to plot (0-indexed).
+        figsize : tuple
+            Figure size in inches.
+        title : str, optional
+            Plot title.
+        show_species : bool
+            Show species weighted-average scores.
+        show_site_labels : bool
+            Label each site point.
+        show_species_labels : bool
+            Label each species point.
+        n_species : int or None
+            Show only top *n_species* by distance from origin.
+            ``None`` shows all.
+        repel : bool
+            Use adjustText for label repulsion.
+        fontsize : int
+            Base font size for labels.
+        **kwargs
+            Extra keyword arguments forwarded to the site scatter call.
+        """
+        from ..plotting.ordination_plots import plot_nmds
+        return plot_nmds(self, axes=axes, figsize=figsize, title=title,
+                         show_species=show_species,
+                         show_site_labels=show_site_labels,
+                         show_species_labels=show_species_labels,
+                         n_species=n_species, repel=repel,
+                         fontsize=fontsize, **kwargs)
 
