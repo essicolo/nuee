@@ -67,13 +67,6 @@ def procrustes(X: Union[np.ndarray, pd.DataFrame],
 
     translation = y_mean - dilation * (x_mean / norm_x if scale and norm_x > 0 else x_mean) @ R
 
-    warnings.warn(
-        "nuee.procrustes currently depends on the metaMDS configuration and may "
-        "report residual sums-of-squares that differ slightly from vegan::procrustes.",
-        UserWarning,
-        stacklevel=2,
-    )
-
     return {
         'rotation': R,
         'transformed': X_transformed,
