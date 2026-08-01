@@ -10,7 +10,12 @@
 library(vegan)
 library(jsonlite)
 
-setwd("C:/Users/parse01/documents-locaux/GitHub/nuee")
+# Paths below are relative to the repository root. Run the script from there,
+# or point NUEE_ROOT at it.
+nuee_root <- Sys.getenv("NUEE_ROOT", unset = "")
+if (nzchar(nuee_root)) {
+  setwd(nuee_root)
+}
 
 set.seed(123)
 
@@ -70,7 +75,27 @@ table_payload <- function(tbl) {
 meta <- vegan::metaMDS(varespec, k = 2, distance = "bray",
                        trymax = 20, trace = FALSE)
 rda_model <- vegan::rda(varespec, varechem[, env_vars])
+# Partial RDA: species ~ N + P + K conditioned on Al + pH. Exercises the
+# inertia partition (tot.chi / pCCA / CCA / CA) and the residual degrees of
+# freedom, neither of which the non-partial model above can validate.
+prda_constraints <- c("N", "P", "K")
+prda_conditions <- c("Al", "pH")
+prda_model <- vegan::rda(varespec ~ N + P + K + Condition(Al + pH),
+                         data = varechem)
+prda_anova <- stats::anova(prda_model, permutations = 199)
 cca_model <- vegan::cca(varespec, varechem[, env_vars])
+# Unconstrained correspondence analysis: vegan expresses it as cca() with no
+# constraints, which is what nuee's ca() implements.
+ca_model <- vegan::cca(varespec)
+# Rarefaction curves, and forward/backward selection on an RDA.
+rarecurve_counts <- round(varespec)
+rarecurve_sample_sizes <- seq(1, min(rowSums(rarecurve_counts)), by = 1)
+rarecurve_expected <- vegan::rarefy(rarecurve_counts, sample = rarecurve_sample_sizes)
+ordistep_full <- vegan::rda(varespec ~ N + P + K, data = varechem)
+ordistep_model <- vegan::ordistep(vegan::rda(varespec ~ 1, data = varechem),
+                                  scope = formula(ordistep_full),
+                                  direction = "both", permutations = 199,
+                                  trace = FALSE)
 pca_model <- stats::prcomp(varespec, center = TRUE, scale. = TRUE)
 envfit_model <- vegan::envfit(meta, varechem[, env_vars], permutations = 199)
 rda_sites_scaling1 <- scores(rda_model, display = "sites", scaling = 1)
@@ -82,7 +107,7 @@ procrustes_summary <- summary(procrustes_model)
 ordination_reference <- list(
   metaMDS = list(
     stress = meta$stress,
-    trymax = meta$trymax,
+    tries = meta$tries,
     points = matrix_payload(meta$points),
     species = matrix_payload(meta$species)
   ),
@@ -118,6 +143,47 @@ ordination_reference <- list(
         species = matrix_payload(vegan::scores(rda_model, display = "species", scaling = 3))
       )
     )
+  ),
+  rda_partial = list(
+    constraints = prda_constraints,
+    conditions = prda_conditions,
+    eigenvalues = list(
+      constrained = unname(prda_model$CCA$eig),
+      unconstrained = unname(prda_model$CA$eig)
+    ),
+    inertia = list(
+      total = prda_model$tot.chi,
+      conditioned = prda_model$pCCA$tot.chi,
+      constrained = prda_model$CCA$tot.chi,
+      unconstrained = prda_model$CA$tot.chi
+    ),
+    ranks = list(
+      conditioning = prda_model$pCCA$rank,
+      constrained = prda_model$CCA$rank
+    ),
+    anova = table_payload(prda_anova),
+    scores = list(
+      scaling1 = list(
+        sites = matrix_payload(vegan::scores(prda_model, display = "sites", scaling = 1)),
+        species = matrix_payload(vegan::scores(prda_model, display = "species", scaling = 1))
+      ),
+      scaling2 = list(
+        sites = matrix_payload(vegan::scores(prda_model, display = "sites", scaling = 2)),
+        species = matrix_payload(vegan::scores(prda_model, display = "species", scaling = 2))
+      )
+    )
+  ),
+  ca = list(
+    eigenvalues = unname(ca_model$CA$eig),
+    tot_chi = ca_model$tot.chi,
+    bases = list(
+      u = matrix_payload(ca_model$CA$u),
+      v = matrix_payload(ca_model$CA$v)
+    )
+  ),
+  ordistep = list(
+    selected = attr(terms(formula(ordistep_model)), "term.labels"),
+    anova = table_payload(ordistep_model$anova)
   ),
   cca = list(
     eigenvalues = list(
@@ -156,9 +222,10 @@ ordination_reference <- list(
     center = unname(pca_model$center),
     scale = unname(pca_model$scale)
   ),
+  # vegan stores the *squared* correlation in $vectors$r despite the name, so
+  # squaring it again would export r^4.
   envfit = list(
-    r = vector_payload(envfit_model$vectors$r),
-    r2 = vector_payload(envfit_model$vectors$r^2),
+    r2 = vector_payload(envfit_model$vectors$r),
     pvals = vector_payload(envfit_model$vectors$pvals),
     scores = matrix_payload(scores(envfit_model, "vectors"))
   ),
@@ -191,11 +258,26 @@ anova_rda <- stats::anova(rda_model, permutations = 199)
 permutest_rda <- vegan::permutest(rda_model, permutations = 199)
 permutest_rda_tab <- permutest_rda$tab
 if (is.null(permutest_rda_tab) || nrow(permutest_rda_tab) == 0) {
+  # vegan >= 2.6 returns no $tab; the pieces live in $df (model, residual),
+  # $chi (constrained, residual), $F.0 and $F.perm. Older releases exposed
+  # $tot.chi/$res.chi/$f/$signif instead, so fall back to those.
+  if (!is.null(permutest_rda$chi)) {
+    perm_df <- as.numeric(permutest_rda$df)
+    perm_chi <- as.numeric(permutest_rda$chi)
+    perm_f <- as.numeric(permutest_rda$F.0)
+    perm_signif <- (sum(permutest_rda$F.perm >= perm_f - 1e-12) + 1) /
+      (length(permutest_rda$F.perm) + 1)
+  } else {
+    perm_df <- c(permutest_rda$df, permutest_rda$df.residual)
+    perm_chi <- c(permutest_rda$tot.chi, permutest_rda$res.chi)
+    perm_f <- permutest_rda$f
+    perm_signif <- permutest_rda$signif
+  }
   permutest_rda_tab <- data.frame(
-    Df = c(permutest_rda$df, permutest_rda$df.residual),
-    Variance = c(permutest_rda$tot.chi, permutest_rda$res.chi),
-    F = c(permutest_rda$f, NA_real_),
-    `Pr(>F)` = c(permutest_rda$signif, NA_real_)
+    Df = perm_df,
+    Variance = perm_chi,
+    F = c(perm_f, NA_real_),
+    `Pr(>F)` = c(perm_signif, NA_real_)
   )
   rownames(permutest_rda_tab) <- c("Model", "Residual")
 }
@@ -261,6 +343,10 @@ dissimilarity_reference <- list(
 # Diversity ---------------------------------------------------------------------
 
 specaccum_random <- specaccum(varespec, method = "random", permutations = 50)
+# method = "random" is a Monte Carlo average over 50 orderings, so it can only
+# ever be compared loosely. The analytic "exact" curve is deterministic and
+# gives the comparison something it can actually pin down.
+specaccum_exact <- specaccum(varespec, method = "exact")
 poolaccum_model <- poolaccum(varespec, permutations = 50)
 
 shannon_vals <- vegan::diversity(varespec, index = "shannon")
@@ -283,9 +369,19 @@ diversity_reference <- list(
     richness = unname(specaccum_random$richness),
     sd = unname(specaccum_random$sd)
   ),
+  specaccum_exact = list(
+    sites = unname(specaccum_exact$sites),
+    richness = unname(specaccum_exact$richness)
+  ),
+  rarecurve = list(
+    sample_sizes = rarecurve_sample_sizes,
+    expected = matrix_payload(rarecurve_expected)
+  ),
+  # poolaccum objects expose $N and a $means matrix (N, S, Chao, Jackknife 1,
+  # Jackknife 2, Bootstrap); there are no $Sites/$Richness fields, and reading
+  # those produced an empty payload that the comparison could not test.
   poolaccum = list(
-    sites = unname(poolaccum_model$Sites),
-    richness = unname(poolaccum_model$Richness)
+    means = matrix_payload(poolaccum_model$means)
   )
 )
 
