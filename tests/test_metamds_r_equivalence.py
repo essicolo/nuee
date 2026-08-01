@@ -88,8 +88,10 @@ def test_meta_mds_roughly_matches_r_reference():
     assert result.stress_per_run and len(result.stress_per_run) == result.trymax
     assert [entry["run"] for entry in result.stress_history] == list(range(1, result.trymax + 1))
 
-    # Stress should be on the same order of magnitude as the R result.
-    assert math.isclose(result.stress, r_stress, rel_tol=0.75, abs_tol=0.15)
+    # nuee reports Kruskal's stress formula 1 on the same autotransformed
+    # data as vegan, and reaches the same optimum, so this is now a tight
+    # match rather than an order-of-magnitude check.
+    assert math.isclose(result.stress, r_stress, rel_tol=0.02, abs_tol=0.005)
 
     # Metadata about the best run should be populated and repeat counts sensible.
     assert result.best_run >= 1
@@ -102,7 +104,7 @@ def test_meta_mds_roughly_matches_r_reference():
 
     # Check that vegan-style metadata is exposed consistently.
     assert result.distance_method == "bray"
-    assert result.maxit == 200
+    assert result.maxit == 1000
     assert result.call["method"] == "NMDS"
     assert result.call["distance"] == "bray"
     assert result.call["n_components"] == 2

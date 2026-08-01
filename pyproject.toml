@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nuee"
-version = "0.1.8"
+version = "0.2.0"
 description = "Community Ecology Analysis in Python"
 readme = "README.md"
 authors = [
@@ -21,6 +21,8 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
@@ -31,11 +33,7 @@ dependencies = [
     "seaborn>=0.11.0",
     "scikit-learn>=1.0.0",
     "patsy>=0.5.0",
-    "statsmodels>=0.12.0",
     "adjustText>=0.8",
-    "pytest>=8.3.5",
-    "pyzmq>=27.1.0",
-    "holoviews>=1.17.1",
 ]
 
 [tool.setuptools]
@@ -58,6 +56,12 @@ dev = [
     "sphinx>=4.0",
     "sphinx-rtd-theme>=0.5",
 ]
+notebooks = [
+    "marimo>=0.9.0",
+    "holoviews>=1.17.1",
+    "statsmodels>=0.12.0",
+    "lets-plot>=4.0.0",
+]
 
 [tool.black]
 line-length = 88
@@ -69,4 +73,3 @@ profile = "black"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=nuee --cov-report=html --cov-report=term-missing"

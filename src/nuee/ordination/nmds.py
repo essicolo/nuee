@@ -9,8 +9,55 @@ import numpy as np
 import pandas as pd
 from typing import Union, Optional, Callable, Dict, Any, List, Tuple
 from sklearn.manifold import smacof
-from scipy.spatial.distance import squareform
+from sklearn.isotonic import IsotonicRegression
+from scipy.spatial.distance import squareform, pdist
 import warnings
+
+
+def _kruskal_stress_1(dist_matrix: np.ndarray, embedding: np.ndarray) -> float:
+    """Kruskal's stress formula 1 for a non-metric MDS configuration.
+
+    ``sqrt(sum((d - dhat)^2) / sum(d^2))``, where ``d`` are the distances in
+    the configuration and ``dhat`` the monotone (isotonic) regression of the
+    observed dissimilarities onto them. This is the quantity vegan reports.
+    Normalising the raw SMACOF stress by a pair count instead would make the
+    value depend on the number of sites rather than on the fit.
+    """
+    observed = squareform(np.asarray(dist_matrix), checks=False)
+    fitted = pdist(np.asarray(embedding))
+    if fitted.size == 0:
+        return 0.0
+
+    disparities = IsotonicRegression().fit(observed, fitted).predict(observed)
+    denominator = float(np.sum(fitted ** 2))
+    if denominator <= 0:
+        return 0.0
+    return float(np.sqrt(np.sum((fitted - disparities) ** 2) / denominator))
+
+
+def _principal_axes(points: np.ndarray) -> np.ndarray:
+    """Centre a configuration and rotate it onto its principal axes.
+
+    Distances are unchanged -- this is a rigid transform -- but the axes
+    become orthogonal and ordered by decreasing spread, which is the
+    convention vegan's ``postMDS`` establishes.
+    """
+    array = np.asarray(points, dtype=float)
+    if array.ndim != 2 or array.shape[0] == 0:
+        return array
+
+    centred = array - array.mean(axis=0, keepdims=True)
+    _, _, vt = np.linalg.svd(centred, full_matrices=False)
+    rotated = centred @ vt.T
+
+    # Fix the arbitrary sign of each axis so repeated fits agree: make the
+    # largest-magnitude coordinate on every axis positive.
+    for axis in range(rotated.shape[1]):
+        column = rotated[:, axis]
+        if column[np.argmax(np.abs(column))] < 0:
+            rotated[:, axis] = -column
+
+    return rotated
 
 
 def _cmdscale_init(dist_matrix: np.ndarray, n_components: int) -> Optional[np.ndarray]:
@@ -48,12 +95,12 @@ class NMDS(OrdinationMethod):
     ----------
     n_components : int, default=2
         Number of dimensions for the embedding (ordination axes).
-    max_iter : int, default=200
+    max_iter : int, default=1000
         Maximum number of iterations for the optimization algorithm.
     n_init : int, default=20
         Number of random initializations. The solution with minimum stress
         is returned.
-    eps : float, default=1e-3
+    eps : float, default=1e-12
         Convergence tolerance for the stress value.
     random_state : int, optional
         Random seed for reproducibility. If None, the random state is not fixed.
@@ -106,8 +153,8 @@ class NMDS(OrdinationMethod):
     Stress: 0.073
     """
 
-    def __init__(self, n_components: int = 2, max_iter: int = 200,
-                 n_init: int = 20, eps: float = 1e-3, random_state: Optional[int] = None,
+    def __init__(self, n_components: int = 2, max_iter: int = 1000,
+                 n_init: int = 20, eps: float = 1e-12, random_state: Optional[int] = None,
                  dissimilarity: str = "bray", n_jobs: Optional[int] = None):
         """Initialize NMDS with specified parameters."""
         self.n_components = n_components
@@ -162,7 +209,6 @@ class NMDS(OrdinationMethod):
 
         rng = np.random.default_rng(self.random_state)
 
-        stress_scale = dist_matrix.shape[0] * max(dist_matrix.shape[0] - 1, 1)
         best_raw_stress = None
 
         cmdscale_init = _cmdscale_init(dist_matrix, self.n_components)
@@ -193,7 +239,7 @@ class NMDS(OrdinationMethod):
             )
 
             raw_stress = float(raw_stress)
-            stress = float(np.sqrt(raw_stress / stress_scale)) if stress_scale > 0 else 0.0
+            stress = _kruskal_stress_1(dist_matrix, embedding)
             stress_history.append({
                 'run': run_idx + 1,
                 'stress': stress,
@@ -247,7 +293,7 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
             k: int = 2,
             distance: str = "bray",
             trymax: int = 20,
-            maxit: int = 200,
+            maxit: int = 1000,
             trace: bool = False,
             autotransform: bool = True,
             wascores: bool = True,
@@ -275,7 +321,7 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     trymax : int, default=20
         Maximum number of random starts to find the best solution.
         Higher values increase computation time but may find better solutions.
-    maxit : int, default=200
+    maxit : int, default=1000
         Maximum number of iterations for each random start.
     trace : bool, default=False
         If True, print progress information including stress values.
@@ -362,13 +408,6 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
     .. [3] Oksanen, J., et al. (2020). vegan: Community Ecology Package.
            https://CRAN.R-project.org/package=vegan
     """
-    warnings.warn(
-        "nuee.metaMDS currently relies on a SMACOF implementation that may "
-        "produce slightly different stress values than vegan::metaMDS. The "
-        "ordination is still valid, but expect mild numerical differences.",
-        UserWarning,
-        stacklevel=2,
-    )
     # Validate input
     if isinstance(X, pd.DataFrame):
         row_names = X.index.tolist()
@@ -421,7 +460,14 @@ def metaMDS(X: Union[np.ndarray, pd.DataFrame],
                 **kwargs)
     
     result = nmds.fit(X_array)
-    
+
+    # Centre and rotate the configuration to principal components, as vegan's
+    # postMDS does. An NMDS solution is only defined up to translation and
+    # rotation, so without this the axes carry no convention: the first axis
+    # need not hold the widest spread, and the axes need not be orthogonal --
+    # which in turn distorts anything that regresses on them, such as envfit.
+    result.points = _principal_axes(result.points)
+
     # Calculate species scores if requested
     if wascores and X_array.shape[1] > 0:
         scores, shrinkage, centre = _calculate_species_scores(

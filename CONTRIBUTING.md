@@ -104,6 +104,9 @@ Run tests with:
 ```bash
 pytest
 pytest tests/test_specific_module.py  # Run specific test file
+
+# With a coverage report (requires the dev extra)
+pytest --cov=nuee --cov-report=term-missing
 ```
 
 ### Documentation

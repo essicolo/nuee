@@ -182,6 +182,10 @@ def betadisper(distance_matrix: ArrayLike,
 
     return {
         "distances": distance_series,
+        # The grouping travels with the result so downstream consumers -- the
+        # boxplot in particular -- can split the distances without being
+        # handed the original factor again.
+        "groups": pd.Series(labels[inverse], index=np.arange(n), name="group"),
         "centroids": centroid_df,
         "group_means": group_series,
         "f_statistic": float(F) if np.isfinite(F) else np.nan,

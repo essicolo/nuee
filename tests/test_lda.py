@@ -84,3 +84,60 @@ def test_biplot_groups_and_color_by_exclusive():
     result = nuee.pca(pd.DataFrame(X))
     with pytest.raises(ValueError, match="mutually exclusive"):
         nuee.biplot(result, groups=y, color_by=np.ones(len(y)))
+
+
+# --- regression tests -------------------------------------------------------
+
+def test_lsqr_solver_is_rejected_with_a_clear_message():
+    """sklearn's lsqr has no transform and no scalings_, so it cannot back
+    an ordination; it used to crash deep inside fit_transform."""
+    X, y = _make_data()
+    with pytest.raises(ValueError, match="solver must be one of"):
+        nuee.lda(X, y, solver="lsqr")
+
+
+def test_eigen_solver_is_accepted():
+    X, y = _make_data()
+    result = nuee.lda(X, y, solver="eigen")
+    assert result.points.shape[0] == X.shape[0]
+
+
+def test_proportion_explained_is_not_renormalised_when_truncated():
+    """Regression: a single retained axis reported 100% of the between-group
+    variance because proportion_explained re-divided by the retained sum."""
+    X, y = _make_data()
+    full = nuee.lda(X, y)
+    truncated = nuee.lda(X, y, n_components=1)
+
+    assert full.proportion_explained.sum() == pytest.approx(1.0)
+    assert truncated.proportion_explained[0] == pytest.approx(
+        full.proportion_explained[0])
+    assert truncated.proportion_explained[0] < 1.0
+
+
+def test_proportion_explained_agrees_with_biplot_axis_labels():
+    X, y = _make_data()
+    result = nuee.lda(X, y, n_components=1)
+    assert np.allclose(result.proportion_explained,
+                       result.explained_variance_ratio_)
+
+
+def test_loadings_are_invariant_to_feature_rescaling():
+    """Regression: raw scalings_ shrank with the units of X while the scores
+    stayed put, collapsing every biplot arrow onto the origin."""
+    X, y = _make_data()
+    base = nuee.lda(X, y)
+    rescaled = nuee.lda(X * 1000.0, y)
+
+    assert np.max(np.abs(rescaled.species)) == pytest.approx(
+        np.max(np.abs(base.species)), rel=1e-8)
+    ratio = np.max(np.abs(base.species)) / np.max(np.abs(base.points))
+    ratio_rescaled = np.max(np.abs(rescaled.species)) / np.max(np.abs(rescaled.points))
+    assert ratio == pytest.approx(ratio_rescaled, rel=1e-8)
+
+
+def test_raw_loadings_are_preserved():
+    X, y = _make_data()
+    result = nuee.lda(X, y)
+    assert result.raw_loadings.shape == result.species.shape
+    assert np.allclose(result.raw_loadings, result.model.scalings_[:, :result.species.shape[1]])

@@ -120,14 +120,21 @@ def clr_inv(mat: np.ndarray) -> np.ndarray:
 
 
 def inner(mat: np.ndarray) -> np.ndarray:
-    """Compute the inner product matrix in the Aitchison simplex."""
+    """Compute the inner product matrix in the Aitchison simplex.
+
+    The Aitchison inner product is
+    ``(1/D) * sum_{i<j} log(x_i/x_j) log(y_i/y_j)``, and the identity
+    ``sum_{i<j} log(x_i/x_j) log(y_i/y_j) = D * clr(x) . clr(y)`` makes that
+    exactly the ordinary dot product of the clr coordinates. Dividing by ``D``
+    on top of the clr product would deflate every entry by that factor.
+    """
     mat = np.asarray(mat, dtype=float)
     mat = np.atleast_2d(mat)
     _check_positive(mat)
     mat = closure(mat)
     mat = np.log(mat)
     centered = mat - mat.mean(axis=1, keepdims=True)
-    return np.dot(centered, centered.T) / mat.shape[1]
+    return np.dot(centered, centered.T)
 
 
 def ilr(mat: np.ndarray, basis: np.ndarray | None = None) -> np.ndarray:
@@ -177,15 +184,32 @@ def alr(mat: np.ndarray, denominator_idx: int = -1) -> np.ndarray:
 
 
 def alr_inv(mat: np.ndarray, denominator_idx: int = -1) -> np.ndarray:
-    """Inverse additive log-ratio transformation."""
+    """Inverse additive log-ratio transformation.
+
+    ``denominator_idx`` indexes the restored composition, which has one more
+    component than *mat*. Negative indices are resolved against that wider
+    result: ``np.insert`` counts a negative position from the end of the
+    *input*, so passing -1 straight through would place the denominator
+    second-to-last instead of last, and the transform would not round-trip.
+    """
     mat = np.asarray(mat, dtype=float)
     was_1d = mat.ndim == 1
-    if mat.ndim == 2:
-        mat_exp = np.insert(np.exp(mat), denominator_idx, 1, axis=1)
-    elif mat.ndim == 1:
-        mat_exp = np.insert(np.exp(mat), denominator_idx, 1)
-    else:
+    if mat.ndim not in (1, 2):
         raise ValueError("mat must be either 1D or 2D")
+
+    n_components = mat.shape[-1] + 1
+    position = (denominator_idx if denominator_idx >= 0
+                else denominator_idx + n_components)
+    if not 0 <= position < n_components:
+        raise ValueError(
+            f"denominator_idx {denominator_idx} is out of range for a "
+            f"composition with {n_components} components."
+        )
+
+    if mat.ndim == 2:
+        mat_exp = np.insert(np.exp(mat), position, 1, axis=1)
+    else:
+        mat_exp = np.insert(np.exp(mat), position, 1)
     result = closure(mat_exp)
     if was_1d:
         return result

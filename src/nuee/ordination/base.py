@@ -362,12 +362,21 @@ class ConstrainedOrdinationResult(OrdinationResult):
     
     Additional attributes:
         constrained_eig: Eigenvalues for constrained axes
-        unconstrained_eig: Eigenvalues for unconstrained axes  
+        unconstrained_eig: Eigenvalues for unconstrained axes
         biplot: Biplot scores for environmental variables
         centroids: Centroids for factor variables
         envfit_result: Environmental fitting results
-        tot_chi: Total inertia
-        partial_chi: Partial inertia (if partial ordination)
+        tot_chi: Total inertia of the response, including any inertia removed
+            by the conditioning variables
+        partial_chi: Inertia removed by the conditioning variables (only set
+            for a partial ordination; None otherwise)
+
+    All eigenvalues are on the same scale as ``tot_chi``, so the components
+    are additive::
+
+        partial_chi + sum(constrained_eig) + sum(unconstrained_eig) == tot_chi
+
+    Use :meth:`inertia_partition` for that decomposition as a table.
     """
     
     def __init__(self, points: Optional[np.ndarray] = None, species: Optional[np.ndarray] = None,
@@ -476,6 +485,73 @@ class ConstrainedOrdinationResult(OrdinationResult):
         if self.eigenvalues is None or self.tot_chi is None or self.tot_chi == 0:
             return np.array([])
         return self.eigenvalues / self.tot_chi
+
+    @property
+    def unconstrained_inertia(self) -> float:
+        """Sum of unconstrained (residual) eigenvalues."""
+        if self.unconstrained_eig is not None:
+            return float(np.sum(self.unconstrained_eig))
+        return 0.0
+
+    @property
+    def conditioned_inertia(self) -> float:
+        """Inertia removed by the conditioning variables.
+
+        Zero for a non-partial ordination; equal to ``partial_chi`` when a
+        conditioning matrix ``Z`` was supplied.
+        """
+        return 0.0 if self.partial_chi is None else float(self.partial_chi)
+
+    def inertia_partition(self) -> pd.DataFrame:
+        """Partition the total inertia into its components.
+
+        The equivalent of the "Partitioning of variance" block printed by
+        ``summary()`` on a vegan ``rda``/``cca`` object. The components are
+        additive: for a partial ordination, conditioned + constrained +
+        unconstrained equals the total; for a non-partial one the conditioned
+        row is omitted and constrained + unconstrained equals the total.
+
+        For RDA the inertia is a variance; for CCA it is the mean squared
+        contingency coefficient. In both cases the ``Proportion`` column is
+        each component divided by the total.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Indexed by component name (``Total``, ``Conditioned`` when the
+            ordination is partial, ``Constrained``, ``Unconstrained``), with
+            columns ``Inertia`` and ``Proportion``.
+
+        Examples
+        --------
+        >>> result = nuee.rda(species, env, Z=covariates)  # doctest: +SKIP
+        >>> result.inertia_partition()                     # doctest: +SKIP
+                        Inertia  Proportion
+        Total           1825.66      1.0000
+        Conditioned      451.73      0.2474
+        Constrained      425.05      0.2328
+        Unconstrained    948.88      0.5197
+        """
+        if self.tot_chi is None:
+            raise ValueError(
+                "Total inertia is unavailable; this result does not carry a "
+                "tot_chi value."
+            )
+
+        total = float(self.tot_chi)
+        components = [("Total", total)]
+        if self.partial_chi is not None:
+            components.append(("Conditioned", self.conditioned_inertia))
+        components.append(("Constrained", self.constrained_inertia))
+        components.append(("Unconstrained", self.unconstrained_inertia))
+
+        names = [name for name, _ in components]
+        values = np.array([value for _, value in components], dtype=float)
+        proportions = (values / total if total != 0
+                       else np.full(values.shape, np.nan))
+
+        return pd.DataFrame({"Inertia": values, "Proportion": proportions},
+                            index=names)
 
 
 class OrdinationMethod(ABC):

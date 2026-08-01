@@ -10,6 +10,33 @@ from typing import Union, Optional, Sequence, Dict, Any, Tuple
 from .base import OrdinationResult
 
 
+def _fit_vector(env_centered: np.ndarray,
+                scores_centered: np.ndarray) -> Tuple[np.ndarray, float]:
+    """Fit one environmental vector onto the ordination, as vegan does.
+
+    The environmental variable is regressed on the ordination axes jointly.
+    The arrow is the unit-length vector of regression coefficients, and the
+    goodness of fit is the regression R-squared.
+
+    Summing the squared correlations with each axis instead is only equal to
+    the R-squared when the axes are orthogonal; ordination axes often are not,
+    and the shortcut then understates the fit.
+    """
+    coefficients, *_ = np.linalg.lstsq(scores_centered, env_centered, rcond=None)
+    fitted = scores_centered @ coefficients
+
+    total_ss = float(np.sum(env_centered ** 2))
+    r_squared = (0.0 if total_ss <= 0
+                 else float(1.0 - np.sum((env_centered - fitted) ** 2) / total_ss))
+    r_squared = float(np.clip(r_squared, 0.0, 1.0))
+
+    norm = float(np.linalg.norm(coefficients))
+    arrow = coefficients / norm if norm > 0 else np.zeros_like(coefficients)
+    # Scale the unit arrow by the correlation, so its length shows the
+    # strength of the fit. This is what vegan's scores(fit, "vectors") returns.
+    return arrow * np.sqrt(r_squared), r_squared
+
+
 def envfit(ordination: OrdinationResult,
            env: Union[np.ndarray, pd.DataFrame],
            permutations: int = 999,
@@ -74,8 +101,7 @@ def envfit(ordination: OrdinationResult,
             r_squared = 0.0
             p_val = 1.0
         else:
-            correlations = (env_centered @ scores_centered) / (env_norm * axis_norms)
-            r_squared = float(np.sum(correlations ** 2))
+            correlations, r_squared = _fit_vector(env_centered, scores_centered)
             p_val = _permutation_test(env_centered, scores_centered, axis_norms, env_norm,
                                       r_squared, permutations, rng)
         arrow_scores.append(correlations)
@@ -92,13 +118,6 @@ def envfit(ordination: OrdinationResult,
         "variables": var_names
     }
 
-    warnings.warn(
-        "nuee.envfit mirrors vegan's API but vector scaling and permutation "
-        "statistics may differ slightly from vegan::envfit. Interpret results "
-        "with that in mind while we finish aligning the implementations.",
-        UserWarning,
-        stacklevel=2,
-    )
 
     return {"vectors": vectors, "call": {"scaling": scaling, "choices": choices}}
 
@@ -142,8 +161,9 @@ def _permutation_test(env_centered: np.ndarray,
     exceed = 0
     for _ in range(permutations):
         permuted = rng.permutation(env_centered)
-        correlations = (permuted @ scores_centered) / (env_norm * axis_norms)
-        perm_r2 = np.sum(correlations ** 2)
+        # Same statistic as the observed fit, otherwise the null distribution
+        # is not comparable to the value being tested.
+        _, perm_r2 = _fit_vector(permuted, scores_centered)
         if perm_r2 >= observed_r2 - 1e-12:
             exceed += 1
     return (exceed + 1) / (permutations + 1)

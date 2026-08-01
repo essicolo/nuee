@@ -108,3 +108,11 @@ __marimo__
 
 # personnal tests
 essi/
+# OS artefacts
+.DS_Store
+._*
+Thumbs.db
+
+# scratch files that have leaked into the repo before
+temp_patch.txt
+/tests.py

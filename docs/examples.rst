@@ -278,9 +278,18 @@ Partial Ordination
 
 .. doctest::
 
-   >>> # RDA with covariables (partial RDA)
-   >>> # Y ~ X + Condition(Z)
-   >>> # Not yet implemented - coming soon!
+   >>> # RDA with covariables (partial RDA): species ~ N + P + K | Al + pH
+   >>> species = nuee.datasets.varespec()
+   >>> env = nuee.datasets.varechem()
+   >>> prda = nuee.rda(species, env[["N", "P", "K"]], Z=env[["Al", "pH"]])
+
+   >>> # Inertia absorbed by the covariables, kept apart from the constraints
+   >>> prda.inertia_partition()
+   [...]
+
+   >>> # Conditioned + constrained + unconstrained add up to the total
+   >>> prda.partial_chi + prda.constrained_inertia + prda.unconstrained_inertia
+   [...]
 
 Variable Selection
 ~~~~~~~~~~~~~~~~~~

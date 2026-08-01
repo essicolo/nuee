@@ -19,12 +19,18 @@ class RDA(OrdinationMethod):
     Redundancy Analysis for constrained ordination.
 
     This implementation follows the classical algorithm:
-      1. Centre/scale the response matrix as requested.
+      1. Centre/scale the response matrix as requested, then divide by
+         sqrt(n - 1) so that the total sum of squares is a variance. This is
+         the inertia scale vegan reports, and every eigenvalue inherits it.
       2. Centre the constraining variables.
       3. Solve the weighted least-squares regression analytically.
       4. Perform SVD on fitted (constrained) and residual (unconstrained) matrices.
       5. Store the full decomposition so downstream tools can reconstruct
          scaled scores mirroring vegan's behaviour.
+
+    For a partial RDA the conditioning step happens between 1 and 3, and the
+    already-prepared residual must not be rescaled a second time; see
+    :meth:`_partial_rda` and the ``prepared`` argument of :meth:`_simple_rda`.
     """
 
     def __init__(self, formula: Optional[str] = None,
@@ -58,11 +64,16 @@ class RDA(OrdinationMethod):
         Y:
             Constraining variables (samples x predictors) or DataFrame used with a formula.
         Z:
-            Conditioning matrix for partial RDA.
+            Conditioning matrix for partial RDA. When supplied, its effect is
+            removed from both X and Y, and the inertia it accounts for is
+            reported as ``partial_chi`` rather than folded into the
+            constrained or unconstrained components.
 
         Returns
         -------
         ConstrainedOrdinationResult
+            All inertia components share the scale of ``tot_chi``; see
+            :meth:`ConstrainedOrdinationResult.inertia_partition`.
         """
         X_is_df = isinstance(X, pd.DataFrame)
         sample_names = list(X.index) if X_is_df else None
@@ -172,9 +183,26 @@ class RDA(OrdinationMethod):
     def _simple_rda(self, X: np.ndarray, Y: np.ndarray,
                     sample_names: Optional[list[str]] = None,
                     species_names: Optional[list[str]] = None,
-                    call_info: Optional[Dict[str, Any]] = None) -> ConstrainedOrdinationResult:
-        """Perform simple (non-partial) RDA."""
-        response_matrix, response_center, response_scale = self._prepare_response_matrix(X)
+                    call_info: Optional[Dict[str, Any]] = None,
+                    prepared: bool = False,
+                    tot_chi_override: Optional[float] = None) -> ConstrainedOrdinationResult:
+        """Perform simple (non-partial) RDA.
+
+        ``prepared`` tells this method that ``X`` has already been centred,
+        scaled and divided by ``sqrt(n - 1)``, so it must not be transformed
+        again. ``tot_chi_override`` supplies the total inertia to report and to
+        build the scaling backend with, when it differs from the inertia of
+        ``X`` itself. Both are used by :meth:`_partial_rda`, where ``X`` is a
+        residual matrix but the reported total must stay that of the full
+        response.
+        """
+        if prepared:
+            response_matrix = np.asarray(X, dtype=float)
+            n_species = response_matrix.shape[1]
+            response_center = np.zeros(n_species, dtype=float)
+            response_scale = np.ones(n_species, dtype=float)
+        else:
+            response_matrix, response_center, response_scale = self._prepare_response_matrix(X)
         env_matrix, env_center = self._prepare_explanatory_matrix(Y)
 
         coefficients = self._solve_least_squares(env_matrix, response_matrix)
@@ -238,7 +266,8 @@ class RDA(OrdinationMethod):
             env_matrix, constrained_u, constrained_s, row_weights
         )
 
-        tot_chi = float(np.sum(response_matrix ** 2))
+        tot_chi = (float(tot_chi_override) if tot_chi_override is not None
+                   else float(np.sum(response_matrix ** 2)))
         eig_full = np.concatenate([
             constrained_eig,
             unconstrained_eig
@@ -299,7 +328,14 @@ class RDA(OrdinationMethod):
                      sample_names: Optional[list[str]] = None,
                      species_names: Optional[list[str]] = None,
                      call_info: Optional[Dict[str, Any]] = None) -> ConstrainedOrdinationResult:
-        """Perform partial RDA with conditioning variables."""
+        """Perform partial RDA with conditioning variables.
+
+        The effect of ``Z`` is regressed out of both the response and the
+        constraining matrix, and the constrained decomposition runs on the
+        residuals. ``tot_chi`` stays the inertia of the *full* response, while
+        ``partial_chi`` records the share absorbed by ``Z``, so that
+        ``partial_chi + constrained + unconstrained == tot_chi``.
+        """
         response_matrix, response_center, response_scale = self._prepare_response_matrix(X)
         env_matrix, env_center = self._prepare_explanatory_matrix(Y)
         conditioning_matrix, conditioning_center = self._prepare_explanatory_matrix(Z)
@@ -310,19 +346,24 @@ class RDA(OrdinationMethod):
         coef_env = self._solve_least_squares(conditioning_matrix, env_matrix)
         Y_residual = env_matrix - conditioning_matrix @ coef_env
 
+        total_inertia = float(np.sum(response_matrix ** 2))
+        partial_chi = total_inertia - float(np.sum(X_residual ** 2))
+
+        # X_residual/Y_residual are already centred and normalised by
+        # sqrt(n - 1); passing prepared=True keeps _simple_rda from applying
+        # that normalisation a second time, which would deflate every
+        # eigenvalue by a factor of (n - 1) relative to total_inertia.
         temp = RDA(scale=False, center=False)
         result = temp._simple_rda(
             X_residual,
             Y_residual,
             sample_names=sample_names,
             species_names=species_names,
-            call_info=call_info
+            call_info=call_info,
+            prepared=True,
+            tot_chi_override=total_inertia
         )
 
-        total_inertia = float(np.sum(response_matrix ** 2))
-        partial_chi = float(np.sum((response_matrix - X_residual) ** 2))
-
-        result.tot_chi = total_inertia
         result.partial_chi = partial_chi
         result.response_center = response_center
         result.response_scale = response_scale
@@ -339,7 +380,15 @@ class RDA(OrdinationMethod):
         return coef
 
     def _prepare_response_matrix(self, X: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Centre and/or scale the response matrix as configured."""
+        """Centre and/or scale the response matrix as configured.
+
+        Beyond the optional centring and scaling, the result is always divided
+        by ``sqrt(n - 1)``, which puts the total sum of squares on the variance
+        scale used for inertia. That division is unconditional -- the ``center``
+        and ``scale`` flags do not switch it off -- so this method must be
+        applied exactly once to any given matrix. Callers holding an
+        already-prepared matrix should not pass it through again.
+        """
         X = np.asarray(X, dtype=float)
         column_means = np.mean(X, axis=0)
         if self.center:
@@ -512,6 +561,11 @@ def rda(X: Union[np.ndarray, pd.DataFrame],
     RDA is a constrained ordination method that finds linear combinations
     of explanatory variables that best explain the variation in the response matrix.
     
+    Supplying ``Z`` fits a partial RDA: the effect of the conditioning
+    variables is removed from both the response and the explanatory matrix
+    before the constrained decomposition, and the inertia it accounts for is
+    reported separately as ``partial_chi``.
+
     Parameters:
         X: Response matrix (samples x species)
         Y: Explanatory matrix (samples x variables)
@@ -519,20 +573,27 @@ def rda(X: Union[np.ndarray, pd.DataFrame],
         formula: Formula string (e.g., "~ var1 + var2")
         data: DataFrame containing variables for formula
         scale: Whether to scale species to unit variance
+        center: Whether to centre species column-wise
         **kwargs: Additional parameters
-        
+
     Returns:
-        ConstrainedOrdinationResult with RDA results
-        
+        ConstrainedOrdinationResult with RDA results. Inertia is expressed as
+        variance, and every component shares that scale, so
+        ``partial_chi + sum(constrained_eig) + sum(unconstrained_eig)`` equals
+        ``tot_chi`` (``partial_chi`` being None for a non-partial fit). See
+        :meth:`~nuee.ordination.base.ConstrainedOrdinationResult.inertia_partition`
+        for the decomposition as a table.
+
     Examples:
         # Simple RDA
         result = rda(species_data, environmental_data)
-        
+
         # RDA with formula
         result = rda(species_data, formula="~ pH + temperature", data=env_data)
-        
-        # Partial RDA
-        result = rda(species_data, environmental_data, conditioning_data)
+
+        # Partial RDA, conditioning on covariates
+        result = rda(species_data, environmental_data, Z=conditioning_data)
+        result.inertia_partition()
     """
     rda_obj = RDA(formula=formula, scale=scale, center=center)
     

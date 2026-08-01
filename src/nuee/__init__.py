@@ -57,7 +57,7 @@ References
        R package version 2.5-7. https://CRAN.R-project.org/package=vegan
 """
 
-__version__ = "0.1.8"
+__version__ = "0.2.0"
 __author__ = "nuee Development Team"
 
 from .ordination import (
