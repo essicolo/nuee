@@ -101,6 +101,77 @@ def mite_env() -> pd.DataFrame:
     return _load_csv("mite.env.csv")
 
 
+def BCI_env() -> pd.DataFrame:
+    """
+    Environmental and site data corresponding to BCI.
+
+    Returns:
+        DataFrame with 50 plots and their habitat, geology and topography
+    """
+    return _load_csv("BCI.env.csv")
+
+
+def dune_taxon() -> pd.DataFrame:
+    """
+    Taxonomic classification of the dune meadow species.
+
+    Returns:
+        DataFrame with 30 species and their genus, family, order,
+        superorder and subclass
+    """
+    return _load_csv("dune.taxon.csv")
+
+
+def mite_pcnm() -> pd.DataFrame:
+    """
+    Principal coordinates of neighbour matrices for the mite sites.
+
+    Returns:
+        DataFrame with 70 sites and 22 spatial PCNM variables
+    """
+    return _load_csv("mite.pcnm.csv")
+
+
+def mite_xy() -> pd.DataFrame:
+    """
+    Geographic coordinates of the mite sampling sites.
+
+    Returns:
+        DataFrame with 70 sites and their x/y coordinates
+    """
+    return _load_csv("mite.xy.csv")
+
+
+def pyrifos() -> pd.DataFrame:
+    """
+    Invertebrate counts from the chlorpyrifos mesocosm experiment.
+
+    Returns:
+        DataFrame with 132 samples (12 ditches over 11 dates) and 178 species
+    """
+    return _load_csv("pyrifos.csv")
+
+
+def sipoo() -> pd.DataFrame:
+    """
+    Breeding birds on islands in the Sipoo archipelago.
+
+    Returns:
+        DataFrame with 18 islands and 50 bird species (presence/absence)
+    """
+    return _load_csv("sipoo.csv")
+
+
+def sipoo_map() -> pd.DataFrame:
+    """
+    Coordinates and areas of the Sipoo archipelago islands.
+
+    Returns:
+        DataFrame with 18 islands and their northing, easting and area
+    """
+    return _load_csv("sipoo.map.csv")
+
+
 def load_example_data() -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Load example species and environmental data for quick testing.
