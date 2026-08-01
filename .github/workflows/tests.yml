@@ -1,0 +1,78 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: "tests-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10 is the floor: metaMDS needs scikit-learn >= 1.7, which in turn
+        # requires 3.10. Older scikit-learn converges to a worse SMACOF
+        # optimum and the ordination silently degrades.
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run test suite
+        run: pytest tests/ -v --cov=nuee --cov-report=term-missing
+
+      - name: Compare against the vegan reference
+        # Needs no R: the reference values are committed as JSON and this
+        # script only checks nuee against them. It is what caught the
+        # metaMDS, envfit, specaccum and poolaccum defects.
+        run: python tests/diagnostics/compare_vegan_reference.py
+
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+
+      - name: Check metadata
+        run: twine check dist/*
+
+      - name: Install the wheel into a clean environment and import it
+        run: |
+          python -m venv /tmp/wheelcheck
+          /tmp/wheelcheck/bin/pip install --quiet dist/*.whl
+          /tmp/wheelcheck/bin/python -c "
+          import importlib, pkgutil, nuee
+          for module in pkgutil.walk_packages(nuee.__path__, 'nuee.'):
+              importlib.import_module(module.name)
+          print('nuee', nuee.__version__, 'imports cleanly')
+          "
