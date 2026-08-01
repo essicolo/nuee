@@ -226,6 +226,18 @@ class OrdinationResult:
             species_mult = species_mult[:cols]
             species *= species_mult
 
+        # Label the axes here too, not only on the custom-backend path.
+        # Results without a scaling backend -- constrained CCA among them --
+        # otherwise came back as bare arrays, so callers could not tell which
+        # column was CCA1, nor select an axis by name.
+        if sites is not None:
+            sites = self._wrap_scores_dataframe(
+                sites, self._site_axis_labels, self._site_names
+            )
+        if species is not None:
+            species = self._wrap_scores_dataframe(
+                species, self._species_axis_labels, self._species_names
+            )
         return sites, species
 
     def _scaling_multipliers(self, scaling: int,

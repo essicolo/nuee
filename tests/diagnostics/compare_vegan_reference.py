@@ -149,6 +149,40 @@ def _tolerance(expected: np.ndarray, abs_tol: float, rel_tol: float) -> float:
     return max(abs_tol, rel_tol * scale)
 
 
+def align_signs(actual: pd.DataFrame, expected: pd.DataFrame) -> pd.DataFrame:
+    """Flip each column of *actual* to the sign convention of *expected*.
+
+    The sign of a singular vector is arbitrary -- it depends on the LAPACK
+    build, so the same code gives opposite axes on different machines. Any
+    comparison of eigenvectors, ordination axes or the rotation between two
+    configurations has to align first or it is testing the linear algebra
+    backend rather than the statistic.
+    """
+    # Reindex first: the caller may hold every axis while the reference keeps
+    # only the first few, and the flip has to be decided per aligned column.
+    aligned = actual.reindex(index=expected.index, columns=expected.columns)
+    actual_values = aligned.to_numpy()
+    expected_values = expected.to_numpy()
+    agreement = np.nansum(actual_values * expected_values, axis=0)
+    flips = np.where(agreement < 0, -1.0, 1.0)
+    return pd.DataFrame(actual_values * flips,
+                        index=aligned.index, columns=aligned.columns)
+
+
+def _reject_empty_comparison(name: str, difference: np.ndarray) -> None:
+    """Refuse a comparison in which nothing lines up.
+
+    Reindexing onto labels that do not match yields an all-NaN difference;
+    np.nanmax then returns NaN and `NaN > tol` is False, so the assertion
+    passes while testing nothing. Two comparisons sat in that state.
+    """
+    if difference.size == 0 or np.all(np.isnan(difference)):
+        raise AssertionError(
+            f"{name}: nothing to compare -- actual and expected share no "
+            "aligned values. Check the labels and shapes on both sides."
+        )
+
+
 def assert_close_scalar(name: str,
                         actual: float,
                         expected: float,
@@ -171,7 +205,9 @@ def assert_close_series(name: str,
                         abs_tol: float = 1e-8,
                         rel_tol: float = 1e-6) -> None:
     actual_aligned = actual.reindex(expected.index)
-    diff = np.nanmax(np.abs(actual_aligned.to_numpy() - expected.to_numpy()))
+    residual = np.abs(actual_aligned.to_numpy() - expected.to_numpy())
+    _reject_empty_comparison(name, residual)
+    diff = np.nanmax(residual)
     tol = _tolerance(expected.to_numpy(), abs_tol, rel_tol)
     LOGGER.debug("%s max abs diff %.6g (tolerance %.6g)", name, diff, tol)
     if diff > tol:
@@ -184,7 +220,9 @@ def assert_close_frame(name: str,
                        abs_tol: float = 1e-8,
                        rel_tol: float = 1e-6) -> None:
     actual_aligned = actual.reindex(index=expected.index, columns=expected.columns)
-    diff = np.nanmax(np.abs(actual_aligned.to_numpy() - expected.to_numpy()))
+    residual = np.abs(actual_aligned.to_numpy() - expected.to_numpy())
+    _reject_empty_comparison(name, residual)
+    diff = np.nanmax(residual)
     tol = _tolerance(expected.to_numpy(), abs_tol, rel_tol)
     LOGGER.debug("%s max abs diff %.6g (tolerance %.6g)", name, diff, tol)
     if diff > tol:
@@ -235,7 +273,8 @@ def compare_rda(reference: Dict[str, Any],
     for key in ("cca_wa", "ca_u", "cca_v", "ca_v"):
         expected = matrix_from_payload(bases[key])
         actual = ensure_frame(getattr(result, key), rows=expected.index, cols=expected.columns)
-        assert_close_frame(f"rda.{key}", actual, expected, abs_tol=1e-6, rel_tol=1e-6)
+        assert_close_frame(f"rda.{key}", align_signs(actual, expected), expected,
+                           abs_tol=1e-6, rel_tol=1e-6)
 
     scores_ref = ref["scores"]
     for scaling_key in ("scaling1", "scaling2", "scaling3"):
@@ -249,8 +288,8 @@ def compare_rda(reference: Dict[str, Any],
         sites_df = ensure_frame(sites, rows=ref_sites.index, cols=ref_sites.columns)
         species_df = ensure_frame(species_scores, rows=ref_species.index, cols=ref_species.columns)
 
-        assert_close_frame(f"rda.{scaling_key}.sites", sites_df, ref_sites, abs_tol=1e-6, rel_tol=1e-6)
-        assert_close_frame(f"rda.{scaling_key}.species", species_df, ref_species, abs_tol=1e-6, rel_tol=1e-6)
+        assert_close_frame(f"rda.{scaling_key}.sites", align_signs(sites_df, ref_sites), ref_sites, abs_tol=1e-6, rel_tol=1e-6)
+        assert_close_frame(f"rda.{scaling_key}.species", align_signs(species_df, ref_species), ref_species, abs_tol=1e-6, rel_tol=1e-6)
 
 
 def compare_rda_partial(reference: Dict[str, Any],
@@ -314,7 +353,7 @@ def compare_rda_partial(reference: Dict[str, Any],
         ref_sites = matrix_from_payload(scores_ref[scaling_key]["sites"])
         sites = result.get_scores(display="sites", scaling=scaling_id)
         sites_df = ensure_frame(sites, rows=ref_sites.index, cols=ref_sites.columns)
-        assert_close_frame(f"rda_partial.{scaling_key}.sites", sites_df, ref_sites,
+        assert_close_frame(f"rda_partial.{scaling_key}.sites", align_signs(sites_df, ref_sites), ref_sites,
                            abs_tol=1e-6, rel_tol=1e-6)
 
 
@@ -400,6 +439,14 @@ def compare_cca(reference: Dict[str, Any],
     assert_close_series("cca.constrained_eigenvalues", actual_constrained, expected_constrained, abs_tol=1e-6, rel_tol=1e-6)
     assert_close_series("cca.unconstrained_eigenvalues", actual_unconstrained, expected_unconstrained, abs_tol=1e-6, rel_tol=1e-6)
 
+    bases = ref["bases"]
+    for key in ("cca_u", "cca_v", "cca_wa", "ca_u", "ca_v"):
+        expected = matrix_from_payload(bases[key])
+        actual = ensure_frame(getattr(result, key), rows=expected.index,
+                              cols=expected.columns)
+        assert_close_frame(f"cca.{key}", align_signs(actual, expected), expected,
+                           abs_tol=1e-6, rel_tol=1e-6)
+
     scores_ref = ref["scores"]
     for scaling_key in ("scaling1", "scaling2", "scaling3"):
         scaling_id = int(scaling_key[-1])
@@ -412,8 +459,12 @@ def compare_cca(reference: Dict[str, Any],
         sites_df = ensure_frame(sites, rows=ref_sites.index, cols=ref_sites.columns)
         species_df = ensure_frame(species_scores, rows=ref_species.index, cols=ref_species.columns)
 
-        assert_close_frame(f"cca.{scaling_key}.sites", sites_df, ref_sites, abs_tol=1e-6, rel_tol=1e-6)
-        assert_close_frame(f"cca.{scaling_key}.species", species_df, ref_species, abs_tol=1e-6, rel_tol=1e-6)
+        assert_close_frame(f"cca.{scaling_key}.sites",
+                           align_signs(sites_df, ref_sites), ref_sites,
+                           abs_tol=1e-6, rel_tol=1e-6)
+        assert_close_frame(f"cca.{scaling_key}.species",
+                           align_signs(species_df, ref_species), ref_species,
+                           abs_tol=1e-6, rel_tol=1e-6)
 
 
 def compare_pca(reference: Dict[str, Any],
@@ -497,9 +548,13 @@ def compare_procrustes(reference: Dict[str, Any],
         # nuee and vegan land on the same NMDS configuration only to within the
         # optimiser's own convergence, which leaves a residual near 2e-6 here.
         assert_close_scalar("procrustes.ss", float(result["ss"]), ref_ss, abs_tol=1e-5, rel_tol=1e-5)
+    # The rotation maps the RDA configuration onto the NMDS one, so it
+    # inherits the arbitrary sign of the RDA axes.
     ref_rotation = matrix_from_payload(ref["rotation"])
     actual_rotation = ensure_frame(result["rotation"], rows=ref_rotation.index, cols=ref_rotation.columns)
-    assert_close_frame("procrustes.rotation", actual_rotation, ref_rotation, abs_tol=1e-4, rel_tol=1e-4)
+    assert_close_frame("procrustes.rotation",
+                       align_signs(actual_rotation, ref_rotation), ref_rotation,
+                       abs_tol=1e-4, rel_tol=1e-4)
 
 
 def compare_vegdist(reference: Dict[str, Any],
@@ -531,8 +586,13 @@ def compare_diversity_metrics(reference: Dict[str, Any],
     fisher_actual = ensure_series(nuee.fisher_alpha(species_counts), fisher_ref.index)
     assert_close_series("diversity.fisher_alpha", fisher_actual, fisher_ref, abs_tol=1e-6, rel_tol=1e-6)
 
+    # The reference was generated for scales c(0, 0.5, 1, 2, 3, 4); calling
+    # nuee.renyi() on its defaults compared a different set of scales
+    # entirely, which is why nothing lined up.
     renyi_ref = matrix_from_payload(ref["renyi"])
-    renyi_actual = ensure_frame(nuee.renyi(species), rows=renyi_ref.index, cols=renyi_ref.columns)
+    renyi_scales = [0.0, 0.5, 1.0, 2.0, 3.0, 4.0]
+    renyi_actual = ensure_frame(nuee.renyi(species, scales=renyi_scales),
+                                rows=renyi_ref.index, cols=renyi_ref.columns)
     assert_close_frame("diversity.renyi", renyi_actual, renyi_ref, abs_tol=1e-6, rel_tol=1e-6)
 
     rarefy_ref = vector_from_payload(ref["rarefy"])
@@ -543,9 +603,21 @@ def compare_diversity_metrics(reference: Dict[str, Any],
     specnumber_actual = ensure_series(nuee.specnumber(species), specnumber_ref.index)
     assert_close_series("diversity.specnumber", specnumber_actual, specnumber_ref, abs_tol=1e-6, rel_tol=1e-6)
 
-    estimate_ref = matrix_from_payload(ref["estimateR"])
-    estimate_actual = ensure_frame(nuee.estimateR(species_counts), rows=estimate_ref.index, cols=estimate_ref.columns)
-    assert_close_frame("diversity.estimateR", estimate_actual, estimate_ref, abs_tol=1e-6, rel_tol=1e-6)
+    # vegan lays estimateR out as statistics x sites; nuee as sites x
+    # statistics, and the two report overlapping but not identical sets (nuee
+    # adds f1/f2, vegan adds the standard errors). Transpose, then compare the
+    # statistics both provide.
+    estimate_ref = matrix_from_payload(ref["estimateR"]).T
+    estimate_actual = nuee.estimateR(species_counts)
+    shared = [name for name in estimate_ref.columns if name in estimate_actual.columns]
+    if not shared:
+        raise AssertionError(
+            f"estimateR shares no statistic with vegan: nuee has "
+            f"{list(estimate_actual.columns)}, vegan has {list(estimate_ref.columns)}")
+    estimate_actual = ensure_frame(estimate_actual[shared].to_numpy(),
+                                   rows=estimate_ref.index, cols=shared)
+    assert_close_frame("diversity.estimateR", estimate_actual,
+                       estimate_ref[shared], abs_tol=1e-6, rel_tol=1e-6)
 
     # The analytic curve is deterministic, so it can be pinned down exactly.
     specaccum_exact_ref = ref["specaccum_exact"]

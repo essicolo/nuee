@@ -101,6 +101,48 @@ def rarecurve(x: Union[np.ndarray, pd.DataFrame],
     return curves
 
 
+#: Abundance at or below which a species counts as "rare" for ACE.
+ACE_RARE_THRESHOLD = 10
+
+
+def _ace_estimator(row: np.ndarray, s_obs: int, f1: int) -> float:
+    """Abundance-based Coverage Estimator of richness, as vegan computes it.
+
+    Species with an abundance of at most :data:`ACE_RARE_THRESHOLD` inform the
+    sample coverage; the abundant ones are taken as fully observed. The
+    coefficient of variation of the rare abundances corrects for uneven
+    abundance among them.
+    """
+    rare = row[(row > 0) & (row <= ACE_RARE_THRESHOLD)]
+    n_abundant = int(np.sum(row > ACE_RARE_THRESHOLD))
+    n_rare_species = int(rare.size)
+    n_rare_individuals = int(rare.sum())
+
+    if n_rare_species == 0 or n_rare_individuals == 0:
+        return float(n_abundant)
+
+    coverage = 1.0 - f1 / n_rare_individuals
+    if coverage <= 0:
+        # Every rare species is a singleton: coverage is zero and the
+        # estimator is undefined, so fall back on the observed richness.
+        return float(s_obs)
+
+    counts = np.arange(1, ACE_RARE_THRESHOLD + 1)
+    frequencies = np.array([np.sum(row == count) for count in counts], dtype=float)
+
+    variation = 0.0
+    if n_rare_individuals > 1:
+        variation = max(
+            n_rare_species / coverage
+            * float(np.sum(counts * (counts - 1) * frequencies))
+            / (n_rare_individuals * (n_rare_individuals - 1))
+            - 1.0,
+            0.0,
+        )
+
+    return float(n_abundant + n_rare_species / coverage + f1 / coverage * variation)
+
+
 def estimateR(x: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
     """
     Estimate species richness using various estimators.
@@ -127,21 +169,19 @@ def estimateR(x: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
         row = x_array[i]
         
         # Observed richness
-        S_obs = np.sum(row > 0)
-        
+        S_obs = int(np.sum(row > 0))
+
         # Singletons and doubletons
-        f1 = np.sum(row == 1)
-        f2 = np.sum(row == 2)
-        
-        # Chao1 estimator
-        if f2 > 0:
-            chao1 = S_obs + (f1**2) / (2 * f2)
-        else:
-            chao1 = S_obs + f1 * (f1 - 1) / 2
-        
-        # ACE estimator (simplified)
-        ace = S_obs + f1 / f2 if f2 > 0 else S_obs
-        
+        f1 = int(np.sum(row == 1))
+        f2 = int(np.sum(row == 2))
+
+        # Bias-corrected Chao1, the form vegan reports. The uncorrected
+        # f1^2 / (2 * f2) is undefined without doubletons and overestimates
+        # when they are few.
+        chao1 = S_obs + f1 * (f1 - 1) / 2.0 / (f2 + 1)
+
+        ace = _ace_estimator(row, S_obs, f1)
+
         results.append({
             'S.obs': S_obs,
             'S.chao1': chao1,
