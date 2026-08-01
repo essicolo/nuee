@@ -240,6 +240,15 @@ ordination_reference <- list(
 # Dissimilarity & permutation ---------------------------------------------------
 
 vegdist_bray <- vegan::vegdist(varespec, method = "bray")
+# Every index vegdist offers, not just bray: fifteen of the sixteen went
+# unchecked, and eleven of those disagreed with vegan.
+vegdist_methods <- c("bray", "jaccard", "euclidean", "manhattan", "canberra",
+                     "gower", "altGower", "morisita", "horn", "mountford",
+                     "raup", "binomial", "chao", "cao", "kulczynski",
+                     "mahalanobis")
+vegdist_all <- lapply(vegdist_methods, function(m)
+    suppressWarnings(unname(as.numeric(vegan::vegdist(varespec, method = m)))))
+names(vegdist_all) <- vegdist_methods
 adonis2_model <- vegan::adonis2(varespec ~ N + P + K + Ca + Mg,
                                 data = varechem, permutations = 199)
 anosim_model <- vegan::anosim(vegdist_bray, grouping, permutations = 199)
@@ -295,6 +304,7 @@ permutest_rda_permutations <- as.integer(permutest_rda_permutations)
 
 dissimilarity_reference <- list(
   vegdist_bray = dist_payload(vegdist_bray),
+  vegdist_all = vegdist_all,
   adonis2 = table_payload(adonis2_model),
   anosim = list(
     statistic = anosim_model$statistic,

@@ -1,5 +1,3 @@
-**`nuee` has just been released, and is likely to contain errors and bugs. The code has been tested, but hasn't been thoroughly reviewed. Do not trust its results blindly.**
-
 # `nuee`: Community Ecology Analysis in Python
 
 `nuee` is a comprehensive Python implementation of the popular R package `vegan` for community ecology analysis. It provides tools for ordination, diversity analysis, dissimilarity measures, and statistical testing commonly used in ecological research.
@@ -170,6 +168,19 @@ mantel_result = nuee.mantel(dist_matrix, env_dist)
 print(f"PERMANOVA R^2: {permanova_result["r_squared"]:.3f}")
 print(f"ANOSIM R: {anosim_result["r_statistic"]:.3f}")
 print(f"Mantel r: {mantel_result["r_statistic"]:.3f}")
+```
+
+## Validation against vegan
+
+`nuee` is checked against reference values generated with R's `vegan`
+(`tests/reference/export_vegan.R`). The suite covers ordination (RDA, partial
+RDA, CCA, CA, PCA, metaMDS, envfit, procrustes, ordistep), dissimilarity (all
+sixteen `vegdist` indices, adonis2, anosim, mrpp, betadisper, mantel, protest)
+and diversity (Shannon, Simpson, Renyi, rarefaction, specaccum, poolaccum,
+estimateR). Run it with:
+
+```bash
+python tests/diagnostics/compare_vegan_reference.py
 ```
 
 ## Dependencies

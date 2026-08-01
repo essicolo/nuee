@@ -605,6 +605,16 @@ def compare_vegdist(reference: Dict[str, Any],
     actual_df = ensure_frame(actual_matrix, rows=ref_matrix.index, cols=ref_matrix.columns)
     assert_close_frame("vegdist.bray", actual_df, ref_matrix, abs_tol=1e-6, rel_tol=1e-6)
 
+    # Every index, not just bray. Checking bray alone left fifteen methods
+    # unvalidated, and eleven of those disagreed with vegan.
+    for method, expected in reference["dissimilarity"]["vegdist_all"].items():
+        actual = np.asarray(nuee.vegdist(species, method=method), dtype=float)
+        if actual.ndim == 2:
+            actual = squareform(actual, checks=False)
+        assert_close_series(f"vegdist.{method}",
+                            pd.Series(actual), pd.Series(expected),
+                            abs_tol=1e-8, rel_tol=1e-8)
+
 
 def compare_diversity_metrics(reference: Dict[str, Any],
                               species: pd.DataFrame) -> None:
