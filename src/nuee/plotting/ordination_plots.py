@@ -18,18 +18,72 @@ def _to_1d(v) -> np.ndarray:
 
     Handles: Polars DataFrame/Series, pandas DataFrame/Series,
     numpy arrays (1-D or single-column 2-D), and plain lists.
+
+    Raises
+    ------
+    ValueError
+        If the input holds more than one column. Collapsing it silently would
+        either drop columns or interleave them into a longer vector, and the
+        resulting failure would surface far from its cause.
     """
-    # Polars DataFrame → first column
+    def _too_wide(n_cols: int) -> ValueError:
+        return ValueError(
+            f"Expected a single vector, received {n_cols} columns. "
+            "Select one column before passing it."
+        )
+
+    # Polars DataFrame → its only column
     if hasattr(v, "to_series"):        # pl.DataFrame
+        n_cols = getattr(v, "width", None)
+        if n_cols is None:
+            n_cols = len(getattr(v, "columns", None) or [])
+        if n_cols > 1:
+            raise _too_wide(n_cols)
         v = v.to_series()
     if hasattr(v, "to_numpy"):         # pl.Series or pd.Series/DataFrame
         v = v.to_numpy()
     arr = np.asarray(v)
-    if arr.ndim == 2 and arr.shape[1] == 1:
+    if arr.ndim == 2:
+        if arr.shape[1] != 1:
+            raise _too_wide(arr.shape[1])
         arr = arr.ravel()
     if arr.ndim != 1:
-        arr = arr.ravel()
+        raise ValueError(
+            f"Expected a 1-D vector, received an array with {arr.ndim} "
+            "dimensions."
+        )
     return arr
+
+
+def _unique_groups(groups: np.ndarray) -> list:
+    """Ordered unique group labels, with all missing values collapsed into one.
+
+    ``dict.fromkeys`` cannot be used directly: no two float NaNs compare
+    equal, so each missing label would become its own group that then matches
+    no site at all.
+    """
+    return list(pd.unique(pd.Series(groups)))
+
+
+def _group_mask(groups: np.ndarray, label) -> np.ndarray:
+    """Boolean mask selecting the sites carrying *label*, NaN-safe."""
+    if pd.isna(label):
+        return pd.isna(pd.Series(groups)).to_numpy()
+    return np.asarray(groups == label)
+
+
+def _cmap_color(cmap, idx: int, n_groups: int):
+    """Pick the colour for group *idx* out of *n_groups*.
+
+    Qualitative colormaps (``tab10``, ``tab20``, ...) hold a fixed number of
+    distinct entries; sampling them on a normalised 0-1 ramp collapses
+    neighbouring groups onto the same colour once ``n_groups`` exceeds that
+    number. Index them directly and wrap instead.
+    """
+    n_colors = getattr(cmap, "N", None)
+    if n_colors and getattr(cmap, "colors", None) is not None:
+        return cmap(idx % n_colors)
+    return cmap(idx / max(n_groups - 1, 1))
 
 
 def plot_ordination(result: OrdinationResult,
@@ -80,7 +134,15 @@ def plot_ordination(result: OrdinationResult,
         site_scores = getattr(result, "points", None)
         species_scores = getattr(result, "species", None)
         scaling_id = None
-    
+
+    # get_scores returns labelled frames; the positional indexing below needs
+    # plain arrays, and a DataFrame would raise on `scores[:, axis]`.
+    if isinstance(site_scores, pd.DataFrame):
+        site_scores = site_scores.values
+    if isinstance(species_scores, pd.DataFrame):
+        species_scores = species_scores.values
+
+
     # Plot sites
     if display in ["sites", "both"]:
         if site_scores is not None:
@@ -230,13 +292,16 @@ def biplot(result: 'OrdinationResult',
         _has_adjusttext = False
 
     # --- Resolve groups / color_by ---
-    if groups is None:
-        groups = getattr(result, "groups", None)
+    # The exclusivity check has to run on what the caller actually passed.
+    # LDA results always carry a .groups attribute, so consulting that first
+    # would turn any color_by on an LDA result into a spurious conflict.
     if groups is not None and color_by is not None:
         raise ValueError(
             "'groups' and 'color_by' are mutually exclusive; "
             "provide one or neither."
         )
+    if groups is None and color_by is None:
+        groups = getattr(result, "groups", None)
     if groups is not None:
         groups = _to_1d(groups)
     if color_by is not None:
@@ -265,6 +330,17 @@ def biplot(result: 'OrdinationResult',
     if isinstance(species, pd.DataFrame):
         species = species.values
 
+    # Catch a length mismatch here, where the count is meaningful, rather than
+    # letting it surface as an opaque boolean-index error inside the group loop.
+    if sites is not None:
+        n_sites = sites.shape[0]
+        for name, values in (("groups", groups), ("color_by", color_by)):
+            if values is not None and values.shape[0] != n_sites:
+                raise ValueError(
+                    f"'{name}' has {values.shape[0]} entries but the "
+                    f"ordination has {n_sites} sites."
+                )
+
     # Collect text objects for repel
     _texts = []
 
@@ -288,7 +364,7 @@ def biplot(result: 'OrdinationResult',
 
         if groups is not None:
             # -- Categorical group coloring --
-            unique_groups = list(dict.fromkeys(groups))  # preserve order
+            unique_groups = _unique_groups(groups)  # preserve order
             n_groups = len(unique_groups)
             if cmap is not None:
                 _cmap = plt.get_cmap(cmap)
@@ -298,15 +374,17 @@ def biplot(result: 'OrdinationResult',
                 _cmap = None  # use default colour cycle
 
             for idx, grp in enumerate(unique_groups):
-                mask = groups == grp
-                color = f"C{idx}" if _cmap is None else _cmap(
-                    idx / max(n_groups - 1, 1))
+                mask = _group_mask(groups, grp)
+                color = f"C{idx}" if _cmap is None else _cmap_color(
+                    _cmap, idx, n_groups)
                 grp_kw = dict(_site_kw)
                 grp_kw.pop("facecolors", None)
                 grp_kw.pop("edgecolors", None)
                 grp_kw.pop("label", None)
+                # 'c' would collide with the 'color' set below.
+                grp_kw.pop("c", None)
                 grp_kw["color"] = color
-                grp_kw["label"] = str(grp)
+                grp_kw["label"] = "NA" if pd.isna(grp) else str(grp)
                 ax.scatter(x[mask], y[mask], **grp_kw)
 
                 if show_site_labels:
@@ -322,6 +400,9 @@ def biplot(result: 'OrdinationResult',
             cont_kw.pop("facecolors", None)
             cont_kw.pop("edgecolors", None)
             cont_kw.pop("label", None)
+            # 'c'/'color' would collide with the colour-mapped c=color_by.
+            cont_kw.pop("c", None)
+            cont_kw.pop("color", None)
             cont_kw["edgecolors"] = "face"
             sc = ax.scatter(x, y, c=color_by, cmap=cmap or "viridis",
                             **cont_kw)
