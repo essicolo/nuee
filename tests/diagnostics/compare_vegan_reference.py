@@ -169,6 +169,46 @@ def align_signs(actual: pd.DataFrame, expected: pd.DataFrame) -> pd.DataFrame:
                         index=aligned.index, columns=aligned.columns)
 
 
+def align_signs_both_ways(actual: pd.DataFrame,
+                          expected: pd.DataFrame) -> pd.DataFrame:
+    """Align a matrix that is defined up to row *and* column sign flips.
+
+    A Procrustes rotation maps one configuration onto another, so it inherits
+    the arbitrary axis signs of both: flipping an axis of the source turns R
+    into ``D @ R`` and flipping one of the target into ``R @ D'``. Flipping
+    columns alone cannot undo the first, and a single flipped axis turns the
+    rotation into a reflection -- which is what made this comparison pass on
+    one machine and fail on another.
+
+    The search is exhaustive, which is exact and cheap for the small matrices
+    involved here.
+    """
+    aligned = actual.reindex(index=expected.index, columns=expected.columns)
+    actual_values = aligned.to_numpy()
+    expected_values = expected.to_numpy()
+    n_rows, n_cols = actual_values.shape
+
+    if n_rows + n_cols > 12:
+        raise AssertionError(
+            f"align_signs_both_ways: {n_rows}x{n_cols} is too large for an "
+            "exhaustive sign search."
+        )
+
+    best, best_error = actual_values, np.inf
+    for row_bits in range(2 ** n_rows):
+        row_signs = np.array([1.0 if row_bits >> i & 1 else -1.0
+                              for i in range(n_rows)])
+        for col_bits in range(2 ** n_cols):
+            col_signs = np.array([1.0 if col_bits >> j & 1 else -1.0
+                                  for j in range(n_cols)])
+            candidate = actual_values * row_signs[:, None] * col_signs[None, :]
+            error = np.nanmax(np.abs(candidate - expected_values))
+            if error < best_error:
+                best, best_error = candidate, error
+
+    return pd.DataFrame(best, index=aligned.index, columns=aligned.columns)
+
+
 def _reject_empty_comparison(name: str, difference: np.ndarray) -> None:
     """Refuse a comparison in which nothing lines up.
 
@@ -549,12 +589,13 @@ def compare_procrustes(reference: Dict[str, Any],
         # optimiser's own convergence, which leaves a residual near 2e-6 here.
         assert_close_scalar("procrustes.ss", float(result["ss"]), ref_ss, abs_tol=1e-5, rel_tol=1e-5)
     # The rotation maps the RDA configuration onto the NMDS one, so it
-    # inherits the arbitrary sign of the RDA axes.
+    # inherits the arbitrary axis signs of both -- rows from the source,
+    # columns from the target.
     ref_rotation = matrix_from_payload(ref["rotation"])
     actual_rotation = ensure_frame(result["rotation"], rows=ref_rotation.index, cols=ref_rotation.columns)
     assert_close_frame("procrustes.rotation",
-                       align_signs(actual_rotation, ref_rotation), ref_rotation,
-                       abs_tol=1e-4, rel_tol=1e-4)
+                       align_signs_both_ways(actual_rotation, ref_rotation),
+                       ref_rotation, abs_tol=1e-4, rel_tol=1e-4)
 
 
 def compare_vegdist(reference: Dict[str, Any],

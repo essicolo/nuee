@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pytest
 
@@ -120,3 +121,42 @@ def test_envfit_r_is_the_root_of_r2():
     vectors = nuee.envfit(result, env, permutations=49, random_state=1)["vectors"]
 
     assert np.allclose(vectors["r"], np.sqrt(vectors["r2"]))
+
+
+# --- procrustes --------------------------------------------------------------
+
+def test_procrustes_matches_vegan_on_identical_inputs():
+    """The residual against vegan comes from the NMDS configuration, not from
+    procrustes: given vegan's own points the agreement is exact.
+
+    A warning used to claim procrustes "depends on the metaMDS configuration"
+    and might differ from vegan. It takes two configurations and depends on
+    neither, so the warning was removed.
+    """
+    import json
+    from pathlib import Path
+
+    reference_path = Path(__file__).resolve().parent / "reference" / "vegan_reference.json"
+    reference = json.loads(reference_path.read_text())["ordination"]
+
+    vegan_points = np.asarray(reference["metaMDS"]["points"]["data"], dtype=float)
+    expected_ss = float(np.asarray(reference["procrustes"]["ss"]).ravel()[0])
+
+    species = nuee.datasets.varespec()
+    env = nuee.datasets.varechem()
+    rda_result = nuee.rda(species, formula="~ N + P + K + Ca + Mg", data=env)
+    sites = np.asarray(rda_result.get_scores(display="sites", scaling=1))[:, :2]
+
+    result = nuee.procrustes(sites, vegan_points)
+    assert float(np.asarray(result["ss"]).ravel()[0]) == pytest.approx(
+        expected_ss, abs=1e-12)
+
+
+def test_procrustes_emits_no_warning():
+    rng = np.random.default_rng(0)
+    x = rng.normal(size=(10, 2))
+    y = x @ np.array([[0.0, -1.0], [1.0, 0.0]]) + 3.0
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        nuee.procrustes(x, y)
