@@ -181,7 +181,7 @@ print(f"Mantel r: {mantel_result["r_statistic"]:.3f}")
 - **seaborn** >= 0.11.0
 - **scikit-learn** >= 1.0.0
 - **patsy** >= 0.5.0 (for formula interface)
-- **statsmodels** >= 0.12.0
+- **adjustText** >= 0.8 (for non-overlapping biplot labels)
 
 ## Contributing
 
