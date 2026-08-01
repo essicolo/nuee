@@ -84,6 +84,31 @@ class CCA(OrdinationMethod):
             env_centered, constr_u, constr_s, row_masses
         )
 
+        # Weighted averages of the site scores: vegan's CCA$wa, and the basis
+        # its scaled site scores are built from.
+        cca_wa = None
+        if constr_s.size:
+            inv_s = np.divide(1.0, constr_s,
+                              out=np.zeros_like(constr_s),
+                              where=constr_s > 0)
+            cca_wa = (Z_w @ (constr_vt.T * inv_s))
+            cca_wa = np.divide(cca_wa, row_sqrt[:, None],
+                               out=np.zeros_like(cca_wa),
+                               where=row_sqrt[:, None] > 0)
+
+        constr_v = self._scale_species_vectors(constr_vt.T, col_sqrt) if constr_s.size else None
+        resid_v = self._scale_species_vectors(resid_vt.T, col_sqrt) if resid_s.size else None
+
+        scaling_backend = _build_cca_scaling_backend(
+            cca_wa=cca_wa,
+            ca_u=resid_u if resid_s.size else None,
+            cca_v=constr_v,
+            ca_v=resid_v,
+            eigenvalues=np.concatenate([constrained_eig, unconstrained_eig])
+            if constrained_eig.size or unconstrained_eig.size
+            else np.array([], dtype=float),
+        )
+
         tot_chi = float(np.sum((centered ** 2) / (row_masses[:, None] * col_masses[None, :])))
 
         call_info: Dict[str, Any] = {
@@ -105,14 +130,31 @@ class CCA(OrdinationMethod):
             tot_chi=tot_chi,
             call=call_info,
             site_u=constr_u if constr_s.size else None,
-            species_v=self._scale_species_vectors(constr_vt.T, col_sqrt) if constr_s.size else None,
+            species_v=constr_v,
             singular_values=constr_s if constr_s.size else None,
             site_u_unconstrained=resid_u if resid_s.size else None,
-            species_v_unconstrained=self._scale_species_vectors(resid_vt.T, col_sqrt) if resid_s.size else None,
+            species_v_unconstrained=resid_v,
             singular_values_unconstrained=resid_s if resid_s.size else None,
             row_weights=row_masses,
-            column_weights=col_masses
+            column_weights=col_masses,
+            scaling_backend=scaling_backend
         )
+
+        result.cca_wa = None if cca_wa is None else np.array(cca_wa, copy=True)
+        result.cca_u = None if not constr_s.size else np.array(constr_u, copy=True)
+        result.cca_v = None if constr_v is None else np.array(constr_v, copy=True)
+        result.ca_u = None if not resid_s.size else np.array(resid_u, copy=True)
+        result.ca_v = None if resid_v is None else np.array(resid_v, copy=True)
+
+        # Label the axes the way the constrained RDA path does: without these
+        # get_scores() hands back a bare ndarray, so callers cannot tell which
+        # column is CCA1 and cannot select axes by name.
+        constrained_labels = [f"CCA{i + 1}" for i in range(int(constr_s.size))]
+        unconstrained_labels = [f"CA{i + 1}" for i in range(int(resid_s.size))]
+        axis_labels = constrained_labels + unconstrained_labels
+        if axis_labels:
+            result._site_axis_labels = axis_labels
+            result._species_axis_labels = axis_labels
 
         result.row_masses = row_masses
         result.column_masses = col_masses
@@ -285,7 +327,12 @@ class CCA(OrdinationMethod):
             site_scores = result.get_scores(display="sites", scaling=1)
         except ValueError:
             return None
-        if site_scores is None or site_scores.size == 0:
+        if site_scores is None:
+            return None
+        # get_scores returns a labelled frame; the arithmetic below needs the
+        # bare values, and pandas would misroute the `out=` of np.divide.
+        site_scores = np.asarray(site_scores, dtype=float)
+        if site_scores.size == 0:
             return None
         row_masses = getattr(result, "row_masses", None)
         if row_masses is None:
@@ -307,6 +354,53 @@ class CCA(OrdinationMethod):
                 where=weights[:, None] > 0
             )
         return species_scores
+
+
+def _build_cca_scaling_backend(cca_wa, ca_u, cca_v, ca_v, eigenvalues):
+    """Scaling backend for constrained CCA, following vegan's scores.cca.
+
+    Sites come from the weighted averages, species from the right singular
+    vectors, and each is multiplied by a power of the singular values:
+
+    ============  ==================  =====================
+    scaling       sites               species
+    ============  ==================  =====================
+    1 (sites)     ``wa * sqrt(eig)``  ``v``
+    2 (species)   ``wa``              ``v * sqrt(eig)``
+    3 (symmetric) ``wa * eig**0.25``  ``v * eig**0.25``
+    ============  ==================  =====================
+
+    Unlike the RDA backend there is no additional constant: vegan applies one
+    only to rda objects.
+    """
+    blocks = (cca_wa, ca_u, cca_v, ca_v)
+    if all(block is None or block.size == 0 for block in blocks):
+        return None
+
+    slam = np.sqrt(np.clip(eigenvalues, a_min=0.0, a_max=None))
+
+    def scaler(scaling: int):
+        if scaling not in (1, 2, 3):
+            raise ValueError("scaling must be 1, 2, or 3 for CCA results.")
+
+        site_scalers = {1: slam, 2: np.ones_like(slam), 3: np.sqrt(slam)}
+        species_scalers = {1: np.ones_like(slam), 2: slam, 3: np.sqrt(slam)}
+
+        def stack(parts, multipliers):
+            offset = 0
+            out = []
+            for part in parts:
+                if part is None or part.size == 0:
+                    continue
+                width = part.shape[1]
+                out.append(part * multipliers[offset:offset + width])
+                offset += width
+            return np.hstack(out) if out else None
+
+        return (stack((cca_wa, ca_u), site_scalers[scaling]),
+                stack((cca_v, ca_v), species_scalers[scaling]))
+
+    return scaler
 
 
 def _build_ca_scaling_backend(site_u, species_v, eigenvalues):
