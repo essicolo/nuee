@@ -10,6 +10,8 @@ Provides:
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pandas as pd
 from typing import Union, Optional
@@ -194,128 +196,14 @@ def replace_zeros(
     return result
 
 
-def impute_missing(
-    X: Union[np.ndarray, pd.DataFrame],
-    method: str = "lrEM",
-    max_iter: int = 100,
-    tol: float = 1e-4,
-    random_state: Optional[int] = None,
-) -> Union[np.ndarray, pd.DataFrame]:
+def _alr_em_pass(mat, nan_mask, orig_mat, orig_nan_mask, denom_idx,
+                 denom_prefilled, D, n, method, max_iter, tol, rng):
+    """One full ALR -> EM -> inverse-ALR pass over *mat*.
+
+    *mat* must already have its ALR denominator column free of NaN, and
+    *nan_mask* must mark that column as observed. Returns the completed
+    matrix on the original scale.
     """
-    Impute missing values in compositional data using the lrEM algorithm.
-
-    Uses the ALR (additive log-ratio) EM algorithm of Palarea-Albaladejo &
-    Martín-Fernández (2008), matching the approach in R's ``zCompositions``
-    package.  Observed values are preserved exactly in the output.
-
-    Ideally one column should be fully observed (no ``NaN`` values) to serve
-    as the ALR denominator.  When no column is complete, the column with the
-    fewest missing values is chosen and its gaps are pre-filled using
-    row-proportional estimation from column-mean ratios before running EM.
-
-    Parameters
-    ----------
-    X : array-like or DataFrame, shape (n, D)
-        Compositional data matrix.  ``NaN`` marks missing components.
-        Observed (non-NaN) values must be strictly positive.
-    method : {"lrEM", "lrDA"}, default "lrEM"
-        ``"lrEM"`` returns the conditional expectation (deterministic).
-        ``"lrDA"`` adds noise from the conditional covariance for multiple
-        imputation / data augmentation.
-    max_iter : int, default 100
-        Maximum number of EM iterations.
-    tol : float, default 1e-4
-        Convergence tolerance on the relative change of the log-likelihood.
-    random_state : int, optional
-        Seed for the random number generator (only used when *method="lrDA"*).
-
-    Returns
-    -------
-    numpy.ndarray or DataFrame
-        Completed data.  Observed values are unchanged; imputed values are
-        scaled consistently with the original observed components.
-
-    References
-    ----------
-    .. [1] Palarea-Albaladejo, J. & Martín-Fernández, J. A. (2008).
-           A modified EM alr-algorithm for replacing rounded zeros in
-           compositional data sets. *Computers & Geosciences* 34(8).
-    """
-    if method not in ("lrEM", "lrDA"):
-        raise ValueError(f"method must be 'lrEM' or 'lrDA', got '{method}'")
-
-    is_df = isinstance(X, pd.DataFrame)
-    if is_df:
-        index, columns = X.index, X.columns
-        mat = X.values.astype(float)
-    else:
-        mat = np.asarray(X, dtype=float).copy()
-
-    if mat.ndim != 2:
-        raise ValueError("X must be a 2-D array or DataFrame")
-
-    n, D = mat.shape
-    if D < 2:
-        raise ValueError("Need at least 2 components for compositional imputation")
-
-    rng = np.random.default_rng(random_state)
-
-    # Identify missingness
-    nan_mask = np.isnan(mat)
-    has_missing = nan_mask.any(axis=1)
-    all_missing = nan_mask.all(axis=1)
-
-    if np.any(all_missing):
-        raise ValueError("Some rows are entirely NaN; cannot impute")
-
-    # Check observed values are positive
-    observed_vals = mat[~nan_mask]
-    if np.any(observed_vals < 0):
-        raise ValueError("Observed (non-NaN) values must be non-negative")
-    if np.any(observed_vals[~np.isnan(observed_vals)] == 0):
-        raise ValueError(
-            "Observed values contain zeros. Use replace_zeros() first, "
-            "then impute_missing() for NaN values."
-        )
-
-    # Find the ALR denominator column
-    col_na_count = nan_mask.sum(axis=0)
-    complete_cols = np.where(col_na_count == 0)[0]
-
-    # Save original state before any pre-filling
-    orig_nan_mask = nan_mask.copy()
-    orig_mat = mat.copy()
-    denom_prefilled = np.zeros(n, dtype=bool)
-
-    if complete_cols.size > 0:
-        denom_idx = int(complete_cols[0])  # first complete column (like R)
-    else:
-        # No complete column: pick the one with fewest NAs and pre-fill
-        # using row-proportional estimation from observed values.
-        denom_idx = int(np.argmin(col_na_count))
-        denom_prefilled = nan_mask[:, denom_idx].copy()
-
-        col_means = np.nanmean(mat, axis=0)
-        for i in range(n):
-            if denom_prefilled[i]:
-                obs_cols = np.where(~nan_mask[i])[0]
-                # Estimate denominator from each observed column via mean ratios
-                estimates = []
-                for j in obs_cols:
-                    if col_means[j] > 0:
-                        estimates.append(
-                            mat[i, j] * col_means[denom_idx] / col_means[j]
-                        )
-                if not estimates:
-                    raise ValueError(
-                        f"Row {i}: no observed values available to estimate "
-                        "the ALR denominator."
-                    )
-                mat[i, denom_idx] = float(np.median(estimates))
-
-        # Update nan_mask so the denominator column is treated as observed
-        nan_mask[:, denom_idx] = False
-
     # Non-denominator column indices (these become the ALR coordinates)
     alr_cols = [j for j in range(D) if j != denom_idx]
     n_alr = len(alr_cols)  # D - 1
@@ -452,6 +340,147 @@ def impute_missing(
                 scale = orig_mat[i, denom_idx] / comp[i, denom_idx]
             for j in miss_cols:
                 result[i, j] = comp[i, j] * scale
+
+    return result
+
+
+def impute_missing(
+    X: Union[np.ndarray, pd.DataFrame],
+    method: str = "lrEM",
+    max_iter: int = 100,
+    tol: float = 1e-4,
+    random_state: Optional[int] = None,
+) -> Union[np.ndarray, pd.DataFrame]:
+    """
+    Impute missing values in compositional data using the lrEM algorithm.
+
+    Uses the ALR (additive log-ratio) EM algorithm of Palarea-Albaladejo &
+    Martín-Fernández (2008), matching the approach in R's ``zCompositions``
+    package.  Observed values are preserved exactly in the output.
+
+    Ideally one column should be fully observed (no ``NaN`` values) to serve
+    as the ALR denominator.  When no column is complete, the column with the
+    fewest missing values is chosen and its gaps are pre-filled using
+    row-proportional estimation from column-mean ratios before running EM.
+
+    Parameters
+    ----------
+    X : array-like or DataFrame, shape (n, D)
+        Compositional data matrix.  ``NaN`` marks missing components.
+        Observed (non-NaN) values must be strictly positive.
+    method : {"lrEM", "lrDA"}, default "lrEM"
+        ``"lrEM"`` returns the conditional expectation (deterministic).
+        ``"lrDA"`` adds noise from the conditional covariance for multiple
+        imputation / data augmentation.
+    max_iter : int, default 100
+        Maximum number of EM iterations.
+    tol : float, default 1e-4
+        Convergence tolerance on the relative change of the log-likelihood.
+    random_state : int, optional
+        Seed for the random number generator (only used when *method="lrDA"*).
+
+    Returns
+    -------
+    numpy.ndarray or DataFrame
+        Completed data.  Observed values are unchanged; imputed values are
+        scaled consistently with the original observed components.
+
+    References
+    ----------
+    .. [1] Palarea-Albaladejo, J. & Martín-Fernández, J. A. (2008).
+           A modified EM alr-algorithm for replacing rounded zeros in
+           compositional data sets. *Computers & Geosciences* 34(8).
+    """
+    if method not in ("lrEM", "lrDA"):
+        raise ValueError(f"method must be 'lrEM' or 'lrDA', got '{method}'")
+
+    is_df = isinstance(X, pd.DataFrame)
+    if is_df:
+        index, columns = X.index, X.columns
+        mat = X.values.astype(float)
+    else:
+        mat = np.asarray(X, dtype=float).copy()
+
+    if mat.ndim != 2:
+        raise ValueError("X must be a 2-D array or DataFrame")
+
+    n, D = mat.shape
+    if D < 2:
+        raise ValueError("Need at least 2 components for compositional imputation")
+
+    rng = np.random.default_rng(random_state)
+
+    # Identify missingness
+    nan_mask = np.isnan(mat)
+    all_missing = nan_mask.all(axis=1)
+
+    if np.any(all_missing):
+        raise ValueError("Some rows are entirely NaN; cannot impute")
+
+    # Check observed values are positive
+    observed_vals = mat[~nan_mask]
+    if np.any(observed_vals < 0):
+        raise ValueError("Observed (non-NaN) values must be non-negative")
+    if np.any(observed_vals[~np.isnan(observed_vals)] == 0):
+        raise ValueError(
+            "Observed values contain zeros. Use replace_zeros() first, "
+            "then impute_missing() for NaN values."
+        )
+
+    # Find the ALR denominator column
+    col_na_count = nan_mask.sum(axis=0)
+    complete_cols = np.where(col_na_count == 0)[0]
+
+    # Save original state before any pre-filling
+    orig_nan_mask = nan_mask.copy()
+    orig_mat = mat.copy()
+    denom_prefilled = np.zeros(n, dtype=bool)
+
+    if complete_cols.size > 0:
+        denom_idx = int(complete_cols[0])  # first complete column (like R)
+    else:
+        # No complete column: pick the one with fewest NAs and pre-fill
+        # using row-proportional estimation from observed values.
+        denom_idx = int(np.argmin(col_na_count))
+        denom_prefilled = nan_mask[:, denom_idx].copy()
+
+        warnings.warn(
+            f"No fully observed component can serve as the ALR denominator; "
+            f"column {denom_idx} was chosen and its "
+            f"{int(col_na_count[denom_idx])} missing value(s) pre-filled by "
+            "log-ratio estimation. Those values anchor the ALR coordinates of "
+            "their rows and are returned unchanged -- the EM step cannot "
+            "refine them -- so they carry more error than the other imputed "
+            "cells. Supply a complete component where possible.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+        # Geometric column means: the data are compositional, so the row level
+        # is estimated in log space. log(d_i) is taken as the average, over the
+        # observed components j, of log(x_ij) - log(gm_j) + log(gm_denom).
+        # That is the natural estimator under a lognormal model with a row
+        # effect, and it beats the median of arithmetic-mean ratios.
+        with np.errstate(divide="ignore", invalid="ignore"):
+            log_col_gmean = np.nanmean(np.log(mat), axis=0)
+
+        for i in range(n):
+            if denom_prefilled[i]:
+                obs_cols = np.where(~nan_mask[i])[0]
+                usable = [j for j in obs_cols if np.isfinite(log_col_gmean[j])]
+                # The all-NaN row guard above leaves at least one observed
+                # column, so `usable` is never empty.
+                log_estimate = np.mean([
+                    np.log(mat[i, j]) - log_col_gmean[j] + log_col_gmean[denom_idx]
+                    for j in usable
+                ])
+                mat[i, denom_idx] = float(np.exp(log_estimate))
+
+        # Update nan_mask so the denominator column is treated as observed
+        nan_mask[:, denom_idx] = False
+
+    result = _alr_em_pass(mat, nan_mask, orig_mat, orig_nan_mask, denom_idx,
+                          denom_prefilled, D, n, method, max_iter, tol, rng)
 
     if is_df:
         return pd.DataFrame(result, index=index, columns=columns)
